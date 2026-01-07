@@ -11,6 +11,9 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-dialog": "^1.1.15",

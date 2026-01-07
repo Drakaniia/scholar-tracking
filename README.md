@@ -60,12 +60,18 @@ A comprehensive system to manage, monitor, and streamline all scholarship-relate
    npx prisma db seed
    ```
 
-5. **Run development server**:
-   ```bash
-   npm run dev
-   ```
+ 5. **Run development server**:
+    ```bash
+    npm run dev
+    ```
 
-6. **Open** [http://localhost:3000](http://localhost:3000)
+ 6. **Open** [http://localhost:3000](http://localhost:3000)
+
+ 7. **View database tables** (optional):
+    ```bash
+    npx prisma studio
+    ```
+    This will open Prisma Studio in your browser where you can visually inspect and manage your database records.
 
 ## Prisma Database Schema
 
@@ -188,30 +194,45 @@ graph TD
     style N fill:#38b6ff
 ```
 
+## Database Management
+
+### Prisma Studio
+To view and manage your database tables visually, run:
+```bash
+npx prisma studio
+```
+This opens a local web interface where you can inspect and modify your database records directly.
+
+### Seeding Data
+To populate your database with sample data:
+```bash
+npx prisma db seed
+```
+
 ## Project Structure
 
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── api/               # API Routes
-│   │   ├── students/      # Student CRUD
-│   │   ├── scholarships/  # Scholarship CRUD
-│   │   ├── applications/  # Application management
-│   │   ├── dashboard/     # Dashboard stats
-│   │   └── export/        # PDF/CSV exports
-│   ├── students/          # Students page
-│   ├── scholarships/      # Scholarships page
-│   ├── applications/      # Applications page
-│   └── page.tsx           # Dashboard
-├── components/
-│   ├── ui/                # shadcn/ui components
-│   ├── layout/            # Layout components
-│   ├── forms/             # Form components
-│   └── shared/            # Shared/reusable components
-├── hooks/                 # Custom React hooks
-├── lib/                   # Utilities and configs
-└── types/                 # TypeScript types
-```
+ ```
+ src/
+ ├── app/                    # Next.js App Router
+ │   ├── api/               # API Routes
+ │   │   ├── students/      # Student CRUD
+ │   │   ├── scholarships/  # Scholarship CRUD
+ │   │   ├── applications/  # Application management
+ │   │   ├── dashboard/     # Dashboard stats
+ │   │   └── export/        # PDF/CSV exports
+ │   ├── students/          # Students page
+ │   ├── scholarships/      # Scholarships page
+ │   ├── applications/      # Applications page
+ │   └── page.tsx           # Dashboard
+ ├── components/
+ │   ├── ui/                # shadcn/ui components
+ │   ├── layout/            # Layout components
+ │   ├── forms/             # Form components
+ │   └── shared/            # Shared/reusable components
+ ├── hooks/                 # Custom React hooks
+ ├── lib/                   # Utilities and configs
+ └── types/                 # TypeScript types
+ ```
 
 ## License
 
