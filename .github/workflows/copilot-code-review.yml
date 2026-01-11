@@ -1,0 +1,56 @@
+name: GitHub Copilot Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  copilot-code-review:
+    name: Copilot Code Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            **/*.ts
+            **/*.tsx
+            **/*.js
+            **/*.jsx
+
+      - name: Run Copilot code review
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: github/copilot-code-review-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          files: ${{ steps.changed-files.outputs.all_changed_files }}
+          prompt: |
+            Please review the following code changes and provide:
+            1. Code quality assessment
+            2. Potential bugs or issues
+            3. Security concerns
+            4. Performance improvements
+            5. Best practices violations
+            6. Suggestions for refactoring
+
+            Focus on TypeScript/React code patterns and Next.js best practices.
