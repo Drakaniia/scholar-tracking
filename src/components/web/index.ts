@@ -1,0 +1,1 @@
+export { WebSidebar } from './sidebar';

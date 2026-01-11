@@ -1,0 +1,19 @@
+# Code Owners
+
+# Global code owners - can approve any changes
+* @Drakaniia
+
+# Frontend code
+src/app/ @Drakaniia
+src/components/ @Drakaniia
+
+# Backend/API code
+src/app/api/ @Drakaniia
+src/services/ @Drakaniia
+
+# Database
+prisma/ @Drakaniia
+
+# Configuration
+*.config.* @Drakaniia
+*.json @Drakaniia
