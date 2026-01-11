@@ -214,16 +214,13 @@ npx prisma db seed
  ```
  src/
  ├── app/                    # Next.js App Router
+ ├── app/                    # Next.js App Router
  │   ├── api/               # API Routes
- │   │   ├── students/      # Student CRUD
- │   │   ├── scholarships/  # Scholarship CRUD
- │   │   ├── applications/  # Application management
- │   │   ├── dashboard/     # Dashboard stats
- │   │   └── export/        # PDF/CSV exports
- │   ├── students/          # Students page
- │   ├── scholarships/      # Scholarships page
- │   ├── applications/      # Applications page
- │   └── page.tsx           # Dashboard
+ │   │   ├── admin/         # Admin API Routes
+ │   │   └── web/           # Student API Routes
+ │   ├── admin/             # Admin Portal Pages
+ │   ├── web/               # Student Portal Pages
+ │   └── page.tsx           # Landing Page / Redirector
  ├── components/
  │   ├── ui/                # shadcn/ui components
  │   ├── layout/            # Layout components

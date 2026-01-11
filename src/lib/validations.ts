@@ -74,3 +74,54 @@ export function isValidPhoneNumber(phone: string): boolean {
     const phoneRegex = /^(09|\+639)\d{9}$/;
     return phoneRegex.test(phone.replace(/\s/g, ''));
 }
+
+export function validateStudentRegistration(data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    course: string;
+    yearLevel: string;
+    educationLevel: string;
+    tuitionFee: number;
+}): string[] {
+    const errors: string[] = [];
+
+    if (!data.email?.trim()) {
+        errors.push('Email is required');
+    } else if (!isValidEmail(data.email)) {
+        errors.push('Invalid email format');
+    }
+
+    if (!data.password?.trim()) {
+        errors.push('Password is required');
+    } else if (data.password.length < 8) {
+        errors.push('Password must be at least 8 characters');
+    }
+
+    if (!data.firstName?.trim()) {
+        errors.push('First name is required');
+    }
+
+    if (!data.lastName?.trim()) {
+        errors.push('Last name is required');
+    }
+
+    if (!data.course?.trim()) {
+        errors.push('Course is required');
+    }
+
+    if (!data.yearLevel) {
+        errors.push('Year level is required');
+    }
+
+    if (!data.educationLevel) {
+        errors.push('Education level is required');
+    }
+
+    if (data.tuitionFee === undefined || data.tuitionFee < 0) {
+        errors.push('Tuition fee must be a valid positive number');
+    }
+
+    return errors;
+}

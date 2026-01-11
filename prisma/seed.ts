@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -9,6 +10,37 @@ async function main() {
     await prisma.studentScholarship.deleteMany();
     await prisma.student.deleteMany();
     await prisma.scholarship.deleteMany();
+    await prisma.user.deleteMany();
+
+    // Create Admin User
+    const hashedPassword = await bcrypt.hash('admin123', 12);
+    const adminUser = await prisma.user.create({
+        data: {
+            email: 'admin@scholartrack.com',
+            password: hashedPassword,
+            firstName: 'Admin',
+            lastName: 'User',
+            role: 'admin',
+            isActive: true,
+        },
+    });
+
+    console.log(`✅ Created admin user: ${adminUser.email} (password: admin123)`);
+
+    // Create Staff User
+    const staffPassword = await bcrypt.hash('staff123', 12);
+    const staffUser = await prisma.user.create({
+        data: {
+            email: 'staff@scholartrack.com',
+            password: staffPassword,
+            firstName: 'Staff',
+            lastName: 'User',
+            role: 'staff',
+            isActive: true,
+        },
+    });
+
+    console.log(`✅ Created staff user: ${staffUser.email} (password: staff123)`);
 
     // Create Scholarships
     const scholarships = await Promise.all([
@@ -154,6 +186,46 @@ async function main() {
     ]);
 
     console.log(`✅ Created ${students.length} students`);
+
+    // Create Student Users with Login Credentials
+    const studentPassword = await bcrypt.hash('student123', 12);
+    const studentUsers = await Promise.all([
+        prisma.user.create({
+            data: {
+                email: 'juan.delacruz@student.com',
+                password: studentPassword,
+                firstName: 'Juan',
+                lastName: 'Dela Cruz',
+                role: 'student',
+                isActive: true,
+                studentId: students[0].id,
+            },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'maria.reyes@student.com',
+                password: studentPassword,
+                firstName: 'Maria',
+                lastName: 'Reyes',
+                role: 'student',
+                isActive: true,
+                studentId: students[1].id,
+            },
+        }),
+        prisma.user.create({
+            data: {
+                email: 'pedro.santos@student.com',
+                password: studentPassword,
+                firstName: 'Pedro',
+                lastName: 'Santos',
+                role: 'student',
+                isActive: true,
+                studentId: students[2].id,
+            },
+        }),
+    ]);
+
+    console.log(`✅ Created ${studentUsers.length} student users (password: student123)`);
 
     // Create Applications
     const applications = await Promise.all([
