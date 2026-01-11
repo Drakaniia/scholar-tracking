@@ -24,7 +24,7 @@ export interface CreateStudentData {
   userId?: number;
 }
 
-export interface UpdateStudentData extends Partial<CreateStudentData> {}
+export type UpdateStudentData = Partial<CreateStudentData>;
 
 export const studentService = {
   /**

@@ -63,7 +63,12 @@ function UserProfile({
   loading,
   logout,
 }: {
-  user: any;
+  user: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
   loading: boolean;
   logout: () => void;
 }) {

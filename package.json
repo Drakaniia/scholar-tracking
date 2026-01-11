@@ -8,7 +8,7 @@
     "dev:web": "next dev -p 3002",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --quiet",
     "type-check": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",

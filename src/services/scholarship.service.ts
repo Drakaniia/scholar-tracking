@@ -25,7 +25,7 @@ export interface CreateScholarshipData {
   isActive?: boolean;
 }
 
-export interface UpdateScholarshipData extends Partial<CreateScholarshipData> {}
+export type UpdateScholarshipData = Partial<CreateScholarshipData>;
 
 export const scholarshipService = {
   /**
