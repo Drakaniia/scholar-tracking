@@ -20,7 +20,10 @@ export const verifyPassword = async (password: string, hashedPassword: string): 
 
 // JWT Token Utilities
 export const generateToken = (userId: number, email: string, role: string, studentId?: number): string => {
-    const secret = process.env.JWT_SECRET || 'fallback_secret_key';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is not set');
+    }
     const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
 
     return jwt.sign(
@@ -31,7 +34,10 @@ export const generateToken = (userId: number, email: string, role: string, stude
 };
 
 export const verifyToken = (token: string) => {
-    const secret = process.env.JWT_SECRET || 'fallback_secret_key';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is not set');
+    }
     try {
         return jwt.verify(token, secret) as { userId: number; email: string; role: string; studentId?: number };
     } catch {
