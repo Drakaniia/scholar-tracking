@@ -36,16 +36,11 @@ repos:
         additional_dependencies:
           - prettier@3.7.4
 
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.17.0
+  - repo: local
     hooks:
       - id: eslint
+        name: eslint
+        entry: npm run lint
+        language: system
         types_or: [javascript, jsx, ts, tsx]
-        additional_dependencies:
-          - eslint@9
-          - eslint-config-next@16.1.1
-          - eslint-config-prettier@10.1.8
-          - eslint-plugin-prettier@5.5.4
-          - typescript@5
-          - '@typescript-eslint/parser'
-          - '@typescript-eslint/eslint-plugin'
+        pass_filenames: false
