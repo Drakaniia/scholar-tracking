@@ -36,10 +36,5 @@ repos:
         additional_dependencies:
           - prettier@3.7.4
 
-  - repo: local
-    hooks:
-      - id: eslint
-        name: eslint
-        entry: npx eslint
-        language: node
-        types_or: [javascript, jsx, ts, tsx]
+  # ESLint is skipped in pre-commit.ci due to network issues with npm registry
+  # ESLint checks are run in GitHub Actions CI pipeline instead
