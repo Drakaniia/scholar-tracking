@@ -1,0 +1,132 @@
+// Prisma Schema for Scholarship Tracking System
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MODEL (Authentication)
+// ============================================
+model User {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  password    String // Hashed password
+  firstName   String
+  lastName    String
+  role        String   @default("admin") // admin, staff, student
+  isActive    Boolean  @default(true)
+  studentId   Int?     @unique
+  student     Student? @relation("UserStudent")
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  applications UserApplication[]
+
+  @@map("users")
+}
+
+// ============================================
+// USER APPLICATION MODEL
+// ============================================
+model UserApplication {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  status    String   @default("Pending") // Pending, Approved, Rejected
+  remarks   String?
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_applications")
+}
+
+// ============================================
+// STUDENT MODEL
+// ============================================
+model Student {
+  id             Int      @id @default(autoincrement())
+  firstName      String
+  middleName     String?
+  lastName       String
+  yearLevel      String   // 1st Year, 2nd Year, 3rd Year, 4th Year, 5th Year
+  course         String
+  tuitionFee     Float
+  educationLevel String   // Grade School, Junior High, Senior High, College
+  userId         Int?     @unique
+  user           User?    @relation("UserStudent", fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  scholarships StudentScholarship[]
+
+  @@map("students")
+}
+
+// ============================================
+// SCHOLARSHIP MODEL
+// ============================================
+model Scholarship {
+  id             Int      @id @default(autoincrement())
+  name           String
+  description    String?
+  type           String   // Internal, External
+  category       String?  // For External: CHED, TESDA, TDP, LGU, Other
+  amount         Float
+  eligibility    String?
+  
+  // Application Period
+  applicationStart DateTime?
+  applicationEnd   DateTime?
+  isActive         Boolean   @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  students StudentScholarship[]
+
+  @@map("scholarships")
+}
+
+// ============================================
+// STUDENT-SCHOLARSHIP JUNCTION TABLE
+// ============================================
+model StudentScholarship {
+  id            Int      @id @default(autoincrement())
+  studentId     Int
+  scholarshipId Int
+  
+  status        String   @default("Pending") // Pending, Approved, Rejected, Expired
+  dateApplied   DateTime @default(now())
+  dateApproved  DateTime?
+  remarks       String?
+
+  // Relations
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, scholarshipId])
+  @@map("student_scholarships")
+}

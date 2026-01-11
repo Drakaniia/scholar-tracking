@@ -1,0 +1,11 @@
+node_modules
+.next
+dist
+build
+*.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
