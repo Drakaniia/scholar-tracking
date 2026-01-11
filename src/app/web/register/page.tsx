@@ -3,18 +3,30 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
-import { GraduationCap, AlertCircle, Loader2, Sparkles, LogIn } from 'lucide-react';
+import {
+  GraduationCap,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  LogIn,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { YEAR_LEVELS, EDUCATION_LEVELS } from '@/types';
 
@@ -66,8 +78,14 @@ export default function WebRegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
+        <div
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '8s' }}
+        />
+        <div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '10s', animationDelay: '2s' }}
+        />
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
@@ -105,7 +123,9 @@ export default function WebRegisterPage() {
                   <Input
                     id="firstName"
                     value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, firstName: e.target.value })
+                    }
                     required
                     disabled={isLoading}
                     className="bg-white/80 dark:bg-slate-800/80"
@@ -116,7 +136,9 @@ export default function WebRegisterPage() {
                   <Input
                     id="lastName"
                     value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
                     required
                     disabled={isLoading}
                     className="bg-white/80 dark:bg-slate-800/80"
@@ -131,7 +153,9 @@ export default function WebRegisterPage() {
                   type="email"
                   placeholder="you@student.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                   disabled={isLoading}
                   className="bg-white/80 dark:bg-slate-800/80"
@@ -145,7 +169,9 @@ export default function WebRegisterPage() {
                   type="password"
                   placeholder="Minimum 8 characters"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
                   required
                   disabled={isLoading}
                   className="bg-white/80 dark:bg-slate-800/80"
@@ -157,14 +183,16 @@ export default function WebRegisterPage() {
                   <Label htmlFor="educationLevel">Education Level</Label>
                   <Select
                     value={formData.educationLevel}
-                    onValueChange={(value) => setFormData({ ...formData, educationLevel: value })}
+                    onValueChange={value =>
+                      setFormData({ ...formData, educationLevel: value })
+                    }
                     disabled={isLoading}
                   >
                     <SelectTrigger className="bg-white/80 dark:bg-slate-800/80">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {EDUCATION_LEVELS.map((level) => (
+                      {EDUCATION_LEVELS.map(level => (
                         <SelectItem key={level} value={level}>
                           {level}
                         </SelectItem>
@@ -176,14 +204,16 @@ export default function WebRegisterPage() {
                   <Label htmlFor="yearLevel">Year Level</Label>
                   <Select
                     value={formData.yearLevel}
-                    onValueChange={(value) => setFormData({ ...formData, yearLevel: value })}
+                    onValueChange={value =>
+                      setFormData({ ...formData, yearLevel: value })
+                    }
                     disabled={isLoading}
                   >
                     <SelectTrigger className="bg-white/80 dark:bg-slate-800/80">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {YEAR_LEVELS.map((level) => (
+                      {YEAR_LEVELS.map(level => (
                         <SelectItem key={level} value={level}>
                           {level}
                         </SelectItem>
@@ -198,7 +228,9 @@ export default function WebRegisterPage() {
                 <Input
                   id="course"
                   value={formData.course}
-                  onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, course: e.target.value })
+                  }
                   required
                   disabled={isLoading}
                   className="bg-white/80 dark:bg-slate-800/80"
@@ -213,7 +245,12 @@ export default function WebRegisterPage() {
                   min="0"
                   step="0.01"
                   value={formData.tuitionFee}
-                  onChange={(e) => setFormData({ ...formData, tuitionFee: parseFloat(e.target.value) || 0 })}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      tuitionFee: parseFloat(e.target.value) || 0,
+                    })
+                  }
                   required
                   disabled={isLoading}
                   className="bg-white/80 dark:bg-slate-800/80"
@@ -241,7 +278,10 @@ export default function WebRegisterPage() {
               <div className="pt-4 text-center">
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                   Already have an account?{' '}
-                  <Link href="/web/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                  <Link
+                    href="/web/login"
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
                     Sign in
                   </Link>
                 </p>

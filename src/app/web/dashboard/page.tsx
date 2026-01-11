@@ -123,7 +123,7 @@ export default function WebDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
+        {statCards.map(stat => (
           <Card key={stat.title} className="overflow-hidden">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ export default function WebDashboardPage() {
           <CardContent>
             {data?.myApplications && data.myApplications.length > 0 ? (
               <div className="space-y-4">
-                {data.myApplications.slice(0, 5).map((app) => (
+                {data.myApplications.slice(0, 5).map(app => (
                   <div
                     key={app.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -209,9 +209,10 @@ export default function WebDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data?.availableScholarships && data.availableScholarships.length > 0 ? (
+            {data?.availableScholarships &&
+            data.availableScholarships.length > 0 ? (
               <div className="space-y-4">
-                {data.availableScholarships.slice(0, 5).map((scholarship) => (
+                {data.availableScholarships.slice(0, 5).map(scholarship => (
                   <div
                     key={scholarship.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -237,7 +238,9 @@ export default function WebDashboardPage() {
               <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
                 <GraduationCap className="h-12 w-12 mb-2 opacity-50" />
                 <p>No scholarships available</p>
-                <p className="text-sm">Check back later for new opportunities</p>
+                <p className="text-sm">
+                  Check back later for new opportunities
+                </p>
               </div>
             )}
           </CardContent>

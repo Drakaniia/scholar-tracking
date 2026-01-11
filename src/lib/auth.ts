@@ -8,25 +8,36 @@ export const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, saltRounds);
 };
 
-export const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
+export const verifyPassword = async (
+  password: string,
+  hashedPassword: string
+): Promise<boolean> => {
   return await bcrypt.compare(password, hashedPassword);
 };
 
-export const generateToken = (userId: number, email: string, role: string, studentId?: number): string => {
+export const generateToken = (
+  userId: number,
+  email: string,
+  role: string,
+  studentId?: number
+): string => {
   const secret = process.env.JWT_SECRET || 'fallback_secret_key';
   const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
 
-  return jwt.sign(
-    { userId, email, role, studentId },
-    secret,
-    { expiresIn } as jwt.SignOptions
-  );
+  return jwt.sign({ userId, email, role, studentId }, secret, {
+    expiresIn,
+  } as jwt.SignOptions);
 };
 
 export const verifyToken = (token: string) => {
   const secret = process.env.JWT_SECRET || 'fallback_secret_key';
   try {
-    return jwt.verify(token, secret) as { userId: number; email: string; role: string; studentId?: number };
+    return jwt.verify(token, secret) as {
+      userId: number;
+      email: string;
+      role: string;
+      studentId?: number;
+    };
   } catch (error) {
     return null;
   }
@@ -65,6 +76,9 @@ export const isStudent = (user: { role?: string } | null): boolean => {
   return user?.role === 'student';
 };
 
-export const hasRole = (user: { role?: string } | null, roles: string[]): boolean => {
+export const hasRole = (
+  user: { role?: string } | null,
+  roles: string[]
+): boolean => {
   return user?.role ? roles.includes(user.role) : false;
 };

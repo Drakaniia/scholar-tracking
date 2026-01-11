@@ -15,24 +15,24 @@ ScholarTrack is a full-stack scholarship tracking system built with Next.js 16, 
 graph TD
     A[Browser] --> B[Next.js Middleware]
     B --> |Auth Check| C{Role?}
-    
+
     C --> |admin/staff| D[Admin Portal]
     C --> |student| E[Student Portal]
     C --> |none| F[Login Page]
-    
+
     D --> G[Admin API Routes]
     E --> H[Web API Routes]
-    
+
     G --> I[Prisma ORM]
     H --> I
-    
+
     I --> J[(PostgreSQL)]
-    
+
     subgraph Pages
         D
         E
     end
-    
+
     subgraph API Layer
         G
         H
@@ -41,15 +41,15 @@ graph TD
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | Next.js 16, React 19, TypeScript |
-| UI Components | shadcn/ui, Radix UI, Tailwind CSS v4 |
-| State | React Hook Form, Custom Hooks |
-| Backend | Next.js API Routes |
-| Database | PostgreSQL, Prisma ORM |
-| Authentication | JWT, Middleware |
-| Deployment | Nginx (reverse proxy) |
+| Layer          | Technology                           |
+| -------------- | ------------------------------------ |
+| Frontend       | Next.js 16, React 19, TypeScript     |
+| UI Components  | shadcn/ui, Radix UI, Tailwind CSS v4 |
+| State          | React Hook Form, Custom Hooks        |
+| Backend        | Next.js API Routes                   |
+| Database       | PostgreSQL, Prisma ORM               |
+| Authentication | JWT, Middleware                      |
+| Deployment     | Nginx (reverse proxy)                |
 
 ## Folder Structure
 
@@ -85,6 +85,7 @@ src/
 **Decision**: Separate portals by URL path (`/admin`, `/web`) rather than feature-based or subdomain separation.
 
 **Rationale**:
+
 - Single deployment simplifies infrastructure
 - Shared codebase reduces duplication
 - Clear URL patterns for users
@@ -95,6 +96,7 @@ src/
 **Decision**: API routes mirror page structure (`/api/admin/*`, `/api/web/*`).
 
 **Rationale**:
+
 - Easy to locate corresponding API for any page
 - Natural role-based access control
 - Clear separation of concerns
@@ -104,6 +106,7 @@ src/
 **Decision**: Hybrid approach with shared UI components and role-specific components.
 
 **Rationale**:
+
 - `ui/` contains reusable shadcn primitives
 - `admin/` and `web/` contain portal-specific components
 - `shared/` contains cross-cutting utilities
@@ -113,6 +116,7 @@ src/
 **Decision**: JWT tokens stored in HTTP-only cookies with middleware validation.
 
 **Rationale**:
+
 - Stateless authentication scales well
 - Middleware provides centralized auth checks
 - No need for external auth service
@@ -125,7 +129,7 @@ erDiagram
     User ||--o{ UserApplication : "has"
     Student ||--o{ StudentScholarship : "applies for"
     Scholarship ||--o{ StudentScholarship : "assigned to"
-    
+
     User {
         int id PK
         string email UK
@@ -133,7 +137,7 @@ erDiagram
         string role
         int studentId FK
     }
-    
+
     Student {
         int id PK
         string firstName
@@ -141,7 +145,7 @@ erDiagram
         string course
         string yearLevel
     }
-    
+
     Scholarship {
         int id PK
         string name
@@ -149,7 +153,7 @@ erDiagram
         float amount
         boolean isActive
     }
-    
+
     StudentScholarship {
         int id PK
         int studentId FK

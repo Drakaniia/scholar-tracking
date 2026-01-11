@@ -2,11 +2,7 @@
 
 import { WebSidebar } from '@/components/web';
 
-export default function WebLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function WebLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <WebSidebar />

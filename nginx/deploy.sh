@@ -53,7 +53,7 @@ check_root() {
 
 install_nginx() {
     log_info "Installing Nginx..."
-    
+
     # Detect package manager
     if command -v apt-get &> /dev/null; then
         apt-get update
@@ -67,7 +67,7 @@ install_nginx() {
         log_error "Unsupported package manager"
         exit 1
     fi
-    
+
     log_info "Nginx installed successfully"
 }
 
@@ -77,21 +77,21 @@ install_nginx() {
 
 backup_config() {
     log_info "Backing up current configuration..."
-    
+
     mkdir -p "$BACKUP_DIR"
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     tar -czf "$BACKUP_DIR/nginx_backup_$TIMESTAMP.tar.gz" -C /etc nginx
-    
+
     log_info "Backup saved to $BACKUP_DIR/nginx_backup_$TIMESTAMP.tar.gz"
 }
 
 deploy_config() {
     log_info "Deploying Nginx configuration..."
     check_root
-    
+
     # Backup existing config
     backup_config
-    
+
     # Create required directories
     mkdir -p "$NGINX_SITES_AVAILABLE"
     mkdir -p "$NGINX_SITES_ENABLED"
@@ -99,34 +99,34 @@ deploy_config() {
     mkdir -p "$CACHE_DIR"/{proxy_cache,static_cache,api_cache,microcache}
     mkdir -p "$LOG_DIR"
     mkdir -p "$APP_DIR"
-    
+
     # Copy configuration files
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
+
     # Main nginx.conf
     cp "$SCRIPT_DIR/nginx.conf" "$NGINX_CONFIG_DIR/nginx.conf"
-    
+
     # Additional configurations
     cp "$SCRIPT_DIR/conf.d/"*.conf "$NGINX_CONF_D/" 2>/dev/null || true
-    
+
     # Site configurations
     cp "$SCRIPT_DIR/sites-available/"*.conf "$NGINX_SITES_AVAILABLE/" 2>/dev/null || true
-    
+
     # Enable site (create symlink)
     ln -sf "$NGINX_SITES_AVAILABLE/scholarship.conf" "$NGINX_SITES_ENABLED/scholarship.conf"
-    
+
     # Remove default site if exists
     rm -f "$NGINX_SITES_ENABLED/default"
-    
+
     # Set permissions
     chown -R root:root "$NGINX_CONFIG_DIR"
     chmod -R 644 "$NGINX_CONFIG_DIR"
     find "$NGINX_CONFIG_DIR" -type d -exec chmod 755 {} \;
-    
+
     # Set cache directory permissions
     chown -R nginx:nginx "$CACHE_DIR"
     chmod -R 755 "$CACHE_DIR"
-    
+
     log_info "Configuration deployed successfully"
 }
 
@@ -136,7 +136,7 @@ deploy_config() {
 
 test_config() {
     log_info "Testing Nginx configuration..."
-    
+
     if nginx -t; then
         log_info "Configuration test passed!"
         return 0
@@ -148,20 +148,20 @@ test_config() {
 
 validate_ssl() {
     log_info "Validating SSL certificates..."
-    
+
     DOMAIN="scholarship.example.com"
     CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
     KEY_PATH="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
-    
+
     if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
         # Check certificate expiry
         EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_PATH" | cut -d= -f2)
         log_info "Certificate expires: $EXPIRY"
-        
+
         # Check if certificate matches key
         CERT_MD5=$(openssl x509 -noout -modulus -in "$CERT_PATH" | md5sum)
         KEY_MD5=$(openssl rsa -noout -modulus -in "$KEY_PATH" | md5sum)
-        
+
         if [ "$CERT_MD5" == "$KEY_MD5" ]; then
             log_info "Certificate and key match"
         else
@@ -180,10 +180,10 @@ validate_ssl() {
 setup_ssl() {
     log_info "Setting up SSL certificates with Let's Encrypt..."
     check_root
-    
+
     DOMAIN="scholarship.example.com"
     EMAIL="admin@example.com"
-    
+
     # Install certbot if not present
     if ! command -v certbot &> /dev/null; then
         if command -v apt-get &> /dev/null; then
@@ -192,10 +192,10 @@ setup_ssl() {
             yum install -y certbot python3-certbot-nginx
         fi
     fi
-    
+
     # Create webroot directory for ACME challenge
     mkdir -p /var/www/certbot
-    
+
     # Obtain certificate
     certbot certonly \
         --webroot \
@@ -205,17 +205,17 @@ setup_ssl() {
         --email "$EMAIL" \
         --agree-tos \
         --non-interactive
-    
+
     # Generate DH parameters
     if [ ! -f "$NGINX_CONFIG_DIR/ssl/dhparam.pem" ]; then
         log_info "Generating DH parameters (this may take a while)..."
         mkdir -p "$NGINX_CONFIG_DIR/ssl"
         openssl dhparam -out "$NGINX_CONFIG_DIR/ssl/dhparam.pem" 4096
     fi
-    
+
     # Setup auto-renewal
     echo "0 0,12 * * * root certbot renew --quiet --post-hook 'systemctl reload nginx'" >> /etc/crontab
-    
+
     log_info "SSL setup complete"
 }
 
@@ -237,7 +237,7 @@ stop_nginx() {
 
 reload_nginx() {
     log_info "Reloading Nginx configuration..."
-    
+
     if test_config; then
         nginx -s reload
         log_info "Nginx reloaded successfully"
@@ -249,7 +249,7 @@ reload_nginx() {
 
 restart_nginx() {
     log_info "Restarting Nginx..."
-    
+
     if test_config; then
         systemctl restart nginx
         log_info "Nginx restarted successfully"
@@ -270,11 +270,11 @@ status_nginx() {
 clear_cache() {
     log_info "Clearing Nginx cache..."
     check_root
-    
+
     rm -rf "$CACHE_DIR"/*
     mkdir -p "$CACHE_DIR"/{proxy_cache,static_cache,api_cache,microcache}
     chown -R nginx:nginx "$CACHE_DIR"
-    
+
     log_info "Cache cleared"
 }
 
@@ -284,10 +284,10 @@ clear_cache() {
 
 rotate_logs() {
     log_info "Rotating Nginx logs..."
-    
+
     # Send USR1 signal to reopen log files
     nginx -s reopen
-    
+
     log_info "Logs rotated"
 }
 
@@ -305,27 +305,27 @@ view_errors() {
 
 deploy_app() {
     log_info "Deploying Next.js application..."
-    
+
     cd "$APP_DIR"
-    
+
     # Pull latest code
     git pull origin main
-    
+
     # Install dependencies
     npm ci --production
-    
+
     # Build application
     npm run build
-    
+
     # Restart PM2 processes
     pm2 reload all
-    
+
     # Clear nginx cache
     clear_cache
-    
+
     # Reload nginx
     reload_nginx
-    
+
     log_info "Application deployed successfully"
 }
 
@@ -336,7 +336,7 @@ deploy_app() {
 tune_system() {
     log_info "Applying system tuning for Nginx..."
     check_root
-    
+
     # Increase file descriptor limits
     cat >> /etc/security/limits.conf << EOF
 nginx soft nofile 65535
@@ -359,7 +359,7 @@ net.core.wmem_max = 16777216
 EOF
 
     sysctl -p
-    
+
     log_info "System tuning applied"
 }
 
@@ -379,22 +379,22 @@ Commands:
   test            Test configuration syntax
   validate-ssl    Validate SSL certificates
   setup-ssl       Setup Let's Encrypt SSL
-  
+
   start           Start Nginx
   stop            Stop Nginx
   reload          Reload configuration (graceful)
   restart         Full restart
   status          Show service status
-  
+
   clear-cache     Clear all Nginx caches
   rotate-logs     Rotate log files
   logs            View access and error logs
   errors          View error logs only
-  
+
   deploy-app      Full application deployment
   tune            Apply system tuning
   backup          Backup current configuration
-  
+
   help            Show this help message
 "
 }

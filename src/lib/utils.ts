@@ -1,8 +1,8 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 /**
@@ -30,7 +30,11 @@ export function formatDate(date: Date | string | null): string {
 /**
  * Get student's full name
  */
-export function getFullName(firstName: string, middleName: string | null, lastName: string): string {
+export function getFullName(
+  firstName: string,
+  middleName: string | null,
+  lastName: string
+): string {
   if (middleName) {
     return `${firstName} ${middleName} ${lastName}`;
   }

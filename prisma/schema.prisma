@@ -68,7 +68,7 @@ model Student {
   educationLevel String   // Grade School, Junior High, Senior High, College
   userId         Int?     @unique
   user           User?    @relation("UserStudent", fields: [userId], references: [id], onDelete: SetNull)
-  
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -90,7 +90,7 @@ model Scholarship {
   category       String?  // For External: CHED, TESDA, TDP, LGU, Other
   amount         Float
   eligibility    String?
-  
+
   // Application Period
   applicationStart DateTime?
   applicationEnd   DateTime?
@@ -113,7 +113,7 @@ model StudentScholarship {
   id            Int      @id @default(autoincrement())
   studentId     Int
   scholarshipId Int
-  
+
   status        String   @default("Pending") // Pending, Approved, Rejected, Expired
   dateApplied   DateTime @default(now())
   dateApproved  DateTime?

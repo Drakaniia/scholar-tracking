@@ -54,7 +54,7 @@ export function WebSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
+        {navItems.map(item => {
           const isActive = pathname === item.href;
           return (
             <Link

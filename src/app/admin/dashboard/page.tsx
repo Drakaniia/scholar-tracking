@@ -13,7 +13,12 @@ import {
   TrendingUp,
   Calendar,
 } from 'lucide-react';
-import { formatCurrency, formatDate, getFullName, getStatusColor } from '@/lib/utils';
+import {
+  formatCurrency,
+  formatDate,
+  getFullName,
+  getStatusColor,
+} from '@/lib/utils';
 
 interface DashboardData {
   stats: {
@@ -125,7 +130,7 @@ export default function AdminDashboardPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
+        {statCards.map(stat => (
           <Card key={stat.title} className="overflow-hidden">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -173,7 +178,7 @@ export default function AdminDashboardPage() {
           <CardContent>
             {data?.recentApplications && data.recentApplications.length > 0 ? (
               <div className="space-y-4">
-                {data.recentApplications.map((app) => (
+                {data.recentApplications.map(app => (
                   <div
                     key={app.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -219,7 +224,7 @@ export default function AdminDashboardPage() {
           <CardContent>
             {data?.upcomingDeadlines && data.upcomingDeadlines.length > 0 ? (
               <div className="space-y-4">
-                {data.upcomingDeadlines.map((scholarship) => (
+                {data.upcomingDeadlines.map(scholarship => (
                   <div
                     key={scholarship.id}
                     className="flex items-center justify-between rounded-lg border p-3"

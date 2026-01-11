@@ -54,7 +54,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
+        {navItems.map(item => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -76,7 +76,9 @@ export function AdminSidebar() {
 
       <div className="border-t p-4">
         <div className="mb-3 px-3">
-          <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
+          <p className="text-sm font-medium">
+            {user?.firstName} {user?.lastName}
+          </p>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
         <Button

@@ -1,7 +1,7 @@
 /**
  * Services Module - Re-exports
  * Business logic layer for database operations
- * 
+ *
  * Usage examples:
  *   import { studentService } from '@/services'
  *   import { scholarshipService } from '@/services'

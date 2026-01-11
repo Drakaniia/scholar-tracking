@@ -9,7 +9,10 @@ interface ProtectedRouteProps {
   allowedRoles?: string[];
 }
 
-export function ProtectedRoute({ children, allowedRoles = ['admin', 'staff'] }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  allowedRoles = ['admin', 'staff'],
+}: ProtectedRouteProps) {
   const { user, loading } = useSession();
   const router = useRouter();
   const pathname = usePathname();

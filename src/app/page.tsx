@@ -17,14 +17,22 @@ export default function LandingPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 max-w-lg mx-auto pt-8">
           <Link href="/web/login">
-            <Button size="lg" className="w-full h-32 flex flex-col gap-4 text-lg" variant="outline">
+            <Button
+              size="lg"
+              className="w-full h-32 flex flex-col gap-4 text-lg"
+              variant="outline"
+            >
               <GraduationCap className="w-10 h-10" />
               Student Portal
             </Button>
           </Link>
 
           <Link href="/admin/login">
-            <Button size="lg" className="w-full h-32 flex flex-col gap-4 text-lg" variant="outline">
+            <Button
+              size="lg"
+              className="w-full h-32 flex flex-col gap-4 text-lg"
+              variant="outline"
+            >
               <Shield className="w-10 h-10" />
               Admin Portal
             </Button>
