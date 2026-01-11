@@ -20,13 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  GraduationCap,
-  AlertCircle,
-  Loader2,
-  Sparkles,
-  LogIn,
-} from 'lucide-react';
+import { GraduationCap, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { YEAR_LEVELS, EDUCATION_LEVELS } from '@/types';
 
@@ -68,7 +62,7 @@ export default function WebRegisterPage() {
       setTimeout(() => {
         router.push('/web/dashboard');
       }, 1000);
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

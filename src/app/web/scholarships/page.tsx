@@ -20,14 +20,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Send, Check, X } from 'lucide-react';
+import { Search, Send, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { SCHOLARSHIP_TYPES, EXTERNAL_CATEGORIES } from '@/types';
+import { SCHOLARSHIP_TYPES } from '@/types';
 
 interface Scholarship {
   id: number;

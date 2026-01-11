@@ -20,7 +20,6 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-  UserPlus,
 } from 'lucide-react';
 
 export default function WebLoginPage() {
@@ -50,7 +49,7 @@ export default function WebLoginPage() {
       }
 
       router.push('/web/dashboard');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
