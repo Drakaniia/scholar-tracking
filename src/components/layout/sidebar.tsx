@@ -68,11 +68,12 @@ function UserProfile({
     firstName: string;
     lastName: string;
     email: string;
-  };
+    role: string;
+  } | null;
   loading: boolean;
   logout: () => void;
 }) {
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="border-t bg-muted/30 p-4">
         <div className="flex items-center gap-3">
