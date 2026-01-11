@@ -36,5 +36,10 @@ repos:
         additional_dependencies:
           - prettier@3.7.4
 
-  # ESLint is skipped in pre-commit.ci due to module resolution issues with eslint.config.mjs
-  # ESLint checks are run separately in the CI pipeline
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: npx eslint
+        language: node
+        types_or: [javascript, jsx, ts, tsx]
