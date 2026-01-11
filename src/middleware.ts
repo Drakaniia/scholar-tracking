@@ -5,8 +5,15 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define public routes that don't require authentication
-  const publicPaths = ['/login', '/register', '/admin/login', '/web/login', '/web/register'];
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
+  const publicPaths = [
+    '/login',
+    '/register',
+    '/admin/login',
+    '/web/login',
+    '/web/register',
+  ];
+  const isPublicPath =
+    pathname === '/' || publicPaths.some(path => pathname.startsWith(path));
 
   // Get auth token from cookies
   const token = request.cookies.get('auth_token')?.value;
@@ -56,7 +63,11 @@ export function middleware(request: NextRequest) {
     }
 
     // Redirect authenticated users from login pages to appropriate dashboards
-    if (pathname === '/login' || pathname === '/admin/login' || pathname === '/web/login') {
+    if (
+      pathname === '/login' ||
+      pathname === '/admin/login' ||
+      pathname === '/web/login'
+    ) {
       if (role === 'student') {
         return NextResponse.redirect(new URL('/web/dashboard', request.url));
       } else if (role === 'admin' || role === 'staff') {

@@ -3,11 +3,25 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Mail, Lock, AlertCircle, Loader2, Sparkles, UserPlus } from 'lucide-react';
+import {
+  GraduationCap,
+  Mail,
+  Lock,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  UserPlus,
+} from 'lucide-react';
 
 export default function WebLoginPage() {
   const router = useRouter();
@@ -46,8 +60,14 @@ export default function WebLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
+        <div
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '8s' }}
+        />
+        <div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '10s', animationDelay: '2s' }}
+        />
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
@@ -80,7 +100,10 @@ export default function WebLoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2"
+                >
                   <Mail className="w-4 h-4" />
                   Email Address
                 </Label>
@@ -89,7 +112,7 @@ export default function WebLoginPage() {
                   type="email"
                   placeholder="you@student.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
                   className="bg-white/80 dark:bg-slate-800/80"
@@ -97,7 +120,10 @@ export default function WebLoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2"
+                >
                   <Lock className="w-4 h-4" />
                   Password
                 </Label>
@@ -106,7 +132,7 @@ export default function WebLoginPage() {
                   type="password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
                   className="bg-white/80 dark:bg-slate-800/80"
@@ -133,8 +159,11 @@ export default function WebLoginPage() {
 
               <div className="pt-4 text-center">
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Don't have an account?{' '}
-                  <Link href="/web/register" className="text-blue-600 hover:text-blue-700 font-medium">
+                  Don&apos;t have an account?{' '}
+                  <Link
+                    href="/web/register"
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
                     Register now
                   </Link>
                 </p>
