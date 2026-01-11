@@ -39,8 +39,15 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
+echo Checking if master branch exists locally...
+git branch -M master
+if %errorlevel% neq 0 (
+    echo Error renaming branch to master
+    exit /b %errorlevel%
+)
+
 echo Pushing to master branch...
-git push -u origin master
+git push -u origin master --force
 if %errorlevel% neq 0 (
     echo Error pushing to remote
     exit /b %errorlevel%
