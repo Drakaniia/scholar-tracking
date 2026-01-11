@@ -24,6 +24,14 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
+echo Checking remote origin...
+for /f %%i in ('git remote') do (
+    if "%%i"=="origin" (
+        echo Remote origin already exists, removing it...
+        git remote remove origin
+    )
+)
+
 echo Adding remote origin...
 git remote add origin https://github.com/Drakaniia/scholar-tracking.git
 if %errorlevel% neq 0 (
