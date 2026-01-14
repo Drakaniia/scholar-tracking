@@ -1,6 +1,5 @@
 'use client';
 
-// Force rebuild
 import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Button } from '@/components/ui/button';
@@ -34,53 +33,48 @@ import {
 import { Label } from '@/components/ui/label';
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency, getFullName } from '@/lib/utils';
-import {
-    YEAR_LEVELS,
-    EDUCATION_LEVELS,
-    CreateStudentInput,
-} from '@/types';
+import { YEAR_LEVELS, CreateStudentInput } from '@/types';
 
 interface Student {
     id: number;
-    firstName: string;
-    middleName: string | null;
-    lastName: string;
+    studentNo: string;
+    fullName: string;
+    program: string;
     yearLevel: string;
-    course: string;
-    tuitionFee: number;
-    educationLevel: string;
-    scholarships: Array<{
+    email: string;
+    status: string;
+    applications: Array<{
         scholarship: {
-            name: string;
+            scholarshipName: string;
             type: string;
         };
         status: string;
     }>;
 }
 
+const STUDENT_STATUSES = ['Active', 'Inactive', 'Graduated', 'On Leave'] as const;
+
 export default function StudentsPage() {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [educationFilter, setEducationFilter] = useState('all');
+    const [yearFilter, setYearFilter] = useState('all');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [formData, setFormData] = useState<CreateStudentInput>({
-        firstName: '',
-        middleName: '',
-        lastName: '',
+        studentNo: '',
+        fullName: '',
+        program: '',
         yearLevel: '1st Year',
-        course: '',
-        tuitionFee: 0,
-        educationLevel: 'College',
+        email: '',
+        status: 'Active',
     });
 
     const fetchStudents = useCallback(async () => {
         try {
             const params = new URLSearchParams();
             if (search) params.append('search', search);
-            if (educationFilter && educationFilter !== 'all') params.append('educationLevel', educationFilter);
+            if (yearFilter && yearFilter !== 'all') params.append('yearLevel', yearFilter);
             params.append('limit', '100');
 
             const res = await fetch(`/api/students?${params}`);
@@ -94,11 +88,11 @@ export default function StudentsPage() {
         } finally {
             setLoading(false);
         }
-    }, [search, educationFilter]);
+    }, [search, yearFilter]);
 
     useEffect(() => {
         fetchStudents();
-    }, [search, educationFilter, fetchStudents]);
+    }, [search, yearFilter, fetchStudents]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -155,26 +149,24 @@ export default function StudentsPage() {
     const handleEdit = (student: Student) => {
         setEditingStudent(student);
         setFormData({
-            firstName: student.firstName,
-            middleName: student.middleName || '',
-            lastName: student.lastName,
+            studentNo: student.studentNo,
+            fullName: student.fullName,
+            program: student.program,
             yearLevel: student.yearLevel,
-            course: student.course,
-            tuitionFee: student.tuitionFee,
-            educationLevel: student.educationLevel,
+            email: student.email,
+            status: student.status,
         });
         setDialogOpen(true);
     };
 
     const resetForm = () => {
         setFormData({
-            firstName: '',
-            middleName: '',
-            lastName: '',
+            studentNo: '',
+            fullName: '',
+            program: '',
             yearLevel: '1st Year',
-            course: '',
-            tuitionFee: 0,
-            educationLevel: 'College',
+            email: '',
+            status: 'Active',
         });
         setEditingStudent(null);
     };
@@ -207,61 +199,53 @@ export default function StudentsPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="firstName">First Name</Label>
-                                    <Input
-                                        id="firstName"
-                                        value={formData.firstName}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, firstName: e.target.value })
-                                        }
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="middleName">Middle Name</Label>
-                                    <Input
-                                        id="middleName"
-                                        value={formData.middleName || ''}
-                                        onChange={(e) =>
-                                            setFormData({ ...formData, middleName: e.target.value })
-                                        }
-                                    />
-                                </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="studentNo">Student No.</Label>
+                                <Input
+                                    id="studentNo"
+                                    value={formData.studentNo}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, studentNo: e.target.value })
+                                    }
+                                    placeholder="e.g., STU-2024-001"
+                                    required
+                                />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="lastName">Last Name</Label>
+                                <Label htmlFor="fullName">Full Name</Label>
                                 <Input
-                                    id="lastName"
-                                    value={formData.lastName}
+                                    id="fullName"
+                                    value={formData.fullName}
                                     onChange={(e) =>
-                                        setFormData({ ...formData, lastName: e.target.value })
+                                        setFormData({ ...formData, fullName: e.target.value })
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, email: e.target.value })
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="program">Program</Label>
+                                <Input
+                                    id="program"
+                                    value={formData.program}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, program: e.target.value })
                                     }
                                     required
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="educationLevel">Education Level</Label>
-                                    <Select
-                                        value={formData.educationLevel}
-                                        onValueChange={(value) =>
-                                            setFormData({ ...formData, educationLevel: value })
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {EDUCATION_LEVELS.map((level) => (
-                                                <SelectItem key={level} value={level}>
-                                                    {level}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="yearLevel">Year Level</Label>
                                     <Select
@@ -282,34 +266,26 @@ export default function StudentsPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="course">Course/Program</Label>
-                                <Input
-                                    id="course"
-                                    value={formData.course}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, course: e.target.value })
-                                    }
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="tuitionFee">Tuition Fee (₱)</Label>
-                                <Input
-                                    id="tuitionFee"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={formData.tuitionFee}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            tuitionFee: parseFloat(e.target.value) || 0,
-                                        })
-                                    }
-                                    required
-                                />
+                                <div className="space-y-2">
+                                    <Label htmlFor="status">Status</Label>
+                                    <Select
+                                        value={formData.status}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, status: value })
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {STUDENT_STATUSES.map((status) => (
+                                                <SelectItem key={status} value={status}>
+                                                    {status}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <DialogFooter>
                                 <Button
@@ -335,22 +311,19 @@ export default function StudentsPage() {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name or course..."
+                                placeholder="Search by name, student no, or program..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-10"
                             />
                         </div>
-                        <Select
-                            value={educationFilter}
-                            onValueChange={setEducationFilter}
-                        >
+                        <Select value={yearFilter} onValueChange={setYearFilter}>
                             <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="All Education Levels" />
+                                <SelectValue placeholder="All Year Levels" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Levels</SelectItem>
-                                {EDUCATION_LEVELS.map((level) => (
+                                <SelectItem value="all">All Year Levels</SelectItem>
+                                {YEAR_LEVELS.map((level) => (
                                     <SelectItem key={level} value={level}>
                                         {level}
                                     </SelectItem>
@@ -377,34 +350,38 @@ export default function StudentsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>Student No.</TableHead>
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Education Level</TableHead>
+                                    <TableHead>Program</TableHead>
                                     <TableHead>Year Level</TableHead>
-                                    <TableHead>Course</TableHead>
-                                    <TableHead>Tuition Fee</TableHead>
-                                    <TableHead>Scholarships</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Applications</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {students.map((student) => (
                                     <TableRow key={student.id}>
+                                        <TableCell className="font-mono text-sm">
+                                            {student.studentNo}
+                                        </TableCell>
                                         <TableCell className="font-medium">
-                                            {getFullName(
-                                                student.firstName,
-                                                student.middleName,
-                                                student.lastName
-                                            )}
+                                            {student.fullName}
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">{student.educationLevel}</Badge>
-                                        </TableCell>
+                                        <TableCell>{student.program}</TableCell>
                                         <TableCell>{student.yearLevel}</TableCell>
-                                        <TableCell>{student.course}</TableCell>
-                                        <TableCell>{formatCurrency(student.tuitionFee)}</TableCell>
+                                        <TableCell>{student.email}</TableCell>
                                         <TableCell>
-                                            {student.scholarships.length > 0 ? (
-                                                <Badge>{student.scholarships.length} scholarship(s)</Badge>
+                                            <Badge
+                                                variant={student.status === 'Active' ? 'default' : 'secondary'}
+                                            >
+                                                {student.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {student.applications.length > 0 ? (
+                                                <Badge>{student.applications.length} application(s)</Badge>
                                             ) : (
                                                 <span className="text-muted-foreground">None</span>
                                             )}

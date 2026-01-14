@@ -8,28 +8,26 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ============================================
 // STUDENT MODEL
 // ============================================
 model Student {
-  id             Int      @id @default(autoincrement())
-  firstName      String
-  middleName     String?
-  lastName       String
-  yearLevel      String   // 1st Year, 2nd Year, 3rd Year, 4th Year, 5th Year
-  course         String
-  tuitionFee     Float
-  educationLevel String   // Grade School, Junior High, Senior High, College
-  
+  id        Int     @id @default(autoincrement()) @map("student_id")
+  studentNo String  @map("student_no")
+  fullName  String  @map("full_name")
+  program   String
+  yearLevel String  @map("year_level")
+  email     String
+  status    String
+
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  scholarships StudentScholarship[]
+  applications Application[]
 
   @@map("students")
 }
@@ -38,50 +36,86 @@ model Student {
 // SCHOLARSHIP MODEL
 // ============================================
 model Scholarship {
-  id             Int      @id @default(autoincrement())
-  name           String
-  description    String?
-  type           String   // Internal, External
-  category       String?  // For External: CHED, TESDA, TDP, LGU, Other
-  amount         Float
-  eligibility    String?
-  
-  // Application Period
-  applicationStart DateTime?
-  applicationEnd   DateTime?
-  isActive         Boolean   @default(true)
+  id               Int     @id @default(autoincrement()) @map("scholarship_id")
+  scholarshipName  String  @map("scholarship_name")
+  sponsor          String
+  type             String
+  amount           Decimal @db.Decimal(10, 2)
+  requirements     String?
+  status           String
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  students StudentScholarship[]
+  applications Application[]
 
   @@map("scholarships")
 }
 
 // ============================================
-// STUDENT-SCHOLARSHIP JUNCTION TABLE
+// APPLICATION MODEL
 // ============================================
-model StudentScholarship {
-  id            Int      @id @default(autoincrement())
-  studentId     Int
-  scholarshipId Int
-  
-  status        String   @default("Pending") // Pending, Approved, Rejected, Expired
-  dateApplied   DateTime @default(now())
-  dateApproved  DateTime?
-  remarks       String?
+model Application {
+  id              Int      @id @default(autoincrement()) @map("application_id")
+  applicationDate DateTime @map("application_date")
+  status          String
+  remarks         String?
+  studentId       Int      @map("student_id")
+  scholarshipId   Int      @map("scholarship_id")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  award       Award?
+
+  @@map("applications")
+}
+
+// ============================================
+// AWARD MODEL
+// ============================================
+model Award {
+  id            Int      @id @default(autoincrement()) @map("award_id")
+  awardDate     DateTime @map("award_date")
+  startTerm     String   @map("start_term")
+  endTerm       String   @map("end_term")
+  grantAmount   Decimal  @map("grant_amount") @db.Decimal(10, 2)
+  applicationId Int      @unique @map("application_id")
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([studentId, scholarshipId])
-  @@map("student_scholarships")
+  // Relations
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  disbursements Disbursement[]
+
+  @@map("awards")
+}
+
+// ============================================
+// DISBURSEMENT MODEL
+// ============================================
+model Disbursement {
+  id               Int      @id @default(autoincrement()) @map("disbursement_id")
+  disbursementDate DateTime @map("disbursement_date")
+  amount           Decimal  @db.Decimal(10, 2)
+  term             String
+  method           String
+  awardId          Int      @map("award_id")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  award Award @relation(fields: [awardId], references: [id], onDelete: Cascade)
+
+  @@map("disbursements")
 }

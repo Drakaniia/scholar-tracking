@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,11 +13,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import {
-    SCHOLARSHIP_TYPES,
-    EXTERNAL_CATEGORIES,
-    CreateScholarshipInput,
-} from '@/types';
+import { SCHOLARSHIP_TYPES, CreateScholarshipInput } from '@/types';
+
+const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
 
 interface ScholarshipFormProps {
     defaultValues?: Partial<CreateScholarshipInput>;
@@ -36,75 +34,79 @@ export function ScholarshipForm({
 }: ScholarshipFormProps) {
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
-            name: '',
-            description: '',
+            scholarshipName: '',
+            sponsor: '',
             type: 'Internal',
-            category: '',
             amount: 0,
-            eligibility: '',
-            isActive: true,
+            requirements: '',
+            status: 'Active',
             ...defaultValues,
         },
     });
 
-    const watchType = form.watch('type');
-
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="name">Scholarship Name</Label>
+                <Label htmlFor="scholarshipName">Scholarship Name</Label>
                 <Input
-                    id="name"
-                    {...form.register('name', { required: true })}
+                    id="scholarshipName"
+                    {...form.register('scholarshipName', { required: true })}
                     placeholder="Academic Excellence Award"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="sponsor">Sponsor</Label>
+                <Input
+                    id="sponsor"
+                    {...form.register('sponsor', { required: true })}
+                    placeholder="University Foundation"
                 />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="type">Type</Label>
-                    <Select
-                        value={watchType}
-                        onValueChange={(value: 'Internal' | 'External') => {
-                            form.setValue('type', value);
-                            if (value === 'Internal') {
-                                form.setValue('category', '');
-                            }
-                        }}
-                    >
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {SCHOLARSHIP_TYPES.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                    {type}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Controller
+                        name="type"
+                        control={form.control}
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SCHOLARSHIP_TYPES.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            {type}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
                 </div>
-
-                {watchType === 'External' && (
-                    <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Select
-                            value={form.watch('category') || ''}
-                            onValueChange={(value) => form.setValue('category', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {EXTERNAL_CATEGORIES.map((cat) => (
-                                    <SelectItem key={cat} value={cat}>
-                                        {cat}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
+                <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Controller
+                        name="status"
+                        control={form.control}
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SCHOLARSHIP_STATUSES.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {status}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
             </div>
 
             <div className="space-y-2">
@@ -120,42 +122,13 @@ export function ScholarshipForm({
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="requirements">Requirements</Label>
                 <Textarea
-                    id="description"
-                    {...form.register('description')}
-                    placeholder="Scholarship for students with excellent academic performance..."
+                    id="requirements"
+                    {...form.register('requirements')}
+                    placeholder="Minimum GWA of 1.5, enrolled in any degree program..."
                     rows={3}
                 />
-            </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="eligibility">Eligibility Requirements</Label>
-                <Textarea
-                    id="eligibility"
-                    {...form.register('eligibility')}
-                    placeholder="Minimum GWA of 1.5, enrolled in any degree program..."
-                    rows={2}
-                />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="applicationStart">Application Start</Label>
-                    <Input
-                        id="applicationStart"
-                        type="date"
-                        {...form.register('applicationStart')}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="applicationEnd">Application End</Label>
-                    <Input
-                        id="applicationEnd"
-                        type="date"
-                        {...form.register('applicationEnd')}
-                    />
-                </div>
             </div>
 
             <DialogFooter>

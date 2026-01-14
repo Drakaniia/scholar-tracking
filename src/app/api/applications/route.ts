@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         };
 
         const [applications, total] = await Promise.all([
-            prisma.studentScholarship.findMany({
+            prisma.application.findMany({
                 where,
                 skip,
                 take: limit,
@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
                 include: {
                     student: true,
                     scholarship: true,
+                    award: true,
                 },
             }),
-            prisma.studentScholarship.count({ where }),
+            prisma.application.count({ where }),
         ]);
 
         return NextResponse.json({
@@ -53,30 +54,15 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST /api/applications - Create a new application (assign scholarship to student)
+// POST /api/applications - Create a new application
 export async function POST(request: NextRequest) {
     try {
         const body: CreateApplicationInput = await request.json();
 
-        // Check if the combination already exists
-        const existing = await prisma.studentScholarship.findUnique({
-            where: {
-                studentId_scholarshipId: {
-                    studentId: body.studentId,
-                    scholarshipId: body.scholarshipId,
-                },
-            },
-        });
-
-        if (existing) {
-            return NextResponse.json(
-                { success: false, error: 'Student already has this scholarship' },
-                { status: 400 }
-            );
-        }
-
-        const application = await prisma.studentScholarship.create({
+        const application = await prisma.application.create({
             data: {
+                applicationDate: new Date(body.applicationDate),
+                status: 'Pending',
                 studentId: body.studentId,
                 scholarshipId: body.scholarshipId,
                 remarks: body.remarks || null,
@@ -90,12 +76,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             data: application,
-            message: 'Scholarship assigned to student successfully',
+            message: 'Application created successfully',
         });
     } catch (error) {
         console.error('Error creating application:', error);
         return NextResponse.json(
-            { success: false, error: 'Failed to assign scholarship' },
+            { success: false, error: 'Failed to create application' },
             { status: 500 }
         );
     }
