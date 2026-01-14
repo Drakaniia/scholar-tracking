@@ -12,36 +12,33 @@ export async function GET(request: NextRequest) {
         const scholarships = await prisma.scholarship.findMany({
             include: {
                 _count: {
-                    select: { students: true },
+                    select: { applications: true },
                 },
             },
-            orderBy: { name: 'asc' },
+            orderBy: { scholarshipName: 'asc' },
         });
 
         if (format === 'csv') {
-            // Generate CSV
             const headers = [
                 'ID',
                 'Name',
+                'Sponsor',
                 'Type',
-                'Category',
                 'Amount',
+                'Requirements',
                 'Status',
-                'Start Date',
-                'End Date',
-                'Recipients',
+                'Applications',
             ];
 
             const rows = scholarships.map((s) => [
                 s.id,
-                s.name,
+                s.scholarshipName,
+                s.sponsor,
                 s.type,
-                s.category || '',
-                s.amount,
-                s.isActive ? 'Active' : 'Inactive',
-                s.applicationStart?.toISOString().split('T')[0] || '',
-                s.applicationEnd?.toISOString().split('T')[0] || '',
-                s._count.students,
+                Number(s.amount),
+                s.requirements || '',
+                s.status,
+                s._count.applications,
             ]);
 
             const csv = [headers, ...rows]
@@ -61,30 +58,25 @@ export async function GET(request: NextRequest) {
         // Generate PDF
         const doc = new jsPDF();
 
-        // Title
         doc.setFontSize(18);
         doc.text('Scholarship Programs', 14, 22);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
 
-        // Summary
-        const totalAmount = scholarships.reduce((sum, s) => sum + s.amount, 0);
-        const activeCount = scholarships.filter((s) => s.isActive).length;
+        const totalAmount = scholarships.reduce((sum, s) => sum + Number(s.amount), 0);
+        const activeCount = scholarships.filter((s) => s.status === 'Active').length;
         doc.text(`Total Programs: ${scholarships.length} | Active: ${activeCount} | Total Amount: ₱${totalAmount.toLocaleString()}`, 14, 38);
 
-        // Table
         autoTable(doc, {
             startY: 45,
-            head: [['Name', 'Type', 'Amount', 'Status', 'Period', 'Recipients']],
+            head: [['Name', 'Sponsor', 'Type', 'Amount', 'Status', 'Applications']],
             body: scholarships.map((s) => [
-                s.name,
-                s.type + (s.category ? ` (${s.category})` : ''),
-                `₱${s.amount.toLocaleString()}`,
-                s.isActive ? 'Active' : 'Inactive',
-                s.applicationStart && s.applicationEnd
-                    ? `${s.applicationStart.toLocaleDateString()} - ${s.applicationEnd.toLocaleDateString()}`
-                    : 'Open',
-                s._count.students.toString(),
+                s.scholarshipName,
+                s.sponsor,
+                s.type,
+                `₱${Number(s.amount).toLocaleString()}`,
+                s.status,
+                s._count.applications.toString(),
             ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [34, 197, 94] },

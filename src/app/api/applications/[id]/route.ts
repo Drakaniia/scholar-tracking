@@ -11,11 +11,16 @@ export async function GET(
         const { id } = await params;
         const applicationId = parseInt(id);
 
-        const application = await prisma.studentScholarship.findUnique({
+        const application = await prisma.application.findUnique({
             where: { id: applicationId },
             include: {
                 student: true,
                 scholarship: true,
+                award: {
+                    include: {
+                        disbursements: true,
+                    },
+                },
             },
         });
 
@@ -52,15 +57,12 @@ export async function PUT(
         const updateData: Record<string, unknown> = {};
         if (body.status) {
             updateData.status = body.status;
-            if (body.status === 'Approved') {
-                updateData.dateApproved = new Date();
-            }
         }
         if (body.remarks !== undefined) {
             updateData.remarks = body.remarks;
         }
 
-        const application = await prisma.studentScholarship.update({
+        const application = await prisma.application.update({
             where: { id: applicationId },
             data: updateData,
             include: {
@@ -92,7 +94,7 @@ export async function DELETE(
         const { id } = await params;
         const applicationId = parseInt(id);
 
-        await prisma.studentScholarship.delete({
+        await prisma.application.delete({
             where: { id: applicationId },
         });
 

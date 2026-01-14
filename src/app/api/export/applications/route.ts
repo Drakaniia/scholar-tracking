@@ -12,40 +12,38 @@ export async function GET(request: NextRequest) {
 
         const where = status ? { status } : {};
 
-        const applications = await prisma.studentScholarship.findMany({
+        const applications = await prisma.application.findMany({
             where,
             include: {
                 student: true,
                 scholarship: true,
+                award: true,
             },
             orderBy: { createdAt: 'desc' },
         });
 
         if (format === 'csv') {
-            // Generate CSV
             const headers = [
                 'ID',
                 'Student Name',
-                'Course',
+                'Program',
                 'Scholarship',
                 'Type',
                 'Amount',
                 'Status',
-                'Date Applied',
-                'Date Approved',
+                'Application Date',
                 'Remarks',
             ];
 
             const rows = applications.map((a) => [
                 a.id,
-                `${a.student.lastName}, ${a.student.firstName}`,
-                a.student.course,
-                a.scholarship.name,
+                a.student.fullName,
+                a.student.program,
+                a.scholarship.scholarshipName,
                 a.scholarship.type,
-                a.scholarship.amount,
+                Number(a.scholarship.amount),
                 a.status,
-                a.dateApplied.toISOString().split('T')[0],
-                a.dateApproved?.toISOString().split('T')[0] || '',
+                a.applicationDate.toISOString().split('T')[0],
                 a.remarks || '',
             ]);
 
@@ -66,19 +64,17 @@ export async function GET(request: NextRequest) {
         // Generate PDF
         const doc = new jsPDF('landscape');
 
-        // Title
         doc.setFontSize(18);
         doc.text('Scholarship Applications Report', 14, 22);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
 
-        // Summary
         const pending = applications.filter((a) => a.status === 'Pending').length;
         const approved = applications.filter((a) => a.status === 'Approved').length;
         const rejected = applications.filter((a) => a.status === 'Rejected').length;
         const totalAwarded = applications
             .filter((a) => a.status === 'Approved')
-            .reduce((sum, a) => sum + a.scholarship.amount, 0);
+            .reduce((sum, a) => sum + Number(a.scholarship.amount), 0);
 
         doc.text(
             `Total: ${applications.length} | Pending: ${pending} | Approved: ${approved} | Rejected: ${rejected} | Total Awarded: ₱${totalAwarded.toLocaleString()}`,
@@ -86,21 +82,19 @@ export async function GET(request: NextRequest) {
             38
         );
 
-        // Table
         autoTable(doc, {
             startY: 45,
             head: [
-                ['Student', 'Course', 'Scholarship', 'Type', 'Amount', 'Status', 'Applied', 'Approved'],
+                ['Student', 'Program', 'Scholarship', 'Type', 'Amount', 'Status', 'Date'],
             ],
             body: applications.map((a) => [
-                `${a.student.lastName}, ${a.student.firstName}`,
-                a.student.course,
-                a.scholarship.name,
+                a.student.fullName,
+                a.student.program,
+                a.scholarship.scholarshipName,
                 a.scholarship.type,
-                `₱${a.scholarship.amount.toLocaleString()}`,
+                `₱${Number(a.scholarship.amount).toLocaleString()}`,
                 a.status,
-                a.dateApplied.toLocaleDateString(),
-                a.dateApproved?.toLocaleDateString() || '-',
+                a.applicationDate.toLocaleDateString(),
             ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [168, 85, 247] },

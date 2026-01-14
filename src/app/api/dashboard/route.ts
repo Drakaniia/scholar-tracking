@@ -10,26 +10,25 @@ export async function GET() {
             activeScholarships,
             pendingApplications,
             approvedApplications,
-            approvedScholarshipsData,
+            awardsData,
         ] = await Promise.all([
             prisma.student.count(),
             prisma.scholarship.count(),
-            prisma.scholarship.count({ where: { isActive: true } }),
-            prisma.studentScholarship.count({ where: { status: 'Pending' } }),
-            prisma.studentScholarship.count({ where: { status: 'Approved' } }),
-            prisma.studentScholarship.findMany({
-                where: { status: 'Approved' },
-                include: { scholarship: { select: { amount: true } } },
+            prisma.scholarship.count({ where: { status: 'Active' } }),
+            prisma.application.count({ where: { status: 'Pending' } }),
+            prisma.application.count({ where: { status: 'Approved' } }),
+            prisma.award.findMany({
+                select: { grantAmount: true },
             }),
         ]);
 
-        const totalAmountAwarded = approvedScholarshipsData.reduce(
-            (sum, app) => sum + app.scholarship.amount,
+        const totalAmountAwarded = awardsData.reduce(
+            (sum, award) => sum + Number(award.grantAmount),
             0
         );
 
         // Get recent applications
-        const recentApplications = await prisma.studentScholarship.findMany({
+        const recentApplications = await prisma.application.findMany({
             take: 5,
             orderBy: { createdAt: 'desc' },
             include: {
@@ -38,21 +37,9 @@ export async function GET() {
             },
         });
 
-        // Get upcoming deadlines
-        const upcomingDeadlines = await prisma.scholarship.findMany({
-            where: {
-                isActive: true,
-                applicationEnd: {
-                    gte: new Date(),
-                },
-            },
-            orderBy: { applicationEnd: 'asc' },
-            take: 5,
-        });
-
-        // Get students by education level
-        const studentsByEducationLevel = await prisma.student.groupBy({
-            by: ['educationLevel'],
+        // Get students by year level
+        const studentsByYearLevel = await prisma.student.groupBy({
+            by: ['yearLevel'],
             _count: { id: true },
         });
 
@@ -74,9 +61,8 @@ export async function GET() {
                     totalAmountAwarded,
                 },
                 recentApplications,
-                upcomingDeadlines,
                 charts: {
-                    studentsByEducationLevel,
+                    studentsByYearLevel,
                     scholarshipsByType,
                 },
             },

@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
-        const educationLevel = searchParams.get('educationLevel') || '';
+        const yearLevel = searchParams.get('yearLevel') || '';
 
         const skip = (page - 1) * limit;
 
@@ -18,13 +18,13 @@ export async function GET(request: NextRequest) {
                 search
                     ? {
                         OR: [
-                            { firstName: { contains: search, mode: 'insensitive' as const } },
-                            { lastName: { contains: search, mode: 'insensitive' as const } },
-                            { course: { contains: search, mode: 'insensitive' as const } },
+                            { fullName: { contains: search, mode: 'insensitive' as const } },
+                            { studentNo: { contains: search, mode: 'insensitive' as const } },
+                            { program: { contains: search, mode: 'insensitive' as const } },
                         ],
                     }
                     : {},
-                educationLevel ? { educationLevel } : {},
+                yearLevel ? { yearLevel } : {},
             ],
         };
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
                 take: limit,
                 orderBy: { createdAt: 'desc' },
                 include: {
-                    scholarships: {
+                    applications: {
                         include: {
                             scholarship: true,
                         },
@@ -69,13 +69,12 @@ export async function POST(request: NextRequest) {
 
         const student = await prisma.student.create({
             data: {
-                firstName: body.firstName,
-                middleName: body.middleName || null,
-                lastName: body.lastName,
+                studentNo: body.studentNo,
+                fullName: body.fullName,
+                program: body.program,
                 yearLevel: body.yearLevel,
-                course: body.course,
-                tuitionFee: body.tuitionFee,
-                educationLevel: body.educationLevel,
+                email: body.email,
+                status: body.status,
             },
         });
 

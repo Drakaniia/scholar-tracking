@@ -11,39 +11,36 @@ export async function GET(request: NextRequest) {
 
         const students = await prisma.student.findMany({
             include: {
-                scholarships: {
+                applications: {
                     include: {
                         scholarship: true,
                     },
                 },
             },
-            orderBy: { lastName: 'asc' },
+            orderBy: { fullName: 'asc' },
         });
 
         if (format === 'csv') {
-            // Generate CSV
             const headers = [
                 'ID',
-                'First Name',
-                'Middle Name',
-                'Last Name',
-                'Education Level',
+                'Student No',
+                'Full Name',
+                'Program',
                 'Year Level',
-                'Course',
-                'Tuition Fee',
+                'Email',
+                'Status',
                 'Scholarships',
             ];
 
             const rows = students.map((s) => [
                 s.id,
-                s.firstName,
-                s.middleName || '',
-                s.lastName,
-                s.educationLevel,
+                s.studentNo,
+                s.fullName,
+                s.program,
                 s.yearLevel,
-                s.course,
-                s.tuitionFee,
-                s.scholarships.map((ss) => ss.scholarship.name).join('; '),
+                s.email,
+                s.status,
+                s.applications.map((a) => a.scholarship.scholarshipName).join('; '),
             ]);
 
             const csv = [headers, ...rows]
@@ -63,25 +60,21 @@ export async function GET(request: NextRequest) {
         // Generate PDF
         const doc = new jsPDF();
 
-        // Title
         doc.setFontSize(18);
         doc.text('Student Records', 14, 22);
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
 
-        // Table
         autoTable(doc, {
             startY: 35,
-            head: [['Name', 'Education', 'Year', 'Course', 'Tuition', 'Scholarships']],
+            head: [['Student No', 'Name', 'Program', 'Year', 'Email', 'Status']],
             body: students.map((s) => [
-                `${s.lastName}, ${s.firstName}${s.middleName ? ` ${s.middleName}` : ''}`,
-                s.educationLevel,
+                s.studentNo,
+                s.fullName,
+                s.program,
                 s.yearLevel,
-                s.course,
-                `₱${s.tuitionFee.toLocaleString()}`,
-                s.scholarships.length > 0
-                    ? s.scholarships.map((ss) => ss.scholarship.name).join(', ')
-                    : 'None',
+                s.email,
+                s.status,
             ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [59, 130, 246] },

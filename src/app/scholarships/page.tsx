@@ -35,53 +35,44 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import {
-    SCHOLARSHIP_TYPES,
-    EXTERNAL_CATEGORIES,
-    CreateScholarshipInput,
-} from '@/types';
+import { formatCurrency } from '@/lib/utils';
+import { SCHOLARSHIP_TYPES, CreateScholarshipInput } from '@/types';
 
 interface Scholarship {
     id: number;
-    name: string;
-    description: string | null;
-    type: 'Internal' | 'External';
-    category: string | null;
+    scholarshipName: string;
+    sponsor: string;
+    type: string;
     amount: number;
-    eligibility: string | null;
-    applicationStart: string | null;
-    applicationEnd: string | null;
-    isActive: boolean;
+    requirements: string | null;
+    status: string;
     _count: {
-        students: number;
+        applications: number;
     };
 }
+
+const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
 
 export default function ScholarshipsPage() {
     const [scholarships, setScholarships] = useState<Scholarship[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    
+
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
     const [formData, setFormData] = useState<CreateScholarshipInput>({
-        name: '',
-        description: '',
+        scholarshipName: '',
+        sponsor: '',
         type: 'Internal',
-        category: '',
         amount: 0,
-        eligibility: '',
-        applicationStart: undefined,
-        applicationEnd: undefined,
-        isActive: true,
+        requirements: '',
+        status: 'Active',
     });
 
     const fetchScholarships = useCallback(async () => {
         try {
             const params = new URLSearchParams();
             if (search) params.append('search', search);
-            
             params.append('limit', '100');
 
             const res = await fetch(`/api/scholarships?${params}`);
@@ -156,34 +147,24 @@ export default function ScholarshipsPage() {
     const handleEdit = (scholarship: Scholarship) => {
         setEditingScholarship(scholarship);
         setFormData({
-            name: scholarship.name,
-            description: scholarship.description || '',
+            scholarshipName: scholarship.scholarshipName,
+            sponsor: scholarship.sponsor,
             type: scholarship.type,
-            category: scholarship.category || '',
-            amount: scholarship.amount,
-            eligibility: scholarship.eligibility || '',
-            applicationStart: scholarship.applicationStart
-                ? new Date(scholarship.applicationStart)
-                : undefined,
-            applicationEnd: scholarship.applicationEnd
-                ? new Date(scholarship.applicationEnd)
-                : undefined,
-            isActive: scholarship.isActive,
+            amount: Number(scholarship.amount),
+            requirements: scholarship.requirements || '',
+            status: scholarship.status,
         });
         setDialogOpen(true);
     };
 
     const resetForm = () => {
         setFormData({
-            name: '',
-            description: '',
+            scholarshipName: '',
+            sponsor: '',
             type: 'Internal',
-            category: '',
             amount: 0,
-            eligibility: '',
-            applicationStart: undefined,
-            applicationEnd: undefined,
-            isActive: true,
+            requirements: '',
+            status: 'Active',
         });
         setEditingScholarship(null);
     };
@@ -196,57 +177,42 @@ export default function ScholarshipsPage() {
             <TableHeader>
                 <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
+                    <TableHead>Sponsor</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Application Period</TableHead>
-                    <TableHead>Recipients</TableHead>
+                    <TableHead>Applications</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {data.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                             No scholarships found
                         </TableCell>
                     </TableRow>
                 ) : (
                     data.map((scholarship) => (
                         <TableRow key={scholarship.id}>
-                            <TableCell className="font-medium">{scholarship.name}</TableCell>
-                            <TableCell>
-                                {scholarship.type === 'External' && scholarship.category ? (
-                                    <Badge variant="secondary">{scholarship.category}</Badge>
-                                ) : (
-                                    <Badge variant="outline">Cash Assistance</Badge>
-                                )}
+                            <TableCell className="font-medium">
+                                {scholarship.scholarshipName}
                             </TableCell>
-                            <TableCell>{formatCurrency(scholarship.amount)}</TableCell>
+                            <TableCell>{scholarship.sponsor}</TableCell>
+                            <TableCell>{formatCurrency(Number(scholarship.amount))}</TableCell>
                             <TableCell>
                                 <Badge
-                                    variant={scholarship.isActive ? 'default' : 'secondary'}
+                                    variant={scholarship.status === 'Active' ? 'default' : 'secondary'}
                                     className={
-                                        scholarship.isActive
+                                        scholarship.status === 'Active'
                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                                             : ''
                                     }
                                 >
-                                    {scholarship.isActive ? 'Active' : 'Inactive'}
+                                    {scholarship.status}
                                 </Badge>
                             </TableCell>
                             <TableCell>
-                                {scholarship.applicationStart && scholarship.applicationEnd ? (
-                                    <span className="text-sm">
-                                        {formatDate(scholarship.applicationStart)} -{' '}
-                                        {formatDate(scholarship.applicationEnd)}
-                                    </span>
-                                ) : (
-                                    <span className="text-muted-foreground">Open</span>
-                                )}
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant="outline">{scholarship._count.students}</Badge>
+                                <Badge variant="outline">{scholarship._count.applications}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
@@ -303,12 +269,23 @@ export default function ScholarshipsPage() {
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Scholarship Name</Label>
+                                <Label htmlFor="scholarshipName">Scholarship Name</Label>
                                 <Input
-                                    id="name"
-                                    value={formData.name}
+                                    id="scholarshipName"
+                                    value={formData.scholarshipName}
                                     onChange={(e) =>
-                                        setFormData({ ...formData, name: e.target.value })
+                                        setFormData({ ...formData, scholarshipName: e.target.value })
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="sponsor">Sponsor</Label>
+                                <Input
+                                    id="sponsor"
+                                    value={formData.sponsor}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, sponsor: e.target.value })
                                     }
                                     required
                                 />
@@ -318,8 +295,8 @@ export default function ScholarshipsPage() {
                                     <Label htmlFor="type">Type</Label>
                                     <Select
                                         value={formData.type}
-                                        onValueChange={(value: 'Internal' | 'External') =>
-                                            setFormData({ ...formData, type: value, category: '' })
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, type: value })
                                         }
                                     >
                                         <SelectTrigger>
@@ -334,28 +311,26 @@ export default function ScholarshipsPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                {formData.type === 'External' && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="category">Category</Label>
-                                        <Select
-                                            value={formData.category || ''}
-                                            onValueChange={(value) =>
-                                                setFormData({ ...formData, category: value })
-                                            }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {EXTERNAL_CATEGORIES.map((cat) => (
-                                                    <SelectItem key={cat} value={cat}>
-                                                        {cat}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="status">Status</Label>
+                                    <Select
+                                        value={formData.status}
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, status: value })
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {SCHOLARSHIP_STATUSES.map((status) => (
+                                                <SelectItem key={status} value={status}>
+                                                    {status}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="amount">Amount (₱)</Label>
@@ -375,72 +350,15 @@ export default function ScholarshipsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
+                                <Label htmlFor="requirements">Requirements</Label>
                                 <Textarea
-                                    id="description"
-                                    value={formData.description || ''}
+                                    id="requirements"
+                                    value={formData.requirements || ''}
                                     onChange={(e) =>
-                                        setFormData({ ...formData, description: e.target.value })
+                                        setFormData({ ...formData, requirements: e.target.value })
                                     }
                                     rows={3}
                                 />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="eligibility">Eligibility Requirements</Label>
-                                <Textarea
-                                    id="eligibility"
-                                    value={formData.eligibility || ''}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, eligibility: e.target.value })
-                                    }
-                                    rows={2}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="applicationStart">Start Date</Label>
-                                    <Input
-                                        id="applicationStart"
-                                        type="date"
-                                        value={
-                                            formData.applicationStart
-                                                ? new Date(formData.applicationStart)
-                                                    .toISOString()
-                                                    .split('T')[0]
-                                                : ''
-                                        }
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                applicationStart: e.target.value
-                                                    ? new Date(e.target.value)
-                                                    : undefined,
-                                            })
-                                        }
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="applicationEnd">End Date</Label>
-                                    <Input
-                                        id="applicationEnd"
-                                        type="date"
-                                        value={
-                                            formData.applicationEnd
-                                                ? new Date(formData.applicationEnd)
-                                                    .toISOString()
-                                                    .split('T')[0]
-                                                : ''
-                                        }
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                applicationEnd: e.target.value
-                                                    ? new Date(e.target.value)
-                                                    : undefined,
-                                            })
-                                        }
-                                    />
-                                </div>
                             </div>
                             <DialogFooter>
                                 <Button
