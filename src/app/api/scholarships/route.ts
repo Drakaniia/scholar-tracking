@@ -10,8 +10,7 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
         const type = searchParams.get('type') || '';
-        const category = searchParams.get('category') || '';
-        const isActive = searchParams.get('isActive');
+        const status = searchParams.get('status') || '';
 
         const skip = (page - 1) * limit;
 
@@ -20,16 +19,13 @@ export async function GET(request: NextRequest) {
                 search
                     ? {
                         OR: [
-                            { name: { contains: search, mode: 'insensitive' as const } },
-                            { description: { contains: search, mode: 'insensitive' as const } },
+                            { scholarshipName: { contains: search, mode: 'insensitive' as const } },
+                            { sponsor: { contains: search, mode: 'insensitive' as const } },
                         ],
                     }
                     : {},
                 type ? { type } : {},
-                category ? { category } : {},
-                isActive !== null && isActive !== ''
-                    ? { isActive: isActive === 'true' }
-                    : {},
+                status ? { status } : {},
             ],
         };
 
@@ -41,7 +37,7 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     _count: {
-                        select: { students: true },
+                        select: { applications: true },
                     },
                 },
             }),
@@ -72,15 +68,12 @@ export async function POST(request: NextRequest) {
 
         const scholarship = await prisma.scholarship.create({
             data: {
-                name: body.name,
-                description: body.description || null,
+                scholarshipName: body.scholarshipName,
+                sponsor: body.sponsor,
                 type: body.type,
-                category: body.type === 'External' ? body.category : null,
                 amount: body.amount,
-                eligibility: body.eligibility || null,
-                applicationStart: body.applicationStart || null,
-                applicationEnd: body.applicationEnd || null,
-                isActive: body.isActive ?? true,
+                requirements: body.requirements || null,
+                status: body.status,
             },
         });
 

@@ -3,26 +3,24 @@
 // ============================================
 export interface Student {
     id: number;
-    firstName: string;
-    middleName: string | null;
-    lastName: string;
+    studentNo: string;
+    fullName: string;
+    program: string;
     yearLevel: string;
-    course: string;
-    tuitionFee: number;
-    educationLevel: string;
+    email: string;
+    status: string;
     createdAt: Date;
     updatedAt: Date;
-    scholarships?: StudentScholarship[];
+    applications?: Application[];
 }
 
 export interface CreateStudentInput {
-    firstName: string;
-    middleName?: string;
-    lastName: string;
+    studentNo: string;
+    fullName: string;
+    program: string;
     yearLevel: string;
-    course: string;
-    tuitionFee: number;
-    educationLevel: string;
+    email: string;
+    status: string;
 }
 
 export type UpdateStudentInput = Partial<CreateStudentInput>;
@@ -32,54 +30,49 @@ export type UpdateStudentInput = Partial<CreateStudentInput>;
 // ============================================
 export interface Scholarship {
     id: number;
-    name: string;
-    description: string | null;
-    type: 'Internal' | 'External';
-    category: string | null;
+    scholarshipName: string;
+    sponsor: string;
+    type: string;
     amount: number;
-    eligibility: string | null;
-    applicationStart: Date | null;
-    applicationEnd: Date | null;
-    isActive: boolean;
+    requirements: string | null;
+    status: string;
     createdAt: Date;
     updatedAt: Date;
-    students?: StudentScholarship[];
+    applications?: Application[];
 }
 
 export interface CreateScholarshipInput {
-    name: string;
-    description?: string;
-    type: 'Internal' | 'External';
-    category?: string;
+    scholarshipName: string;
+    sponsor: string;
+    type: string;
     amount: number;
-    eligibility?: string;
-    applicationStart?: Date;
-    applicationEnd?: Date;
-    isActive?: boolean;
+    requirements?: string;
+    status: string;
 }
 
 export type UpdateScholarshipInput = Partial<CreateScholarshipInput>;
 
 // ============================================
-// STUDENT-SCHOLARSHIP (APPLICATION) TYPES
+// APPLICATION TYPES
 // ============================================
-export type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected' | 'Expired';
+export type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected';
 
-export interface StudentScholarship {
+export interface Application {
     id: number;
+    applicationDate: Date;
+    status: ApplicationStatus;
+    remarks: string | null;
     studentId: number;
     scholarshipId: number;
-    status: ApplicationStatus;
-    dateApplied: Date;
-    dateApproved: Date | null;
-    remarks: string | null;
     createdAt: Date;
     updatedAt: Date;
     student?: Student;
     scholarship?: Scholarship;
+    award?: Award;
 }
 
 export interface CreateApplicationInput {
+    applicationDate: Date;
     studentId: number;
     scholarshipId: number;
     remarks?: string;
@@ -89,6 +82,57 @@ export interface UpdateApplicationInput {
     status?: ApplicationStatus;
     remarks?: string;
 }
+
+// ============================================
+// AWARD TYPES
+// ============================================
+export interface Award {
+    id: number;
+    awardDate: Date;
+    startTerm: string;
+    endTerm: string;
+    grantAmount: number;
+    applicationId: number;
+    createdAt: Date;
+    updatedAt: Date;
+    application?: Application;
+    disbursements?: Disbursement[];
+}
+
+export interface CreateAwardInput {
+    awardDate: Date;
+    startTerm: string;
+    endTerm: string;
+    grantAmount: number;
+    applicationId: number;
+}
+
+export type UpdateAwardInput = Partial<CreateAwardInput>;
+
+// ============================================
+// DISBURSEMENT TYPES
+// ============================================
+export interface Disbursement {
+    id: number;
+    disbursementDate: Date;
+    amount: number;
+    term: string;
+    method: string;
+    awardId: number;
+    createdAt: Date;
+    updatedAt: Date;
+    award?: Award;
+}
+
+export interface CreateDisbursementInput {
+    disbursementDate: Date;
+    amount: number;
+    term: string;
+    method: string;
+    awardId: number;
+}
+
+export type UpdateDisbursementInput = Partial<CreateDisbursementInput>;
 
 // ============================================
 // ENUM VALUES
@@ -101,28 +145,18 @@ export const YEAR_LEVELS = [
     '5th Year',
 ] as const;
 
-export const EDUCATION_LEVELS = [
-    'Grade School',
-    'Junior High',
-    'Senior High',
-    'College',
-] as const;
-
 export const SCHOLARSHIP_TYPES = ['Internal', 'External'] as const;
-
-export const EXTERNAL_CATEGORIES = [
-    'CHED',
-    'TESDA',
-    'TDP',
-    'LGU',
-    'Other',
-] as const;
 
 export const APPLICATION_STATUSES = [
     'Pending',
     'Approved',
     'Rejected',
-    'Expired',
+] as const;
+
+export const DISBURSEMENT_METHODS = [
+    'Bank Transfer',
+    'Check',
+    'Cash',
 ] as const;
 
 // ============================================

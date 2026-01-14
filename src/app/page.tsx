@@ -10,9 +10,8 @@ import {
   FileCheck,
   Clock,
   TrendingUp,
-  Calendar,
 } from 'lucide-react';
-import { formatCurrency, formatDate, getFullName, getStatusColor } from '@/lib/utils';
+import { formatCurrency, formatDate, getStatusColor } from '@/lib/utils';
 
 interface DashboardData {
   stats: {
@@ -26,22 +25,26 @@ interface DashboardData {
   recentApplications: Array<{
     id: number;
     status: string;
-    dateApplied: string;
+    applicationDate: string;
     student: {
-      firstName: string;
-      middleName: string | null;
-      lastName: string;
+      fullName: string;
+      program: string;
     };
     scholarship: {
-      name: string;
+      scholarshipName: string;
       amount: number;
     };
   }>;
-  upcomingDeadlines: Array<{
-    id: number;
-    name: string;
-    applicationEnd: string;
-  }>;
+  charts: {
+    studentsByYearLevel: Array<{
+      yearLevel: string;
+      _count: { id: number };
+    }>;
+    scholarshipsByType: Array<{
+      type: string;
+      _count: { id: number };
+    }>;
+  };
 }
 
 export default function DashboardPage() {
@@ -111,14 +114,6 @@ export default function DashboardPage() {
       color: 'text-emerald-500',
       bgColor: 'bg-emerald-500/10',
     },
-    {
-      title: 'Total Amount Awarded',
-      value: formatCurrency(stats.totalAmountAwarded),
-      icon: TrendingUp,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
-      isLarge: true,
-    },
   ];
 
   return (
@@ -130,7 +125,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.slice(0, 4).map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.title} className="overflow-hidden">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -168,7 +163,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Activity and Deadlines */}
+      {/* Recent Activity and Stats */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         {/* Recent Applications */}
         <Card>
@@ -187,15 +182,9 @@ export default function DashboardPage() {
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     <div>
-                      <p className="font-medium">
-                        {getFullName(
-                          app.student.firstName,
-                          app.student.middleName,
-                          app.student.lastName
-                        )}
-                      </p>
+                      <p className="font-medium">{app.student.fullName}</p>
                       <p className="text-sm text-muted-foreground">
-                        {app.scholarship.name}
+                        {app.scholarship.scholarshipName}
                       </p>
                     </div>
                     <div className="text-right">
@@ -203,7 +192,7 @@ export default function DashboardPage() {
                         {app.status}
                       </Badge>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(app.dateApplied)}
+                        {formatDate(app.applicationDate)}
                       </p>
                     </div>
                   </div>
@@ -217,41 +206,54 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Upcoming Deadlines */}
+        {/* Distribution Stats */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Upcoming Deadlines
+              <GraduationCap className="h-5 w-5" />
+              Distribution Overview
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data?.upcomingDeadlines && data.upcomingDeadlines.length > 0 ? (
-              <div className="space-y-4">
-                {data.upcomingDeadlines.map((scholarship) => (
-                  <div
-                    key={scholarship.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="font-medium">{scholarship.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Application Deadline
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="outline" className="text-orange-600">
-                        {formatDate(scholarship.applicationEnd)}
-                      </Badge>
-                    </div>
+            <div className="space-y-6">
+              {/* Students by Year Level */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                  Students by Year Level
+                </h4>
+                {data?.charts?.studentsByYearLevel && data.charts.studentsByYearLevel.length > 0 ? (
+                  <div className="space-y-2">
+                    {data.charts.studentsByYearLevel.map((item) => (
+                      <div key={item.yearLevel} className="flex items-center justify-between">
+                        <span className="text-sm">{item.yearLevel}</span>
+                        <Badge variant="outline">{item._count.id}</Badge>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="text-sm text-muted-foreground">No data available</p>
+                )}
               </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No upcoming deadlines
-              </p>
-            )}
+
+              {/* Scholarships by Type */}
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                  Scholarships by Type
+                </h4>
+                {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
+                  <div className="space-y-2">
+                    {data.charts.scholarshipsByType.map((item) => (
+                      <div key={item.type} className="flex items-center justify-between">
+                        <span className="text-sm">{item.type}</span>
+                        <Badge variant="outline">{item._count.id}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No data available</p>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
