@@ -8,7 +8,6 @@ import {
   Users,
   GraduationCap,
   FileCheck,
-  Clock,
   TrendingUp,
 } from 'lucide-react';
 import { formatCurrency, formatDate, getStatusColor } from '@/lib/utils';
@@ -18,26 +17,29 @@ interface DashboardData {
     totalStudents: number;
     totalScholarships: number;
     activeScholarships: number;
-    pendingApplications: number;
-    approvedApplications: number;
+    activeStudentScholarships: number;
     totalAmountAwarded: number;
+    totalDisbursed: number;
   };
-  recentApplications: Array<{
+  recentScholarships: Array<{
     id: number;
     status: string;
-    applicationDate: string;
+    awardDate: string;
     student: {
-      fullName: string;
+      lastName: string;
+      firstName: string;
+      middleInitial: string | null;
       program: string;
     };
     scholarship: {
       scholarshipName: string;
-      amount: number;
+      type: string;
     };
+    grantAmount: number;
   }>;
   charts: {
-    studentsByYearLevel: Array<{
-      yearLevel: string;
+    studentsByGradeLevel: Array<{
+      gradeLevel: string;
       _count: { id: number };
     }>;
     scholarshipsByType: Array<{
@@ -80,9 +82,9 @@ export default function DashboardPage() {
     totalStudents: 0,
     totalScholarships: 0,
     activeScholarships: 0,
-    pendingApplications: 0,
-    approvedApplications: 0,
+    activeStudentScholarships: 0,
     totalAmountAwarded: 0,
+    totalDisbursed: 0,
   };
 
   const statCards = [
@@ -101,18 +103,18 @@ export default function DashboardPage() {
       bgColor: 'bg-green-500/10',
     },
     {
-      title: 'Pending Applications',
-      value: stats.pendingApplications,
-      icon: Clock,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10',
-    },
-    {
-      title: 'Approved Applications',
-      value: stats.approvedApplications,
+      title: 'Student Scholarships',
+      value: stats.activeStudentScholarships,
       icon: FileCheck,
       color: 'text-emerald-500',
       bgColor: 'bg-emerald-500/10',
+    },
+    {
+      title: 'Total Disbursed',
+      value: formatCurrency(stats.totalDisbursed),
+      icon: TrendingUp,
+      color: 'text-purple-500',
+      bgColor: 'bg-purple-500/10',
     },
   ];
 
@@ -165,34 +167,36 @@ export default function DashboardPage() {
 
       {/* Recent Activity and Stats */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Recent Applications */}
+        {/* Recent Scholarship Assignments */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileCheck className="h-5 w-5" />
-              Recent Applications
+              Recent Scholarship Assignments
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data?.recentApplications && data.recentApplications.length > 0 ? (
+            {data?.recentScholarships && data.recentScholarships.length > 0 ? (
               <div className="space-y-4">
-                {data.recentApplications.map((app) => (
+                {data.recentScholarships.map((item) => (
                   <div
-                    key={app.id}
+                    key={item.id}
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
                     <div>
-                      <p className="font-medium">{app.student.fullName}</p>
+                      <p className="font-medium">
+                        {item.student.lastName}, {item.student.firstName} {item.student.middleInitial || ''}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {app.scholarship.scholarshipName}
+                        {item.scholarship.scholarshipName}
                       </p>
                     </div>
                     <div className="text-right">
-                      <Badge className={getStatusColor(app.status)}>
-                        {app.status}
+                      <Badge className={getStatusColor(item.status)}>
+                        {item.status}
                       </Badge>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(app.applicationDate)}
+                        {formatDate(item.awardDate)}
                       </p>
                     </div>
                   </div>
@@ -200,7 +204,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                No recent applications
+                No recent scholarship assignments
               </p>
             )}
           </CardContent>
@@ -216,16 +220,16 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {/* Students by Year Level */}
+              {/* Students by Grade Level */}
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                  Students by Year Level
+                  Students by Grade Level
                 </h4>
-                {data?.charts?.studentsByYearLevel && data.charts.studentsByYearLevel.length > 0 ? (
+                {data?.charts?.studentsByGradeLevel && data.charts.studentsByGradeLevel.length > 0 ? (
                   <div className="space-y-2">
-                    {data.charts.studentsByYearLevel.map((item) => (
-                      <div key={item.yearLevel} className="flex items-center justify-between">
-                        <span className="text-sm">{item.yearLevel}</span>
+                    {data.charts.studentsByGradeLevel.map((item) => (
+                      <div key={item.gradeLevel} className="flex items-center justify-between">
+                        <span className="text-sm">{item.gradeLevel}</span>
                         <Badge variant="outline">{item._count.id}</Badge>
                       </div>
                     ))}

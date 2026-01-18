@@ -25,25 +25,26 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { YEAR_LEVELS, CreateStudentInput } from '@/types';
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS, YEAR_LEVELS, GradeLevel } from '@/types';
+import { StudentForm } from '@/components/forms/student-form';
 
 interface Student {
     id: number;
     studentNo: string;
-    fullName: string;
+    lastName: string;
+    firstName: string;
+    middleInitial: string | null;
     program: string;
+    gradeLevel: GradeLevel;
     yearLevel: string;
-    email: string;
     status: string;
-    applications: Array<{
+    scholarships: Array<{
         scholarship: {
             scholarshipName: string;
             type: string;
@@ -52,29 +53,19 @@ interface Student {
     }>;
 }
 
-const STUDENT_STATUSES = ['Active', 'Inactive', 'Graduated', 'On Leave'] as const;
-
 export default function StudentsPage() {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [yearFilter, setYearFilter] = useState('all');
+    const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-    const [formData, setFormData] = useState<CreateStudentInput>({
-        studentNo: '',
-        fullName: '',
-        program: '',
-        yearLevel: '1st Year',
-        email: '',
-        status: 'Active',
-    });
 
     const fetchStudents = useCallback(async () => {
         try {
             const params = new URLSearchParams();
             if (search) params.append('search', search);
-            if (yearFilter && yearFilter !== 'all') params.append('yearLevel', yearFilter);
+            if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
             params.append('limit', '100');
 
             const res = await fetch(`/api/students?${params}`);
@@ -88,45 +79,11 @@ export default function StudentsPage() {
         } finally {
             setLoading(false);
         }
-    }, [search, yearFilter]);
+    }, [search, gradeLevelFilter]);
 
     useEffect(() => {
         fetchStudents();
-    }, [search, yearFilter, fetchStudents]);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const url = editingStudent
-                ? `/api/students/${editingStudent.id}`
-                : '/api/students';
-            const method = editingStudent ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
-
-            const json = await res.json();
-            if (json.success) {
-                toast.success(
-                    editingStudent
-                        ? 'Student updated successfully'
-                        : 'Student created successfully'
-                );
-                setDialogOpen(false);
-                setEditingStudent(null);
-                resetForm();
-                fetchStudents();
-            } else {
-                toast.error(json.error || 'Operation failed');
-            }
-        } catch (error) {
-            console.error('Error saving student:', error);
-            toast.error('Failed to save student');
-        }
-    };
+    }, [search, gradeLevelFilter, fetchStudents]);
 
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure you want to delete this student?')) return;
@@ -148,27 +105,39 @@ export default function StudentsPage() {
 
     const handleEdit = (student: Student) => {
         setEditingStudent(student);
-        setFormData({
-            studentNo: student.studentNo,
-            fullName: student.fullName,
-            program: student.program,
-            yearLevel: student.yearLevel,
-            email: student.email,
-            status: student.status,
-        });
         setDialogOpen(true);
     };
 
-    const resetForm = () => {
-        setFormData({
-            studentNo: '',
-            fullName: '',
-            program: '',
-            yearLevel: '1st Year',
-            email: '',
-            status: 'Active',
-        });
-        setEditingStudent(null);
+    const handleFormSubmit = async (data: any) => {
+        try {
+            const url = editingStudent
+                ? `/api/students/${editingStudent.id}`
+                : '/api/students';
+            const method = editingStudent ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            const json = await res.json();
+            if (json.success) {
+                toast.success(
+                    editingStudent
+                        ? 'Student updated successfully'
+                        : 'Student created successfully'
+                );
+                setDialogOpen(false);
+                setEditingStudent(null);
+                fetchStudents();
+            } else {
+                toast.error(json.error || 'Operation failed');
+            }
+        } catch (error) {
+            console.error('Error saving student:', error);
+            toast.error('Failed to save student');
+        }
     };
 
     return (
@@ -178,7 +147,7 @@ export default function StudentsPage() {
                     open={dialogOpen}
                     onOpenChange={(open) => {
                         setDialogOpen(open);
-                        if (!open) resetForm();
+                        if (!open) setEditingStudent(null);
                     }}
                 >
                     <DialogTrigger asChild>
@@ -187,7 +156,7 @@ export default function StudentsPage() {
                             Add Student
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>
                                 {editingStudent ? 'Edit Student' : 'Add New Student'}
@@ -198,108 +167,21 @@ export default function StudentsPage() {
                                     : 'Enter student details to add a new record'}
                             </DialogDescription>
                         </DialogHeader>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="studentNo">Student No.</Label>
-                                <Input
-                                    id="studentNo"
-                                    value={formData.studentNo}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, studentNo: e.target.value })
-                                    }
-                                    placeholder="e.g., STU-2024-001"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="fullName">Full Name</Label>
-                                <Input
-                                    id="fullName"
-                                    value={formData.fullName}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, fullName: e.target.value })
-                                    }
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, email: e.target.value })
-                                    }
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="program">Program</Label>
-                                <Input
-                                    id="program"
-                                    value={formData.program}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, program: e.target.value })
-                                    }
-                                    required
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="yearLevel">Year Level</Label>
-                                    <Select
-                                        value={formData.yearLevel}
-                                        onValueChange={(value) =>
-                                            setFormData({ ...formData, yearLevel: value })
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {YEAR_LEVELS.map((level) => (
-                                                <SelectItem key={level} value={level}>
-                                                    {level}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="status">Status</Label>
-                                    <Select
-                                        value={formData.status}
-                                        onValueChange={(value) =>
-                                            setFormData({ ...formData, status: value })
-                                        }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {STUDENT_STATUSES.map((status) => (
-                                                <SelectItem key={status} value={status}>
-                                                    {status}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setDialogOpen(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button type="submit">
-                                    {editingStudent ? 'Update' : 'Create'}
-                                </Button>
-                            </DialogFooter>
-                        </form>
+                        <StudentForm
+                            defaultValues={editingStudent ? {
+                                studentNo: editingStudent.studentNo,
+                                lastName: editingStudent.lastName,
+                                firstName: editingStudent.firstName,
+                                middleInitial: editingStudent.middleInitial || '',
+                                program: editingStudent.program,
+                                gradeLevel: editingStudent.gradeLevel,
+                                yearLevel: editingStudent.yearLevel,
+                                status: editingStudent.status,
+                            } : undefined}
+                            onSubmit={handleFormSubmit}
+                            onCancel={() => setDialogOpen(false)}
+                            isEditing={!!editingStudent}
+                        />
                     </DialogContent>
                 </Dialog>
             </PageHeader>
@@ -317,15 +199,15 @@ export default function StudentsPage() {
                                 className="pl-10"
                             />
                         </div>
-                        <Select value={yearFilter} onValueChange={setYearFilter}>
+                        <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
                             <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="All Year Levels" />
+                                <SelectValue placeholder="All Grade Levels" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Year Levels</SelectItem>
-                                {YEAR_LEVELS.map((level) => (
+                                <SelectItem value="all">All Grade Levels</SelectItem>
+                                {GRADE_LEVELS.map((level) => (
                                     <SelectItem key={level} value={level}>
-                                        {level}
+                                        {GRADE_LEVEL_LABELS[level]}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -352,11 +234,11 @@ export default function StudentsPage() {
                                 <TableRow>
                                     <TableHead>Student No.</TableHead>
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Program</TableHead>
+                                    <TableHead>Grade Level</TableHead>
                                     <TableHead>Year Level</TableHead>
-                                    <TableHead>Email</TableHead>
+                                    <TableHead>Program</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Applications</TableHead>
+                                    <TableHead>Scholarships</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -367,11 +249,15 @@ export default function StudentsPage() {
                                             {student.studentNo}
                                         </TableCell>
                                         <TableCell className="font-medium">
-                                            {student.fullName}
+                                            {student.lastName}, {student.firstName} {student.middleInitial || ''}
                                         </TableCell>
-                                        <TableCell>{student.program}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">
+                                                {GRADE_LEVEL_LABELS[student.gradeLevel]}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell>{student.yearLevel}</TableCell>
-                                        <TableCell>{student.email}</TableCell>
+                                        <TableCell>{student.program}</TableCell>
                                         <TableCell>
                                             <Badge
                                                 variant={student.status === 'Active' ? 'default' : 'secondary'}
@@ -380,8 +266,8 @@ export default function StudentsPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {student.applications.length > 0 ? (
-                                                <Badge>{student.applications.length} application(s)</Badge>
+                                            {student.scholarships && student.scholarships.length > 0 ? (
+                                                <Badge>{student.scholarships.length} scholarship(s)</Badge>
                                             ) : (
                                                 <span className="text-muted-foreground">None</span>
                                             )}

@@ -10,50 +10,86 @@ async function main() {
 
     // Clear existing data (in reverse order of dependencies)
     await prisma.disbursement.deleteMany();
-    await prisma.award.deleteMany();
-    await prisma.application.deleteMany();
+    await prisma.studentScholarship.deleteMany();
+    await prisma.studentFees.deleteMany();
     await prisma.student.deleteMany();
     await prisma.scholarship.deleteMany();
 
-    // Create Students
+    // Create Students with separated name fields and grade levels
     const students = await Promise.all([
+        // COLLEGE Students
         prisma.student.create({
             data: {
                 studentNo: 'STU-2024-001',
-                fullName: 'Juan Santos Dela Cruz',
+                lastName: 'Dela Cruz',
+                firstName: 'Juan',
+                middleInitial: 'S',
                 program: 'Bachelor of Science in Computer Science',
+                gradeLevel: 'COLLEGE',
                 yearLevel: '3rd Year',
-                email: 'juan.delacruz@email.com',
                 status: 'Active',
             },
         }),
         prisma.student.create({
             data: {
                 studentNo: 'STU-2024-002',
-                fullName: 'Maria Garcia Reyes',
+                lastName: 'Reyes',
+                firstName: 'Maria',
+                middleInitial: 'G',
                 program: 'Bachelor of Science in Nursing',
+                gradeLevel: 'COLLEGE',
                 yearLevel: '2nd Year',
-                email: 'maria.reyes@email.com',
                 status: 'Active',
             },
         }),
         prisma.student.create({
             data: {
                 studentNo: 'STU-2024-003',
-                fullName: 'Pedro Santos',
+                lastName: 'Santos',
+                firstName: 'Pedro',
+                middleInitial: null,
                 program: 'Bachelor of Science in Information Technology',
+                gradeLevel: 'COLLEGE',
                 yearLevel: '4th Year',
-                email: 'pedro.santos@email.com',
                 status: 'Active',
             },
         }),
+        // SENIOR HIGH Students
         prisma.student.create({
             data: {
                 studentNo: 'STU-2024-004',
-                fullName: 'Ana Lopez Gonzales',
-                program: 'Bachelor of Science in Business Administration',
-                yearLevel: '1st Year',
-                email: 'ana.gonzales@email.com',
+                lastName: 'Gonzales',
+                firstName: 'Ana',
+                middleInitial: 'L',
+                program: 'STEM',
+                gradeLevel: 'SENIOR_HIGH',
+                yearLevel: 'Grade 11',
+                status: 'Active',
+            },
+        }),
+        // JUNIOR HIGH Students
+        prisma.student.create({
+            data: {
+                studentNo: 'STU-2024-005',
+                lastName: 'Ramos',
+                firstName: 'Carlos',
+                middleInitial: 'M',
+                program: 'General Education',
+                gradeLevel: 'JUNIOR_HIGH',
+                yearLevel: 'Grade 9',
+                status: 'Active',
+            },
+        }),
+        // GRADE SCHOOL Students
+        prisma.student.create({
+            data: {
+                studentNo: 'STU-2024-006',
+                lastName: 'Torres',
+                firstName: 'Sofia',
+                middleInitial: 'P',
+                program: 'Elementary',
+                gradeLevel: 'GRADE_SCHOOL',
+                yearLevel: 'Grade 5',
                 status: 'Active',
             },
         }),
@@ -61,13 +97,13 @@ async function main() {
 
     console.log(`✅ Created ${students.length} students`);
 
-    // Create Scholarships
+    // Create Scholarships with proper types: PAED, CHED, LGU
     const scholarships = await Promise.all([
         prisma.scholarship.create({
             data: {
-                scholarshipName: 'Academic Excellence Award',
-                sponsor: 'University Foundation',
-                type: 'Internal',
+                scholarshipName: 'PAED Academic Excellence',
+                sponsor: 'Private Education Assistance Committee',
+                type: 'PAED',
                 amount: new Prisma.Decimal(15000),
                 requirements: 'Minimum GWA of 1.5',
                 status: 'Active',
@@ -75,9 +111,9 @@ async function main() {
         }),
         prisma.scholarship.create({
             data: {
-                scholarshipName: 'Financial Assistance Program',
-                sponsor: 'Alumni Association',
-                type: 'Internal',
+                scholarshipName: 'PAED Financial Assistance',
+                sponsor: 'Private Education Assistance Committee',
+                type: 'PAED',
                 amount: new Prisma.Decimal(10000),
                 requirements: 'Family income below poverty threshold',
                 status: 'Active',
@@ -87,7 +123,7 @@ async function main() {
             data: {
                 scholarshipName: 'CHED Merit Scholarship',
                 sponsor: 'Commission on Higher Education',
-                type: 'External',
+                type: 'CHED',
                 amount: new Prisma.Decimal(30000),
                 requirements: 'Top 10% of graduating class',
                 status: 'Active',
@@ -95,11 +131,31 @@ async function main() {
         }),
         prisma.scholarship.create({
             data: {
-                scholarshipName: 'City Government Scholarship',
+                scholarshipName: 'CHED TES',
+                sponsor: 'Commission on Higher Education',
+                type: 'CHED',
+                amount: new Prisma.Decimal(20000),
+                requirements: 'Qualified TES applicant',
+                status: 'Active',
+            },
+        }),
+        prisma.scholarship.create({
+            data: {
+                scholarshipName: 'LGU City Scholarship',
                 sponsor: 'Local Government Unit',
-                type: 'External',
+                type: 'LGU',
                 amount: new Prisma.Decimal(15000),
                 requirements: 'Resident of the city for at least 3 years',
+                status: 'Active',
+            },
+        }),
+        prisma.scholarship.create({
+            data: {
+                scholarshipName: 'LGU Provincial Scholarship',
+                sponsor: 'Provincial Government',
+                type: 'LGU',
+                amount: new Prisma.Decimal(12000),
+                requirements: 'Provincial resident',
                 status: 'Active',
             },
         }),
@@ -107,128 +163,258 @@ async function main() {
 
     console.log(`✅ Created ${scholarships.length} scholarships`);
 
-    // Create Applications
-    const applications = await Promise.all([
-        prisma.application.create({
+    // Create Student-Scholarship assignments (Admin directly assigns)
+    const studentScholarships = await Promise.all([
+        // Juan - PAED scholarship
+        prisma.studentScholarship.create({
             data: {
-                applicationDate: new Date('2025-06-01'),
-                status: 'Approved',
-                remarks: 'Excellent academic record',
                 studentId: students[0].id,
-                scholarshipId: scholarships[0].id,
-            },
-        }),
-        prisma.application.create({
-            data: {
-                applicationDate: new Date('2025-06-15'),
-                status: 'Pending',
-                studentId: students[0].id,
-                scholarshipId: scholarships[2].id,
-            },
-        }),
-        prisma.application.create({
-            data: {
-                applicationDate: new Date('2025-07-01'),
-                status: 'Approved',
-                studentId: students[1].id,
-                scholarshipId: scholarships[1].id,
-            },
-        }),
-        prisma.application.create({
-            data: {
-                applicationDate: new Date('2025-07-10'),
-                status: 'Approved',
-                studentId: students[2].id,
-                scholarshipId: scholarships[2].id,
-            },
-        }),
-        prisma.application.create({
-            data: {
-                applicationDate: new Date('2025-08-01'),
-                status: 'Rejected',
-                remarks: 'Incomplete requirements',
-                studentId: students[3].id,
-                scholarshipId: scholarships[3].id,
-            },
-        }),
-    ]);
-
-    console.log(`✅ Created ${applications.length} applications`);
-
-    // Create Awards (for approved applications)
-    const awards = await Promise.all([
-        prisma.award.create({
-            data: {
+                scholarshipId: scholarships[0].id, // PAED
                 awardDate: new Date('2025-06-15'),
                 startTerm: '1st Semester 2025-2026',
                 endTerm: '2nd Semester 2025-2026',
                 grantAmount: new Prisma.Decimal(15000),
-                applicationId: applications[0].id,
+                status: 'Active',
+                remarks: 'Excellent academic record',
             },
         }),
-        prisma.award.create({
+        // Juan - CHED scholarship (can have both)
+        prisma.studentScholarship.create({
             data: {
+                studentId: students[0].id,
+                scholarshipId: scholarships[2].id, // CHED
+                awardDate: new Date('2025-06-20'),
+                startTerm: '1st Semester 2025-2026',
+                endTerm: '2nd Semester 2025-2026',
+                grantAmount: new Prisma.Decimal(30000),
+                status: 'Active',
+            },
+        }),
+        // Maria - PAED scholarship
+        prisma.studentScholarship.create({
+            data: {
+                studentId: students[1].id,
+                scholarshipId: scholarships[1].id, // PAED
                 awardDate: new Date('2025-07-15'),
                 startTerm: '1st Semester 2025-2026',
                 endTerm: '2nd Semester 2025-2026',
                 grantAmount: new Prisma.Decimal(10000),
-                applicationId: applications[2].id,
+                status: 'Active',
             },
         }),
-        prisma.award.create({
+        // Pedro - CHED scholarship
+        prisma.studentScholarship.create({
             data: {
+                studentId: students[2].id,
+                scholarshipId: scholarships[2].id, // CHED
                 awardDate: new Date('2025-07-20'),
                 startTerm: '1st Semester 2025-2026',
                 endTerm: '2nd Semester 2026-2027',
                 grantAmount: new Prisma.Decimal(30000),
-                applicationId: applications[3].id,
+                status: 'Active',
+            },
+        }),
+        // Pedro - LGU scholarship (both CHED and LGU)
+        prisma.studentScholarship.create({
+            data: {
+                studentId: students[2].id,
+                scholarshipId: scholarships[4].id, // LGU
+                awardDate: new Date('2025-07-22'),
+                startTerm: '1st Semester 2025-2026',
+                endTerm: '2nd Semester 2025-2026',
+                grantAmount: new Prisma.Decimal(15000),
+                status: 'Active',
+            },
+        }),
+        // Ana (Senior High) - LGU
+        prisma.studentScholarship.create({
+            data: {
+                studentId: students[3].id,
+                scholarshipId: scholarships[5].id, // LGU
+                awardDate: new Date('2025-08-10'),
+                startTerm: '1st Semester 2025-2026',
+                endTerm: '2nd Semester 2025-2026',
+                grantAmount: new Prisma.Decimal(12000),
+                status: 'Active',
+            },
+        }),
+        // Carlos (Junior High) - PAED
+        prisma.studentScholarship.create({
+            data: {
+                studentId: students[4].id,
+                scholarshipId: scholarships[1].id, // PAED
+                awardDate: new Date('2025-08-12'),
+                startTerm: '1st Semester 2025-2026',
+                endTerm: '2nd Semester 2025-2026',
+                grantAmount: new Prisma.Decimal(10000),
+                status: 'Active',
             },
         }),
     ]);
 
-    console.log(`✅ Created ${awards.length} awards`);
+    console.log(`✅ Created ${studentScholarships.length} student scholarship assignments`);
 
-    // Create Disbursements
+    // Create Disbursements (Direct payments to students)
     const disbursements = await Promise.all([
+        // Juan - PAED disbursement
         prisma.disbursement.create({
             data: {
+                studentId: students[0].id,
+                scholarshipId: scholarships[0].id,
                 disbursementDate: new Date('2025-08-01'),
                 amount: new Prisma.Decimal(7500),
                 term: '1st Semester 2025-2026',
                 method: 'Bank Transfer',
-                awardId: awards[0].id,
             },
         }),
+        // Juan - PAED second disbursement
         prisma.disbursement.create({
             data: {
+                studentId: students[0].id,
+                scholarshipId: scholarships[0].id,
                 disbursementDate: new Date('2026-01-05'),
                 amount: new Prisma.Decimal(7500),
                 term: '2nd Semester 2025-2026',
                 method: 'Bank Transfer',
-                awardId: awards[0].id,
             },
         }),
+        // Juan - CHED disbursement
         prisma.disbursement.create({
             data: {
+                studentId: students[0].id,
+                scholarshipId: scholarships[2].id,
+                disbursementDate: new Date('2025-08-01'),
+                amount: new Prisma.Decimal(15000),
+                term: '1st Semester 2025-2026',
+                method: 'Bank Transfer',
+            },
+        }),
+        // Maria - PAED disbursement
+        prisma.disbursement.create({
+            data: {
+                studentId: students[1].id,
+                scholarshipId: scholarships[1].id,
                 disbursementDate: new Date('2025-08-01'),
                 amount: new Prisma.Decimal(5000),
                 term: '1st Semester 2025-2026',
                 method: 'Check',
-                awardId: awards[1].id,
             },
         }),
+        // Pedro - CHED disbursement
         prisma.disbursement.create({
             data: {
+                studentId: students[2].id,
+                scholarshipId: scholarships[2].id,
                 disbursementDate: new Date('2025-08-15'),
                 amount: new Prisma.Decimal(15000),
                 term: '1st Semester 2025-2026',
                 method: 'Bank Transfer',
-                awardId: awards[2].id,
+            },
+        }),
+        // Pedro - LGU disbursement
+        prisma.disbursement.create({
+            data: {
+                studentId: students[2].id,
+                scholarshipId: scholarships[4].id,
+                disbursementDate: new Date('2025-08-15'),
+                amount: new Prisma.Decimal(7500),
+                term: '1st Semester 2025-2026',
+                method: 'Bank Transfer',
             },
         }),
     ]);
 
     console.log(`✅ Created ${disbursements.length} disbursements`);
+
+    // Create Student Fees with detailed breakdown and subsidy calculation
+    const studentFees = await Promise.all([
+        // Juan (College) - Total: 50000, Subsidy: 45000 (90%)
+        prisma.studentFees.create({
+            data: {
+                studentId: students[0].id,
+                tuitionFee: new Prisma.Decimal(35000),
+                otherFee: new Prisma.Decimal(5000),
+                miscellaneousFee: new Prisma.Decimal(3000),
+                laboratoryFee: new Prisma.Decimal(7000),
+                amountSubsidy: new Prisma.Decimal(45000), // PAED + CHED
+                percentSubsidy: new Prisma.Decimal(90.00), // (45000 / 50000) * 100
+                term: '1st Semester 2025-2026',
+                academicYear: '2025-2026',
+            },
+        }),
+        // Maria (College) - Total: 45000, Subsidy: 10000 (22.22%)
+        prisma.studentFees.create({
+            data: {
+                studentId: students[1].id,
+                tuitionFee: new Prisma.Decimal(30000),
+                otherFee: new Prisma.Decimal(5000),
+                miscellaneousFee: new Prisma.Decimal(4000),
+                laboratoryFee: new Prisma.Decimal(6000),
+                amountSubsidy: new Prisma.Decimal(10000), // PAED only
+                percentSubsidy: new Prisma.Decimal(22.22),
+                term: '1st Semester 2025-2026',
+                academicYear: '2025-2026',
+            },
+        }),
+        // Pedro (College) - Total: 48000, Subsidy: 45000 (93.75%)
+        prisma.studentFees.create({
+            data: {
+                studentId: students[2].id,
+                tuitionFee: new Prisma.Decimal(32000),
+                otherFee: new Prisma.Decimal(6000),
+                miscellaneousFee: new Prisma.Decimal(3000),
+                laboratoryFee: new Prisma.Decimal(7000),
+                amountSubsidy: new Prisma.Decimal(45000), // CHED + LGU
+                percentSubsidy: new Prisma.Decimal(93.75),
+                term: '1st Semester 2025-2026',
+                academicYear: '2025-2026',
+            },
+        }),
+        // Ana (Senior High) - Total: 25000, Subsidy: 12000 (48%)
+        prisma.studentFees.create({
+            data: {
+                studentId: students[3].id,
+                tuitionFee: new Prisma.Decimal(18000),
+                otherFee: new Prisma.Decimal(3000),
+                miscellaneousFee: new Prisma.Decimal(2000),
+                laboratoryFee: new Prisma.Decimal(2000),
+                amountSubsidy: new Prisma.Decimal(12000), // LGU
+                percentSubsidy: new Prisma.Decimal(48.00),
+                term: '1st Semester 2025-2026',
+                academicYear: '2025-2026',
+            },
+        }),
+        // Carlos (Junior High) - Total: 20000, Subsidy: 10000 (50%)
+        prisma.studentFees.create({
+            data: {
+                studentId: students[4].id,
+                tuitionFee: new Prisma.Decimal(15000),
+                otherFee: new Prisma.Decimal(2000),
+                miscellaneousFee: new Prisma.Decimal(2000),
+                laboratoryFee: new Prisma.Decimal(1000),
+                amountSubsidy: new Prisma.Decimal(10000), // PAED
+                percentSubsidy: new Prisma.Decimal(50.00),
+                term: '1st Semester 2025-2026',
+                academicYear: '2025-2026',
+            },
+        }),
+        // Sofia (Grade School) - Total: 15000, Subsidy: 0 (0%)
+        prisma.studentFees.create({
+            data: {
+                studentId: students[5].id,
+                tuitionFee: new Prisma.Decimal(12000),
+                otherFee: new Prisma.Decimal(1000),
+                miscellaneousFee: new Prisma.Decimal(1500),
+                laboratoryFee: new Prisma.Decimal(500),
+                amountSubsidy: new Prisma.Decimal(0),
+                percentSubsidy: new Prisma.Decimal(0.00),
+                term: '1st Semester 2025-2026',
+                academicYear: '2025-2026',
+            },
+        }),
+    ]);
+
+    console.log(`✅ Created ${studentFees.length} student fees records`);
     console.log('🎉 Seed completed successfully!');
 }
 

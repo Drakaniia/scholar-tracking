@@ -7,7 +7,6 @@ import {
     LayoutDashboard,
     Users,
     GraduationCap,
-    FileText,
     Menu,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -18,7 +17,6 @@ const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Students', href: '/students', icon: Users },
     { name: 'Scholarships', href: '/scholarships', icon: GraduationCap },
-    { name: 'Applications', href: '/applications', icon: FileText },
 ];
 
 function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boolean) => void }) {

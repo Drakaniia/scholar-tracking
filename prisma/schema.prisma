@@ -14,20 +14,30 @@ datasource db {
 // STUDENT MODEL
 // ============================================
 model Student {
-  id        Int     @id @default(autoincrement()) @map("student_id")
-  studentNo String  @map("student_no")
-  fullName  String  @map("full_name")
-  program   String
-  yearLevel String  @map("year_level")
-  email     String
-  status    String
+  id           Int    @id @default(autoincrement()) @map("student_id")
+  studentNo    String @unique @map("student_no")
+  
+  // Separated Name Fields
+  lastName     String @map("last_name")
+  firstName    String @map("first_name")
+  middleInitial String? @map("middle_initial")
+  
+  program      String
+  
+  // Grade Level: GRADE_SCHOOL, JUNIOR_HIGH, SENIOR_HIGH, COLLEGE
+  gradeLevel   String @map("grade_level")
+  yearLevel    String @map("year_level")
+  
+  status       String
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  applications Application[]
+  scholarships StudentScholarship[]
+  fees         StudentFees[]
+  disbursements Disbursement[]
 
   @@map("students")
 }
@@ -39,7 +49,10 @@ model Scholarship {
   id               Int     @id @default(autoincrement()) @map("scholarship_id")
   scholarshipName  String  @map("scholarship_name")
   sponsor          String
+  
+  // Scholarship Type: PAED, CHED, LGU
   type             String
+  
   amount           Decimal @db.Decimal(10, 2)
   requirements     String?
   status           String
@@ -49,21 +62,29 @@ model Scholarship {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  applications Application[]
+  students      StudentScholarship[]
+  disbursements Disbursement[]
 
   @@map("scholarships")
 }
 
 // ============================================
-// APPLICATION MODEL
+// STUDENT SCHOLARSHIP (Junction Table)
+// Admin directly assigns scholarships to students
 // ============================================
-model Application {
-  id              Int      @id @default(autoincrement()) @map("application_id")
-  applicationDate DateTime @map("application_date")
-  status          String
-  remarks         String?
-  studentId       Int      @map("student_id")
-  scholarshipId   Int      @map("scholarship_id")
+model StudentScholarship {
+  id            Int      @id @default(autoincrement()) @map("student_scholarship_id")
+  studentId     Int      @map("student_id")
+  scholarshipId Int      @map("scholarship_id")
+  
+  // Award Details
+  awardDate     DateTime @map("award_date")
+  startTerm     String   @map("start_term")
+  endTerm       String   @map("end_term")
+  grantAmount   Decimal  @map("grant_amount") @db.Decimal(10, 2)
+  
+  status        String   // Active, Completed, Suspended
+  remarks       String?
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -72,50 +93,64 @@ model Application {
   // Relations
   student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
-  award       Award?
 
-  @@map("applications")
-}
-
-// ============================================
-// AWARD MODEL
-// ============================================
-model Award {
-  id            Int      @id @default(autoincrement()) @map("award_id")
-  awardDate     DateTime @map("award_date")
-  startTerm     String   @map("start_term")
-  endTerm       String   @map("end_term")
-  grantAmount   Decimal  @map("grant_amount") @db.Decimal(10, 2)
-  applicationId Int      @unique @map("application_id")
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  disbursements Disbursement[]
-
-  @@map("awards")
+  @@unique([studentId, scholarshipId, startTerm])
+  @@map("student_scholarships")
 }
 
 // ============================================
 // DISBURSEMENT MODEL
+// Direct payment tracking for students
 // ============================================
 model Disbursement {
   id               Int      @id @default(autoincrement()) @map("disbursement_id")
+  studentId        Int      @map("student_id")
+  scholarshipId    Int      @map("scholarship_id")
+  
   disbursementDate DateTime @map("disbursement_date")
   amount           Decimal  @db.Decimal(10, 2)
   term             String
   method           String
-  awardId          Int      @map("award_id")
+  remarks          String?
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  award Award @relation(fields: [awardId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Restrict)
 
   @@map("disbursements")
+}
+
+// ============================================
+// STUDENT FEES MODEL
+// ============================================
+model StudentFees {
+  id        Int     @id @default(autoincrement()) @map("fees_id")
+  studentId Int     @map("student_id")
+  
+  // Fee Breakdown
+  tuitionFee       Decimal @map("tuition_fee") @db.Decimal(10, 2)
+  otherFee         Decimal @map("other_fee") @db.Decimal(10, 2)
+  miscellaneousFee Decimal @map("miscellaneous_fee") @db.Decimal(10, 2)
+  laboratoryFee    Decimal @map("laboratory_fee") @db.Decimal(10, 2)
+  
+  // Subsidy Information
+  amountSubsidy    Decimal @map("amount_subsidy") @db.Decimal(10, 2)
+  percentSubsidy   Decimal @map("percent_subsidy") @db.Decimal(5, 2) // Calculated: (amountSubsidy / totalAmount) * 100
+  
+  // Academic Period
+  term             String
+  academicYear     String  @map("academic_year")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_fees")
 }

@@ -12,7 +12,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import { YEAR_LEVELS, CreateStudentInput } from '@/types';
+import { YEAR_LEVELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, GradeLevel } from '@/types';
+import { useState } from 'react';
 
 const STUDENT_STATUSES = ['Active', 'Inactive', 'Graduated', 'On Leave'] as const;
 
@@ -31,17 +32,30 @@ export function StudentForm({
     isEditing = false,
     loading = false,
 }: StudentFormProps) {
+    const [selectedGradeLevel, setSelectedGradeLevel] = useState<GradeLevel>(
+        defaultValues?.gradeLevel || 'COLLEGE'
+    );
+
     const form = useForm<CreateStudentInput>({
         defaultValues: {
             studentNo: '',
-            fullName: '',
+            lastName: '',
+            firstName: '',
+            middleInitial: '',
             program: '',
+            gradeLevel: 'COLLEGE',
             yearLevel: '1st Year',
-            email: '',
             status: 'Active',
             ...defaultValues,
         },
     });
+
+    const handleGradeLevelChange = (value: GradeLevel) => {
+        setSelectedGradeLevel(value);
+        form.setValue('gradeLevel', value);
+        // Reset year level to first option of new grade level
+        form.setValue('yearLevel', YEAR_LEVELS[value][0]);
+    };
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -54,23 +68,32 @@ export function StudentForm({
                 />
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                    id="fullName"
-                    {...form.register('fullName', { required: true })}
-                    placeholder="Juan Santos Dela Cruz"
-                />
-            </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    {...form.register('email', { required: true })}
-                    placeholder="student@email.com"
-                />
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2 col-span-1">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                        id="lastName"
+                        {...form.register('lastName', { required: true })}
+                        placeholder="Dela Cruz"
+                    />
+                </div>
+                <div className="space-y-2 col-span-1">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                        id="firstName"
+                        {...form.register('firstName', { required: true })}
+                        placeholder="Juan"
+                    />
+                </div>
+                <div className="space-y-2 col-span-1">
+                    <Label htmlFor="middleInitial">M.I.</Label>
+                    <Input
+                        id="middleInitial"
+                        {...form.register('middleInitial')}
+                        placeholder="S"
+                        maxLength={1}
+                    />
+                </div>
             </div>
 
             <div className="space-y-2">
@@ -82,7 +105,34 @@ export function StudentForm({
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="gradeLevel">Grade Level</Label>
+                    <Controller
+                        name="gradeLevel"
+                        control={form.control}
+                        render={({ field }) => (
+                            <Select 
+                                value={field.value} 
+                                onValueChange={(value) => {
+                                    field.onChange(value);
+                                    handleGradeLevelChange(value as GradeLevel);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {GRADE_LEVELS.map((level) => (
+                                        <SelectItem key={level} value={level}>
+                                            {GRADE_LEVEL_LABELS[level]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="yearLevel">Year Level</Label>
                     <Controller
@@ -94,7 +144,7 @@ export function StudentForm({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {YEAR_LEVELS.map((level) => (
+                                    {YEAR_LEVELS[selectedGradeLevel].map((level) => (
                                         <SelectItem key={level} value={level}>
                                             {level}
                                         </SelectItem>
