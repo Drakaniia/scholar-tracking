@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout";
 import { Toaster } from "@/components/ui/sonner";
+import { SidebarProvider, MainContent } from "@/components/layout/layout-wrapper";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,14 +23,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <div className="min-h-screen bg-background">
-          <Sidebar />
-          <main className="md:ml-64">
-            <div className="container mx-auto p-4 pt-16 md:p-8 md:pt-8">
+        <SidebarProvider>
+          <div className="min-h-screen bg-background">
+            <Sidebar />
+            <MainContent>
               {children}
-            </div>
-          </main>
-        </div>
+            </MainContent>
+          </div>
+        </SidebarProvider>
         <Toaster />
       </body>
     </html>

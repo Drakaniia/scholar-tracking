@@ -28,6 +28,14 @@ model Student {
   gradeLevel   String @map("grade_level")
   yearLevel    String @map("year_level")
   
+  // Scholarship Assignment (can be null if no scholarship)
+  scholarshipId Int?    @map("scholarship_id")
+  awardDate     DateTime? @map("award_date")
+  startTerm     String?   @map("start_term")
+  endTerm       String?   @map("end_term")
+  grantAmount   Decimal?  @map("grant_amount") @db.Decimal(10, 2)
+  scholarshipStatus String? @map("scholarship_status") // Active, Completed, Suspended
+  
   status       String
 
   // Timestamps
@@ -35,8 +43,8 @@ model Student {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  scholarships StudentScholarship[]
-  fees         StudentFees[]
+  scholarship   Scholarship? @relation(fields: [scholarshipId], references: [id], onDelete: SetNull)
+  fees          StudentFees[]
   disbursements Disbursement[]
 
   @@map("students")
@@ -62,40 +70,10 @@ model Scholarship {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  students      StudentScholarship[]
+  students      Student[]
   disbursements Disbursement[]
 
   @@map("scholarships")
-}
-
-// ============================================
-// STUDENT SCHOLARSHIP (Junction Table)
-// Admin directly assigns scholarships to students
-// ============================================
-model StudentScholarship {
-  id            Int      @id @default(autoincrement()) @map("student_scholarship_id")
-  studentId     Int      @map("student_id")
-  scholarshipId Int      @map("scholarship_id")
-  
-  // Award Details
-  awardDate     DateTime @map("award_date")
-  startTerm     String   @map("start_term")
-  endTerm       String   @map("end_term")
-  grantAmount   Decimal  @map("grant_amount") @db.Decimal(10, 2)
-  
-  status        String   // Active, Completed, Suspended
-  remarks       String?
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, scholarshipId, startTerm])
-  @@map("student_scholarships")
 }
 
 // ============================================

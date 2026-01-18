@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
         const scholarships = await prisma.scholarship.findMany({
             include: {
                 _count: {
-                    select: { applications: true },
+                    select: { students: true },
                 },
             },
             orderBy: { scholarshipName: 'asc' },
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
                 'Amount',
                 'Requirements',
                 'Status',
-                'Applications',
+                'Students',
             ];
 
             const rows = scholarships.map((s) => [
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
                 Number(s.amount),
                 s.requirements || '',
                 s.status,
-                s._count.applications,
+                s._count.students,
             ]);
 
             const csv = [headers, ...rows]
@@ -69,14 +69,14 @@ export async function GET(request: NextRequest) {
 
         autoTable(doc, {
             startY: 45,
-            head: [['Name', 'Sponsor', 'Type', 'Amount', 'Status', 'Applications']],
+            head: [['Name', 'Sponsor', 'Type', 'Amount', 'Status', 'Students']],
             body: scholarships.map((s) => [
                 s.scholarshipName,
                 s.sponsor,
                 s.type,
                 `₱${Number(s.amount).toLocaleString()}`,
                 s.status,
-                s._count.applications.toString(),
+                s._count.students.toString(),
             ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [34, 197, 94] },

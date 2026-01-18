@@ -7,16 +7,21 @@ import {
     LayoutDashboard,
     Users,
     GraduationCap,
+    FileSpreadsheet,
     Menu,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useSidebar } from './layout-wrapper';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Students', href: '/students', icon: Users },
     { name: 'Scholarships', href: '/scholarships', icon: GraduationCap },
+    { name: 'Reports', href: '/reports', icon: FileSpreadsheet },
 ];
 
 function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boolean) => void }) {
@@ -48,6 +53,7 @@ function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boo
 export function Sidebar() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
+    const { collapsed, setCollapsed } = useSidebar();
 
     return (
         <>
@@ -68,9 +74,20 @@ export function Sidebar() {
             </Sheet>
 
             {/* Desktop Sidebar */}
-            <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r bg-card md:block">
-                <div className="flex h-full flex-col">
+            <aside className={cn(
+                "fixed left-0 top-0 z-40 hidden h-screen border-r bg-card transition-all duration-300 md:block overflow-hidden",
+                collapsed ? "w-0 opacity-0 border-0" : "w-64 opacity-100"
+            )}>
+                <div className="flex h-full flex-col w-64">
                     <div className="flex h-16 items-center gap-2 border-b px-6">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setCollapsed(!collapsed)}
+                            className="h-8 w-8 shrink-0"
+                        >
+                            <PanelLeftClose className="h-5 w-5" />
+                        </Button>
                         <GraduationCap className="h-8 w-8 text-primary" />
                         <span className="text-lg font-bold">ScholarTrack</span>
                     </div>
@@ -85,6 +102,18 @@ export function Sidebar() {
                     </div>
                 </div>
             </aside>
+
+            {/* Toggle Button for Desktop - When Collapsed */}
+            {collapsed && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCollapsed(false)}
+                    className="fixed left-4 top-4 z-50 hidden md:flex"
+                >
+                    <PanelLeftOpen className="h-5 w-5" />
+                </Button>
+            )}
         </>
     );
 }

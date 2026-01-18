@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     _count: {
-                        select: { applications: true },
+                        select: { students: true },
                     },
                 },
             }),

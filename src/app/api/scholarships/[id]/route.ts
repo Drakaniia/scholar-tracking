@@ -14,10 +14,29 @@ export async function GET(
         const scholarship = await prisma.scholarship.findUnique({
             where: { id: scholarshipId },
             include: {
-                applications: {
+                students: {
+                    select: {
+                        id: true,
+                        studentNo: true,
+                        lastName: true,
+                        firstName: true,
+                        middleInitial: true,
+                        gradeLevel: true,
+                        yearLevel: true,
+                        scholarshipStatus: true,
+                        awardDate: true,
+                        grantAmount: true,
+                    },
+                },
+                disbursements: {
                     include: {
-                        student: true,
-                        award: true,
+                        student: {
+                            select: {
+                                studentNo: true,
+                                lastName: true,
+                                firstName: true,
+                            },
+                        },
                     },
                 },
             },

@@ -10,10 +10,16 @@ export interface Student {
     program: string;
     gradeLevel: GradeLevel;
     yearLevel: string;
+    scholarshipId: number | null;
+    awardDate: Date | null;
+    startTerm: string | null;
+    endTerm: string | null;
+    grantAmount: number | null;
+    scholarshipStatus: string | null;
     status: string;
     createdAt: Date;
     updatedAt: Date;
-    scholarships?: StudentScholarship[];
+    scholarship?: Scholarship;
     fees?: StudentFees[];
     disbursements?: Disbursement[];
 }
@@ -46,7 +52,7 @@ export interface Scholarship {
     status: string;
     createdAt: Date;
     updatedAt: Date;
-    students?: StudentScholarship[];
+    students?: Student[];
     disbursements?: Disbursement[];
 }
 
@@ -60,38 +66,6 @@ export interface CreateScholarshipInput {
 }
 
 export type UpdateScholarshipInput = Partial<CreateScholarshipInput>;
-
-// ============================================
-// STUDENT SCHOLARSHIP TYPES (Junction)
-// ============================================
-export interface StudentScholarship {
-    id: number;
-    studentId: number;
-    scholarshipId: number;
-    awardDate: Date;
-    startTerm: string;
-    endTerm: string;
-    grantAmount: number;
-    status: 'Active' | 'Completed' | 'Suspended';
-    remarks: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    student?: Student;
-    scholarship?: Scholarship;
-}
-
-export interface CreateStudentScholarshipInput {
-    studentId: number;
-    scholarshipId: number;
-    awardDate: Date;
-    startTerm: string;
-    endTerm: string;
-    grantAmount: number;
-    status: 'Active' | 'Completed' | 'Suspended';
-    remarks?: string;
-}
-
-export type UpdateStudentScholarshipInput = Partial<CreateStudentScholarshipInput>;
 
 // ============================================
 // DISBURSEMENT TYPES
@@ -189,8 +163,6 @@ export const SCHOLARSHIP_TYPE_LABELS: Record<ScholarshipType, string> = {
     LGU: 'LGU Scholarship',
 };
 
-export const STUDENT_SCHOLARSHIP_STATUSES = ['Active', 'Completed', 'Suspended'] as const;
-
 export const DISBURSEMENT_METHODS = [
     'Bank Transfer',
     'Check',
@@ -220,9 +192,9 @@ export interface PaginatedResponse<T> {
 // ============================================
 export interface DashboardStats {
     totalStudents: number;
+    studentsWithScholarships: number;
     totalScholarships: number;
     activeScholarships: number;
-    activeStudentScholarships: number;
     totalAmountAwarded: number;
     totalDisbursed: number;
 }

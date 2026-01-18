@@ -42,12 +42,12 @@ interface Scholarship {
     id: number;
     scholarshipName: string;
     sponsor: string;
-    type: string;
+    type: 'PAED' | 'CHED' | 'LGU';
     amount: number;
     requirements: string | null;
     status: string;
     _count: {
-        applications: number;
+        students: number;
     };
 }
 
@@ -63,7 +63,7 @@ export default function ScholarshipsPage() {
     const [formData, setFormData] = useState<CreateScholarshipInput>({
         scholarshipName: '',
         sponsor: '',
-        type: 'Internal',
+        type: 'PAED',
         amount: 0,
         requirements: '',
         status: 'Active',
@@ -161,7 +161,7 @@ export default function ScholarshipsPage() {
         setFormData({
             scholarshipName: '',
             sponsor: '',
-            type: 'Internal',
+            type: 'PAED',
             amount: 0,
             requirements: '',
             status: 'Active',
@@ -169,8 +169,9 @@ export default function ScholarshipsPage() {
         setEditingScholarship(null);
     };
 
-    const internalScholarships = scholarships.filter((s) => s.type === 'Internal');
-    const externalScholarships = scholarships.filter((s) => s.type === 'External');
+    const paedScholarships = scholarships.filter((s) => s.type === 'PAED');
+    const chedScholarships = scholarships.filter((s) => s.type === 'CHED');
+    const lguScholarships = scholarships.filter((s) => s.type === 'LGU');
 
     const ScholarshipTable = ({ data }: { data: Scholarship[] }) => (
         <Table>
@@ -180,7 +181,7 @@ export default function ScholarshipsPage() {
                     <TableHead>Sponsor</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Applications</TableHead>
+                    <TableHead>Students</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -212,7 +213,7 @@ export default function ScholarshipsPage() {
                                 </Badge>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline">{scholarship._count.applications}</Badge>
+                                <Badge variant="outline">{scholarship._count.students}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
@@ -296,7 +297,7 @@ export default function ScholarshipsPage() {
                                     <Select
                                         value={formData.type}
                                         onValueChange={(value) =>
-                                            setFormData({ ...formData, type: value })
+                                            setFormData({ ...formData, type: value as 'PAED' | 'CHED' | 'LGU' })
                                         }
                                     >
                                         <SelectTrigger>
@@ -398,26 +399,36 @@ export default function ScholarshipsPage() {
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
             ) : (
-                <Tabs defaultValue="internal" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="internal">
-                            Internal ({internalScholarships.length})
+                <Tabs defaultValue="paed" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="paed">
+                            PAED ({paedScholarships.length})
                         </TabsTrigger>
-                        <TabsTrigger value="external">
-                            External ({externalScholarships.length})
+                        <TabsTrigger value="ched">
+                            CHED ({chedScholarships.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="lgu">
+                            LGU ({lguScholarships.length})
                         </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="internal">
+                    <TabsContent value="paed">
                         <Card>
                             <CardContent className="p-0">
-                                <ScholarshipTable data={internalScholarships} />
+                                <ScholarshipTable data={paedScholarships} />
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="external">
+                    <TabsContent value="ched">
                         <Card>
                             <CardContent className="p-0">
-                                <ScholarshipTable data={externalScholarships} />
+                                <ScholarshipTable data={chedScholarships} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="lgu">
+                        <Card>
+                            <CardContent className="p-0">
+                                <ScholarshipTable data={lguScholarships} />
                             </CardContent>
                         </Card>
                     </TabsContent>

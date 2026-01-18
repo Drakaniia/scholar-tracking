@@ -36,7 +36,7 @@ export function ScholarshipForm({
         defaultValues: {
             scholarshipName: '',
             sponsor: '',
-            type: 'Internal',
+            type: 'PAED',
             amount: 0,
             requirements: '',
             status: 'Active',

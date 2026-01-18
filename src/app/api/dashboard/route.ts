@@ -4,42 +4,55 @@ import prisma from '@/lib/prisma';
 // GET /api/dashboard - Get dashboard statistics
 export async function GET() {
     try {
+        // Get basic counts
         const [
             totalStudents,
+            studentsWithScholarships,
             totalScholarships,
             activeScholarships,
-            pendingApplications,
-            approvedApplications,
-            awardsData,
         ] = await Promise.all([
             prisma.student.count(),
+            prisma.student.count({ where: { scholarshipId: { not: null } } }),
             prisma.scholarship.count(),
             prisma.scholarship.count({ where: { status: 'Active' } }),
-            prisma.application.count({ where: { status: 'Pending' } }),
-            prisma.application.count({ where: { status: 'Approved' } }),
-            prisma.award.findMany({
-                select: { grantAmount: true },
-            }),
         ]);
 
-        const totalAmountAwarded = awardsData.reduce(
-            (sum, award) => sum + Number(award.grantAmount),
+        // Get students with active scholarships for total awarded
+        const studentsWithGrants = await prisma.student.findMany({
+            where: { 
+                grantAmount: { not: null },
+                scholarshipStatus: 'Active',
+            },
+            select: { grantAmount: true },
+        });
+
+        const totalAmountAwarded = studentsWithGrants.reduce(
+            (sum, student) => sum + Number(student.grantAmount || 0),
             0
         );
 
-        // Get recent applications
-        const recentApplications = await prisma.application.findMany({
+        // Get total disbursed
+        const disbursements = await prisma.disbursement.findMany({
+            select: { amount: true },
+        });
+
+        const totalDisbursed = disbursements.reduce(
+            (sum, disbursement) => sum + Number(disbursement.amount),
+            0
+        );
+
+        // Get recent students with scholarships
+        const recentStudents = await prisma.student.findMany({
             take: 5,
-            orderBy: { createdAt: 'desc' },
+            orderBy: { updatedAt: 'desc' },
             include: {
-                student: true,
                 scholarship: true,
             },
         });
 
-        // Get students by year level
-        const studentsByYearLevel = await prisma.student.groupBy({
-            by: ['yearLevel'],
+        // Get students by grade level
+        const studentsByGradeLevel = await prisma.student.groupBy({
+            by: ['gradeLevel'],
             _count: { id: true },
         });
 
@@ -54,15 +67,15 @@ export async function GET() {
             data: {
                 stats: {
                     totalStudents,
+                    studentsWithScholarships,
                     totalScholarships,
                     activeScholarships,
-                    pendingApplications,
-                    approvedApplications,
                     totalAmountAwarded,
+                    totalDisbursed,
                 },
-                recentApplications,
+                recentStudents,
                 charts: {
-                    studentsByYearLevel,
+                    studentsByGradeLevel,
                     scholarshipsByType,
                 },
             },

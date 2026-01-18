@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
-        const yearLevel = searchParams.get('yearLevel') || '';
+        const gradeLevel = searchParams.get('gradeLevel') || '';
 
         const skip = (page - 1) * limit;
 
@@ -18,13 +18,14 @@ export async function GET(request: NextRequest) {
                 search
                     ? {
                         OR: [
-                            { fullName: { contains: search, mode: 'insensitive' as const } },
+                            { lastName: { contains: search, mode: 'insensitive' as const } },
+                            { firstName: { contains: search, mode: 'insensitive' as const } },
                             { studentNo: { contains: search, mode: 'insensitive' as const } },
                             { program: { contains: search, mode: 'insensitive' as const } },
                         ],
                     }
                     : {},
-                yearLevel ? { yearLevel } : {},
+                gradeLevel ? { gradeLevel } : {},
             ],
         };
 
@@ -35,11 +36,7 @@ export async function GET(request: NextRequest) {
                 take: limit,
                 orderBy: { createdAt: 'desc' },
                 include: {
-                    applications: {
-                        include: {
-                            scholarship: true,
-                        },
-                    },
+                    scholarship: true,
                 },
             }),
             prisma.student.count({ where }),
@@ -70,10 +67,12 @@ export async function POST(request: NextRequest) {
         const student = await prisma.student.create({
             data: {
                 studentNo: body.studentNo,
-                fullName: body.fullName,
+                lastName: body.lastName,
+                firstName: body.firstName,
+                middleInitial: body.middleInitial || null,
                 program: body.program,
+                gradeLevel: body.gradeLevel,
                 yearLevel: body.yearLevel,
-                email: body.email,
                 status: body.status,
             },
         });

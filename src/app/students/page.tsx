@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { GRADE_LEVELS, GRADE_LEVEL_LABELS, YEAR_LEVELS, GradeLevel } from '@/types';
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
 
 interface Student {
@@ -44,13 +44,12 @@ interface Student {
     gradeLevel: GradeLevel;
     yearLevel: string;
     status: string;
-    scholarships: Array<{
-        scholarship: {
-            scholarshipName: string;
-            type: string;
-        };
-        status: string;
-    }>;
+    scholarshipId: number | null;
+    scholarshipStatus: string | null;
+    scholarship: {
+        scholarshipName: string;
+        type: string;
+    } | null;
 }
 
 export default function StudentsPage() {
@@ -108,7 +107,7 @@ export default function StudentsPage() {
         setDialogOpen(true);
     };
 
-    const handleFormSubmit = async (data: any) => {
+    const handleFormSubmit = async (data: CreateStudentInput) => {
         try {
             const url = editingStudent
                 ? `/api/students/${editingStudent.id}`
@@ -266,8 +265,15 @@ export default function StudentsPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {student.scholarships && student.scholarships.length > 0 ? (
-                                                <Badge>{student.scholarships.length} scholarship(s)</Badge>
+                                            {student.scholarship ? (
+                                                <div>
+                                                    <Badge variant={student.scholarshipStatus === 'Active' ? 'default' : 'secondary'}>
+                                                        {student.scholarship.scholarshipName}
+                                                    </Badge>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {student.scholarship.type}
+                                                    </p>
+                                                </div>
                                             ) : (
                                                 <span className="text-muted-foreground">None</span>
                                             )}

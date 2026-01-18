@@ -5,8 +5,12 @@ import { CreateStudentInput, CreateScholarshipInput } from '@/types';
 export function validateStudent(data: Partial<CreateStudentInput>): string[] {
     const errors: string[] = [];
 
-    if (!data.fullName?.trim()) {
-        errors.push('Full name is required');
+    if (!data.lastName?.trim()) {
+        errors.push('Last name is required');
+    }
+
+    if (!data.firstName?.trim()) {
+        errors.push('First name is required');
     }
 
     if (!data.studentNo?.trim()) {
@@ -19,10 +23,6 @@ export function validateStudent(data: Partial<CreateStudentInput>): string[] {
 
     if (!data.yearLevel) {
         errors.push('Year level is required');
-    }
-
-    if (!data.email?.trim()) {
-        errors.push('Email is required');
     }
 
     return errors;

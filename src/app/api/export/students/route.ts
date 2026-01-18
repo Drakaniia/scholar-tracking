@@ -11,36 +11,36 @@ export async function GET(request: NextRequest) {
 
         const students = await prisma.student.findMany({
             include: {
-                applications: {
-                    include: {
-                        scholarship: true,
-                    },
-                },
+                scholarship: true,
             },
-            orderBy: { fullName: 'asc' },
+            orderBy: { lastName: 'asc' },
         });
 
         if (format === 'csv') {
             const headers = [
                 'ID',
                 'Student No',
-                'Full Name',
+                'Last Name',
+                'First Name',
+                'Middle Initial',
                 'Program',
+                'Grade Level',
                 'Year Level',
-                'Email',
                 'Status',
-                'Scholarships',
+                'Scholarship',
             ];
 
             const rows = students.map((s) => [
                 s.id,
                 s.studentNo,
-                s.fullName,
+                s.lastName,
+                s.firstName,
+                s.middleInitial || '',
                 s.program,
+                s.gradeLevel,
                 s.yearLevel,
-                s.email,
                 s.status,
-                s.applications.map((a) => a.scholarship.scholarshipName).join('; '),
+                s.scholarship?.scholarshipName || '',
             ]);
 
             const csv = [headers, ...rows]
@@ -67,14 +67,15 @@ export async function GET(request: NextRequest) {
 
         autoTable(doc, {
             startY: 35,
-            head: [['Student No', 'Name', 'Program', 'Year', 'Email', 'Status']],
+            head: [['Student No', 'Name', 'Program', 'Grade Level', 'Year Level', 'Status', 'Scholarship']],
             body: students.map((s) => [
                 s.studentNo,
-                s.fullName,
+                `${s.lastName}, ${s.firstName} ${s.middleInitial || ''}`.trim(),
                 s.program,
+                s.gradeLevel,
                 s.yearLevel,
-                s.email,
                 s.status,
+                s.scholarship?.scholarshipName || 'None',
             ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [59, 130, 246] },
