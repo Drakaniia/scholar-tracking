@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
-// GET /api/export/students - Export students to PDF
+// GET /api/export/students - Export students to PDF/CSV/XLSX
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
@@ -16,33 +17,65 @@ export async function GET(request: NextRequest) {
             orderBy: { lastName: 'asc' },
         });
 
-        if (format === 'csv') {
-            const headers = [
-                'ID',
-                'Student No',
-                'Last Name',
-                'First Name',
-                'Middle Initial',
-                'Program',
-                'Grade Level',
-                'Year Level',
-                'Status',
-                'Scholarship',
+        const headers = [
+            'ID',
+            'Student No',
+            'Last Name',
+            'First Name',
+            'Middle Initial',
+            'Program',
+            'Grade Level',
+            'Year Level',
+            'Status',
+            'Scholarship',
+        ];
+
+        const rows = students.map((s) => [
+            s.id,
+            s.studentNo,
+            s.lastName,
+            s.firstName,
+            s.middleInitial || '',
+            s.program,
+            s.gradeLevel,
+            s.yearLevel,
+            s.status,
+            s.scholarship?.scholarshipName || 'None',
+        ]);
+
+        if (format === 'xlsx') {
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 5 },  // ID
+                { wch: 15 }, // Student No
+                { wch: 20 }, // Last Name
+                { wch: 20 }, // First Name
+                { wch: 10 }, // Middle Initial
+                { wch: 35 }, // Program
+                { wch: 15 }, // Grade Level
+                { wch: 12 }, // Year Level
+                { wch: 10 }, // Status
+                { wch: 30 }, // Scholarship
             ];
 
-            const rows = students.map((s) => [
-                s.id,
-                s.studentNo,
-                s.lastName,
-                s.firstName,
-                s.middleInitial || '',
-                s.program,
-                s.gradeLevel,
-                s.yearLevel,
-                s.status,
-                s.scholarship?.scholarshipName || '',
-            ]);
+            XLSX.utils.book_append_sheet(wb, ws, 'Students');
 
+            // Generate buffer
+            const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+            return new NextResponse(buffer, {
+                headers: {
+                    'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition': 'attachment; filename="students.xlsx"',
+                },
+            });
+        }
+
+        if (format === 'csv') {
             const csv = [headers, ...rows]
                 .map((row) =>
                     row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')

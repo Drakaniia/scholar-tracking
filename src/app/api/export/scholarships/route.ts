@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
-// GET /api/export/scholarships - Export scholarships to PDF
+// GET /api/export/scholarships - Export scholarships to PDF/CSV/XLSX
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
@@ -18,29 +19,59 @@ export async function GET(request: NextRequest) {
             orderBy: { scholarshipName: 'asc' },
         });
 
-        if (format === 'csv') {
-            const headers = [
-                'ID',
-                'Name',
-                'Sponsor',
-                'Type',
-                'Amount',
-                'Requirements',
-                'Status',
-                'Students',
+        const headers = [
+            'ID',
+            'Name',
+            'Sponsor',
+            'Type',
+            'Amount',
+            'Requirements',
+            'Status',
+            'Students',
+        ];
+
+        const rows = scholarships.map((s) => [
+            s.id,
+            s.scholarshipName,
+            s.sponsor,
+            s.type,
+            Number(s.amount),
+            s.requirements || '',
+            s.status,
+            s._count.students,
+        ]);
+
+        if (format === 'xlsx') {
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 5 },  // ID
+                { wch: 35 }, // Name
+                { wch: 30 }, // Sponsor
+                { wch: 10 }, // Type
+                { wch: 12 }, // Amount
+                { wch: 50 }, // Requirements
+                { wch: 10 }, // Status
+                { wch: 10 }, // Students
             ];
 
-            const rows = scholarships.map((s) => [
-                s.id,
-                s.scholarshipName,
-                s.sponsor,
-                s.type,
-                Number(s.amount),
-                s.requirements || '',
-                s.status,
-                s._count.students,
-            ]);
+            XLSX.utils.book_append_sheet(wb, ws, 'Scholarships');
 
+            // Generate buffer
+            const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+            return new NextResponse(buffer, {
+                headers: {
+                    'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition': 'attachment; filename="scholarships.xlsx"',
+                },
+            });
+        }
+
+        if (format === 'csv') {
             const csv = [headers, ...rows]
                 .map((row) =>
                     row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
@@ -76,7 +107,7 @@ export async function GET(request: NextRequest) {
                 s.type,
                 `₱${Number(s.amount).toLocaleString()}`,
                 s.status,
-                s._count.students.toString(),
+                String(s._count.students),
             ]),
             styles: { fontSize: 8 },
             headStyles: { fillColor: [34, 197, 94] },
