@@ -46,7 +46,7 @@ export interface Scholarship {
     id: number;
     scholarshipName: string;
     sponsor: string;
-    type: ScholarshipType;
+    type: string; // Changed to string to allow custom types
     amount: number;
     requirements: string | null;
     status: string;
@@ -59,7 +59,7 @@ export interface Scholarship {
 export interface CreateScholarshipInput {
     scholarshipName: string;
     sponsor: string;
-    type: ScholarshipType;
+    type: string; // Changed to string to allow custom types
     amount: number;
     requirements?: string;
     status: string;
@@ -198,3 +198,94 @@ export interface DashboardStats {
     totalAmountAwarded: number;
     totalDisbursed: number;
 }
+// ============================================
+// AUTHENTICATION TYPES
+// ============================================
+export type UserRole = 'ADMIN' | 'STAFF' | 'VIEWER';
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+    passwordHash: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    status: UserStatus;
+    lastLogin?: Date;
+    passwordChangedAt: Date;
+    failedLoginAttempts: number;
+    lockedUntil?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    sessions?: Session[];
+    auditLogs?: AuditLog[];
+}
+
+export interface Session {
+    id: string;
+    userId: number;
+    expiresAt: Date;
+    ipAddress?: string;
+    userAgent?: string;
+    createdAt: Date;
+    user?: User;
+}
+
+export interface AuditLog {
+    id: number;
+    userId?: number;
+    action: string;
+    resourceType?: string;
+    resourceId?: number;
+    details?: Record<string, unknown>;
+    ipAddress?: string;
+    userAgent?: string;
+    createdAt: Date;
+    user?: User;
+}
+
+export interface CreateUserInput {
+    username: string;
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    status?: UserStatus;
+}
+
+export type UpdateUserInput = Partial<Omit<CreateUserInput, 'password'>> & {
+    password?: string;
+};
+
+export interface LoginInput {
+    username: string;
+    password: string;
+}
+
+export interface AuthUser {
+    id: number;
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+}
+
+export const USER_ROLES: UserRole[] = ['ADMIN', 'STAFF', 'VIEWER'] as const;
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+    ADMIN: 'Administrator',
+    STAFF: 'Staff Member',
+    VIEWER: 'Viewer',
+};
+
+export const USER_STATUSES: UserStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const;
+
+export const USER_STATUS_LABELS: Record<UserStatus, string> = {
+    ACTIVE: 'Active',
+    INACTIVE: 'Inactive',
+    SUSPENDED: 'Suspended',
+};
