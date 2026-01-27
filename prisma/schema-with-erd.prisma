@@ -1,18 +1,16 @@
-// Prisma Schema for Scholarship Tracking System
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma Schema for Scholarship Tracking System (WITH ERD GENERATOR)
+// This schema file includes the ERD generator for local development only
+// Use: npm run erd:generate
 
 generator client {
   provider = "prisma-client-js"
 }
 
-// ERD Generator - Only run locally with: npm run erd:generate
-// Disabled in production builds to avoid Puppeteer/Chrome dependencies
-// generator erd {
-//   provider = "prisma-erd-generator"
-//   output   = "../docs/ERD.svg"
-//   theme    = "forest"
-// }
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../docs/ERD.svg"
+  theme    = "forest"
+}
 
 datasource db {
   provider = "postgresql"

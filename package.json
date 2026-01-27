@@ -10,7 +10,7 @@
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "erd:generate": "prisma generate",
+    "erd:generate": "prisma generate --schema=prisma/schema-with-erd.prisma",
     "erd:view": "start docs/index.html",
     "clean": "rm -rf node_modules .next && npm install"
   },
