@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,13 +70,11 @@ export default function LoginPage() {
             {/* Left Side - Logo and Title */}
             <div className="bg-transparent p-8 md:p-12 flex flex-col items-center justify-center text-slate-800 rounded-l-lg">
               <div className="w-32 h-32 mb-6 bg-white rounded-full flex items-center justify-center p-4 shadow-lg">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src="/images/logo.png"
                   alt="Scholarship Tracking System Logo"
-                  width={96}
-                  height={96}
                   className="w-full h-full object-contain"
-                  priority
                 />
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-center mb-2">
