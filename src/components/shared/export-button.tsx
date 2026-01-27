@@ -7,7 +7,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { FileDown, FileSpreadsheet, FileText } from 'lucide-react';
+import { FileDown, FileSpreadsheet, FileText, Sheet } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ExportButtonProps {
@@ -16,8 +16,13 @@ interface ExportButtonProps {
 }
 
 export function ExportButton({ endpoint, filename }: ExportButtonProps) {
-    const handleExport = async (format: 'pdf' | 'csv') => {
+    const handleExport = async (format: 'pdf' | 'csv' | 'xlsx') => {
         try {
+            if (!endpoint) {
+                toast.error('Export endpoint not configured');
+                return;
+            }
+
             toast.loading(`Generating ${format.toUpperCase()} export...`);
 
             const res = await fetch(`${endpoint}?format=${format}`);
@@ -57,6 +62,10 @@ export function ExportButton({ endpoint, filename }: ExportButtonProps) {
                 <DropdownMenuItem onClick={() => handleExport('pdf')}>
                     <FileText className="mr-2 h-4 w-4" />
                     Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                    <Sheet className="mr-2 h-4 w-4" />
+                    Export as Excel
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('csv')}>
                     <FileSpreadsheet className="mr-2 h-4 w-4" />
