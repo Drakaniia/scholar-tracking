@@ -203,11 +203,117 @@ npx prisma studio
 ```
 This opens a local web interface where you can inspect and modify your database records directly.
 
+### Database ERD Visualization
+View your database schema as an interactive Entity Relationship Diagram:
+
+```bash
+# View the ERD in your browser
+npm run erd:view
+
+# Regenerate ERD after schema changes
+npm run erd:generate
+```
+
+The ERD viewer includes:
+- 🔍 Zoom controls (In/Out/Reset)
+- ⬇️ Download SVG option
+- 📊 Interactive table relationships
+- 🎨 Forest theme visualization
+
+**Location**: `docs/index.html` and `docs/ERD.svg`
+
+For more details, see [Database Documentation](./docs/README.md)
+
 ### Seeding Data
 To populate your database with sample data:
 ```bash
 npx prisma db seed
 ```
+
+## System Flowchart
+
+```mermaid
+flowchart TD
+    Start([Start: User Access System]) --> Login{Login Page}
+    Login -->|Valid Credentials| Auth[Authenticate User]
+    Login -->|Invalid| LoginError[Show Error Message]
+    LoginError --> Login
+    
+    Auth --> Dashboard[Dashboard View]
+    
+    Dashboard --> Choice{Select Action}
+    
+    Choice -->|Manage Students| Students[Students Module]
+    Choice -->|Manage Scholarships| Scholarships[Scholarships Module]
+    Choice -->|View Reports| Reports[Reports Module]
+    Choice -->|Logout| Logout[End Session]
+    
+    Students --> StudentAction{Student Action}
+    StudentAction -->|Add| AddStudent[Create New Student]
+    StudentAction -->|Edit| EditStudent[Update Student Info]
+    StudentAction -->|Delete| DeleteStudent[Remove Student]
+    StudentAction -->|View| ViewStudent[View Student Details]
+    StudentAction -->|Assign Scholarship| AssignScholar[Assign to Scholarship]
+    
+    AddStudent --> SaveStudent[Save to Database]
+    EditStudent --> SaveStudent
+    AssignScholar --> SaveStudent
+    SaveStudent --> Students
+    DeleteStudent --> Students
+    ViewStudent --> Students
+    
+    Scholarships --> ScholarAction{Scholarship Action}
+    ScholarAction -->|Add| AddScholar[Create Scholarship]
+    ScholarAction -->|Edit| EditScholar[Update Scholarship]
+    ScholarAction -->|Delete| DeleteScholar[Remove Scholarship]
+    ScholarAction -->|View| ViewScholar[View Details]
+    
+    AddScholar --> SaveScholar[Save to Database]
+    EditScholar --> SaveScholar
+    SaveScholar --> Scholarships
+    DeleteScholar --> Scholarships
+    ViewScholar --> Scholarships
+    
+    Reports --> ReportType{Report Type}
+    ReportType -->|Student Report| StudentReport[Generate Student Report]
+    ReportType -->|Scholarship Report| ScholarReport[Generate Scholarship Report]
+    ReportType -->|Detailed Report| DetailedReport[Generate Detailed Report]
+    
+    StudentReport --> ExportFormat{Export Format}
+    ScholarReport --> ExportFormat
+    DetailedReport --> ExportFormat
+    
+    ExportFormat -->|PDF| ExportPDF[Download PDF]
+    ExportFormat -->|Excel| ExportExcel[Download XLSX]
+    ExportFormat -->|CSV| ExportCSV[Download CSV]
+    
+    ExportPDF --> Reports
+    ExportExcel --> Reports
+    ExportCSV --> Reports
+    
+    Students --> Dashboard
+    Scholarships --> Dashboard
+    Reports --> Dashboard
+    
+    Logout --> End([End: Session Terminated])
+    
+    style Start fill:#90EE90
+    style End fill:#FFB6C1
+    style Dashboard fill:#87CEEB
+    style Students fill:#DDA0DD
+    style Scholarships fill:#F0E68C
+    style Reports fill:#FFD700
+    style Login fill:#FFA07A
+    style Auth fill:#98FB98
+```
+
+### Flowchart Legend
+- 🟢 **Green**: Start point
+- 🔵 **Blue**: Main dashboard
+- 🟣 **Purple**: Student operations
+- 🟡 **Yellow**: Scholarship operations
+- 🟠 **Orange**: Reports and exports
+- 🔴 **Pink**: End point
 
 ## Project Structure
 
