@@ -24,6 +24,7 @@ import { Plus, Pencil, Trash2, GraduationCap } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
+import { ExportButton } from '@/components/shared';
 import type { CreateScholarshipInput } from '@/types';
 
 interface Scholarship {
@@ -185,10 +186,13 @@ export default function ScholarshipsPage() {
         title="Scholarships"
         description="Manage scholarship programs and grants"
       >
-        <Button onClick={openCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Scholarship
-        </Button>
+        <div className="flex gap-2">
+          <ExportButton endpoint="/api/export/scholarships" filename="scholarships-report" />
+          <Button onClick={openCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Scholarship
+          </Button>
+        </div>
       </PageHeader>
 
       <Card>

@@ -33,6 +33,7 @@ import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
+import { ExportButton } from '@/components/shared';
 
 interface Student {
     id: number;
@@ -142,19 +143,21 @@ export default function StudentsPage() {
     return (
         <div>
             <PageHeader title="Students" description="Manage student records">
-                <Dialog
-                    open={dialogOpen}
-                    onOpenChange={(open) => {
-                        setDialogOpen(open);
-                        if (!open) setEditingStudent(null);
-                    }}
-                >
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Student
-                        </Button>
-                    </DialogTrigger>
+                <div className="flex gap-2">
+                    <ExportButton endpoint="/api/export/students" filename="detailed-student-scholarship-report" />
+                    <Dialog
+                        open={dialogOpen}
+                        onOpenChange={(open) => {
+                            setDialogOpen(open);
+                            if (!open) setEditingStudent(null);
+                        }}
+                    >
+                        <DialogTrigger asChild>
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Student
+                            </Button>
+                        </DialogTrigger>
                     <DialogContent className="max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>
@@ -183,6 +186,7 @@ export default function StudentsPage() {
                         />
                     </DialogContent>
                 </Dialog>
+                </div>
             </PageHeader>
 
             {/* Filters */}
