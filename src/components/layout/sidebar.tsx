@@ -100,7 +100,7 @@ export function Sidebar() {
                                 className="h-full w-full object-contain"
                             />
                         </div>
-                        <span className="text-lg font-bold">ScholarTrack</span>
+                        <span className="text-lg font-bold text-black">ScholarTrack</span>
                     </div>
                     <div className="flex-1">
                         <NavLinks pathname={pathname} setOpen={setOpen} />
@@ -146,7 +146,7 @@ export function Sidebar() {
                                 className="h-full w-full object-contain"
                             />
                         </div>
-                        <span className="text-lg font-bold">ScholarTrack</span>
+                        <span className="text-lg font-bold text-black">ScholarTrack</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
                         <NavLinks pathname={pathname} setOpen={setOpen} />
