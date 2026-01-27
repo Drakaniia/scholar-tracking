@@ -97,7 +97,7 @@ export default function ReportsPage() {
         title="Reports"
         description="Detailed student scholarship reports and analytics"
       >
-        <ExportButton endpoint="/api/export/students" filename="student-scholarships-report" />
+        <ExportButton endpoint="/api/export/students" filename="detailed-student-scholarship-report" />
       </PageHeader>
 
       <Card>
