@@ -8,6 +8,76 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MODEL (Authentication)
+// ============================================
+model User {
+  id                  Int       @id @default(autoincrement()) @map("user_id")
+  username            String    @unique
+  email               String    @unique
+  passwordHash        String    @map("password_hash")
+  firstName           String    @map("first_name")
+  lastName            String    @map("last_name")
+  role                String    @default("STAFF") // ADMIN, STAFF, VIEWER
+  status              String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  lastLogin           DateTime? @map("last_login")
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  sessions   Session[]
+  auditLogs  AuditLog[]
+
+  @@map("users")
+}
+
+// ============================================
+// SESSION MODEL
+// ============================================
+model Session {
+  id        String   @id @map("session_id")
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ============================================
+// AUDIT LOG MODEL
+// ============================================
+model AuditLog {
+  id           Int      @id @default(autoincrement()) @map("log_id")
+  userId       Int?     @map("user_id")
+  action       String
+  resourceType String?  @map("resource_type")
+  resourceId   Int?     @map("resource_id")
+  details      Json?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
 }
 
 // ============================================
