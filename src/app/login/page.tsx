@@ -41,21 +41,24 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(validatedData),
+        credentials: 'include', // Ensure cookies are sent
       });
 
       const result = await response.json();
 
       if (response.ok) {
         toast.success('Login successful! Redirecting...');
-        router.push('/');
-        router.refresh();
+        // Use window.location for hard redirect in production
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
       } else {
         toast.error(result.error || 'Login failed');
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Network error. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -74,7 +77,6 @@ export default function LoginPage() {
                   width={96}
                   height={96}
                   className="w-full h-full object-contain"
-                  unoptimized
                   priority
                 />
               </div>

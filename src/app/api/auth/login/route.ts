@@ -71,13 +71,14 @@ export async function POST(request: NextRequest) {
     // Reset failed attempts on successful login
     await resetFailedAttempts(username);
 
-    // Create session
+    // Create session (this sets the cookie)
     const { sessionId } = await createSession(user, ipAddress, userAgent);
 
     // Log successful login
     await logAudit(user.id, 'LOGIN_SUCCESS', 'USER', user.id, { sessionId }, ipAddress, userAgent);
 
-    return NextResponse.json({
+    // Return success response
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -88,6 +89,11 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
     });
+
+    // Ensure cookie is set in response headers for production
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    
+    return response;
 
   } catch (error) {
     console.error('Login error:', error);

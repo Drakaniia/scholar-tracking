@@ -266,7 +266,7 @@ export async function GET(request: NextRequest) {
                 }
 
                 doc.setFontSize(11);
-                doc.setFont(undefined, 'bold');
+                doc.setFont('helvetica', 'bold');
                 doc.text(`${GRADE_LEVEL_LABELS[gradeLevel]} - ${scholarshipType} Scholarship (${typeStudents.length} students)`, 14, startY);
                 startY += 7;
 
