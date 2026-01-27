@@ -27,7 +27,7 @@ export async function GET() {
         });
 
         const totalAmountAwarded = studentsWithGrants.reduce(
-            (sum, student) => sum + Number(student.grantAmount || 0),
+            (sum: number, student: { grantAmount: unknown }) => sum + Number(student.grantAmount || 0),
             0
         );
 
@@ -37,7 +37,7 @@ export async function GET() {
         });
 
         const totalDisbursed = disbursements.reduce(
-            (sum, disbursement) => sum + Number(disbursement.amount),
+            (sum: number, disbursement: { amount: unknown }) => sum + Number(disbursement.amount),
             0
         );
 
