@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm, Controller } from 'react-hook-form';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +33,15 @@ export function ScholarshipForm({
     isEditing = false,
     loading = false,
 }: ScholarshipFormProps) {
+    const [showCustomType, setShowCustomType] = useState(
+        defaultValues?.type && !SCHOLARSHIP_TYPES.includes(defaultValues.type as 'PAED' | 'CHED' | 'LGU')
+    );
+    const [customType, setCustomType] = useState(
+        defaultValues?.type && !SCHOLARSHIP_TYPES.includes(defaultValues.type as 'PAED' | 'CHED' | 'LGU') 
+            ? defaultValues.type 
+            : ''
+    );
+
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
             scholarshipName: '',
@@ -44,8 +54,32 @@ export function ScholarshipForm({
         },
     });
 
+    const handleTypeChange = (value: string) => {
+        if (value === 'OTHER') {
+            setShowCustomType(true);
+            form.setValue('type', '');
+        } else {
+            setShowCustomType(false);
+            setCustomType('');
+            form.setValue('type', value);
+        }
+    };
+
+    const handleCustomTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setCustomType(value);
+        form.setValue('type', value);
+    };
+
+    const handleFormSubmit = (data: CreateScholarshipInput) => {
+        if (showCustomType && customType) {
+            data.type = customType;
+        }
+        onSubmit(data);
+    };
+
     return (
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="scholarshipName">Scholarship Name</Label>
                 <Input
@@ -71,18 +105,33 @@ export function ScholarshipForm({
                         name="type"
                         control={form.control}
                         render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {SCHOLARSHIP_TYPES.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                            {type}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <>
+                                <Select 
+                                    value={showCustomType ? 'OTHER' : field.value} 
+                                    onValueChange={handleTypeChange}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {SCHOLARSHIP_TYPES.map((type) => (
+                                            <SelectItem key={type} value={type}>
+                                                {type}
+                                            </SelectItem>
+                                        ))}
+                                        <SelectItem value="OTHER">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {showCustomType && (
+                                    <Input
+                                        placeholder="Enter custom type"
+                                        value={customType}
+                                        onChange={handleCustomTypeChange}
+                                        className="mt-2"
+                                        required
+                                    />
+                                )}
+                            </>
                         )}
                     />
                 </div>
