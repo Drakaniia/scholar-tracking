@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
@@ -11,11 +11,13 @@ import {
     Menu,
     PanelLeftClose,
     PanelLeftOpen,
+    LogOut,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useSidebar } from './layout-wrapper';
+import { toast } from 'sonner';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -52,8 +54,32 @@ function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boo
 
 export function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const [open, setOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { collapsed, setCollapsed } = useSidebar();
+
+    const handleLogout = async () => {
+        setIsLoggingOut(true);
+        try {
+            const response = await fetch('/api/auth/logout', {
+                method: 'POST',
+            });
+
+            if (response.ok) {
+                toast.success('Logged out successfully');
+                router.push('/login');
+                router.refresh();
+            } else {
+                toast.error('Failed to logout');
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            toast.error('An error occurred during logout');
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
 
     return (
         <>
@@ -66,10 +92,34 @@ export function Sidebar() {
                 </SheetTrigger>
                 <SheetContent side="left" className="w-64 p-4">
                     <div className="mb-8 flex items-center gap-2">
-                        <GraduationCap className="h-8 w-8 text-primary" />
+                        <div className="h-8 w-8 relative shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="/images/logo.png"
+                                alt="ScholarTrack Logo"
+                                className="h-full w-full object-contain"
+                            />
+                        </div>
                         <span className="text-lg font-bold">ScholarTrack</span>
                     </div>
-                    <NavLinks pathname={pathname} setOpen={setOpen} />
+                    <div className="flex-1">
+                        <NavLinks pathname={pathname} setOpen={setOpen} />
+                    </div>
+                    <div className="border-t pt-4 space-y-2">
+                        <p className="text-xs text-muted-foreground px-3">
+                            Scholarship Tracking System
+                        </p>
+                        <p className="text-xs text-muted-foreground px-3">v1.0.0</p>
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start gap-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
+                            onClick={handleLogout}
+                            disabled={isLoggingOut}
+                        >
+                            <LogOut className="h-5 w-5" />
+                            {isLoggingOut ? 'Logging out...' : 'Logout'}
+                        </Button>
+                    </div>
                 </SheetContent>
             </Sheet>
 
@@ -88,17 +138,33 @@ export function Sidebar() {
                         >
                             <PanelLeftClose className="h-5 w-5" />
                         </Button>
-                        <GraduationCap className="h-8 w-8 text-primary" />
+                        <div className="h-8 w-8 relative shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="/images/logo.png"
+                                alt="ScholarTrack Logo"
+                                className="h-full w-full object-contain"
+                            />
+                        </div>
                         <span className="text-lg font-bold">ScholarTrack</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
                         <NavLinks pathname={pathname} setOpen={setOpen} />
                     </div>
-                    <div className="border-t p-4">
+                    <div className="border-t p-4 space-y-2">
                         <p className="text-xs text-muted-foreground">
                             Scholarship Tracking System
                         </p>
                         <p className="text-xs text-muted-foreground">v1.0.0</p>
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start gap-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent mt-2"
+                            onClick={handleLogout}
+                            disabled={isLoggingOut}
+                        >
+                            <LogOut className="h-5 w-5" />
+                            {isLoggingOut ? 'Logging out...' : 'Logout'}
+                        </Button>
                     </div>
                 </div>
             </aside>

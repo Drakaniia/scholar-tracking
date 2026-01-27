@@ -25,7 +25,7 @@ export function PageHeader({
             <div>
                 <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
                 {description && (
-                    <p className="mt-1 text-muted-foreground">{description}</p>
+                    <p className="mt-1 text-black">{description}</p>
                 )}
             </div>
             {children && <div className="flex items-center gap-2">{children}</div>}
