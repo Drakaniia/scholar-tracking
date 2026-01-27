@@ -34,6 +34,9 @@ export default function LoginPage() {
     
     try {
       const validatedData = loginSchema.parse(data);
+      
+      console.log('Attempting login...'); // Debug log
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -44,14 +47,17 @@ export default function LoginPage() {
       });
 
       const result = await response.json();
+      
+      console.log('Login response:', { status: response.status, success: result.success }); // Debug log
 
-      if (response.ok) {
+      if (response.ok && result.success) {
         toast.success('Login successful! Redirecting...');
         // Use window.location for hard redirect in production
         setTimeout(() => {
           window.location.href = '/';
         }, 500);
       } else {
+        console.error('Login failed:', result); // Debug log
         toast.error(result.error || 'Login failed');
         setIsLoading(false);
       }
