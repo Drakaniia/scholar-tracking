@@ -46,7 +46,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #93A87E;
+  --background: #505C45;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -119,5 +119,14 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  [data-slot="card"] {
+    @apply text-card-foreground;
+  }
+  [data-slot="card"] * {
+    color: inherit;
+  }
+  [data-slot="card"] .text-muted-foreground {
+    @apply text-muted-foreground;
   }
 }
