@@ -22,8 +22,9 @@ import {
   Award,
   FileSpreadsheet,
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { CustomPieChart, CustomBarChart } from '@/components/charts';
 
 interface DashboardData {
   stats: {
@@ -231,110 +232,49 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity and Stats */}
+      {/* Distribution Stats with Charts */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Recent Students with Scholarships */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Recent Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data?.recentStudents && data.recentStudents.length > 0 ? (
-              <div className="space-y-4">
-                {data.recentStudents.map((student) => (
-                  <div
-                    key={student.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {student.lastName}, {student.firstName} {student.middleInitial || ''}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {GRADE_LEVEL_LABELS[student.gradeLevel]} - {student.yearLevel}
-                      </p>
-                      {student.scholarship && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {student.scholarship.scholarshipName} ({student.scholarship.type})
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      {student.scholarshipStatus ? (
-                        <Badge variant={student.scholarshipStatus === 'Active' ? 'default' : 'secondary'}>
-                          {student.scholarshipStatus}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">No Scholarship</Badge>
-                      )}
-                      {student.awardDate && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatDate(student.awardDate)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No students found
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Distribution Stats */}
+        {/* Pie Chart - Scholarships by Type */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Distribution Overview
+              Scholarships by Type
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {/* Students by Grade Level */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                  Students by Grade Level
-                </h4>
-                {data?.charts?.studentsByGradeLevel && data.charts.studentsByGradeLevel.length > 0 ? (
-                  <div className="space-y-2">
-                    {data.charts.studentsByGradeLevel.map((item) => (
-                      <div key={item.gradeLevel} className="flex items-center justify-between">
-                        <span className="text-sm">{GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel}</span>
-                        <Badge variant="outline">{item._count.id}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No data available</p>
-                )}
-              </div>
+            {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
+              <CustomPieChart 
+                data={data.charts.scholarshipsByType.map(item => ({
+                  name: item.type,
+                  value: item._count.id
+                }))}
+              />
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No data available</p>
+            )}
+          </CardContent>
+        </Card>
 
-              {/* Scholarships by Type */}
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                  Scholarships by Type
-                </h4>
-                {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
-                  <div className="space-y-2">
-                    {data.charts.scholarshipsByType.map((item) => (
-                      <div key={item.type} className="flex items-center justify-between">
-                        <span className="text-sm">{item.type}</span>
-                        <Badge variant="outline">{item._count.id}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No data available</p>
-                )}
-              </div>
-            </div>
+        {/* Bar Chart - Students by Grade Level */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Students by Grade Level
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data?.charts?.studentsByGradeLevel && data.charts.studentsByGradeLevel.length > 0 ? (
+              <CustomBarChart 
+                data={data.charts.studentsByGradeLevel.map(item => ({
+                  name: GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel,
+                  value: item._count.id
+                }))}
+              />
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No data available</p>
+            )}
           </CardContent>
         </Card>
       </div>
