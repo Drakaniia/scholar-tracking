@@ -8,16 +8,14 @@ import {
     Users,
     GraduationCap,
     FileSpreadsheet,
-    Menu,
-    PanelLeftClose,
-    PanelLeftOpen,
     LogOut,
+    Menu,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useSidebar } from './layout-wrapper';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
+import { useSidebar } from './layout-wrapper';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -26,7 +24,12 @@ const navigation = [
     { name: 'Reports', href: '/reports', icon: FileSpreadsheet },
 ];
 
-function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boolean) => void }) {
+interface SidebarProps {
+    mobileOpen?: boolean;
+    onMobileClose?: () => void;
+}
+
+function NavLinks({ pathname, setOpen, collapsed }: { pathname: string; setOpen?: (open: boolean) => void; collapsed?: boolean }) {
     return (
         <nav className="flex flex-col gap-1">
             {navigation.map((item) => {
@@ -35,16 +38,22 @@ function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boo
                     <Link
                         key={item.name}
                         href={item.href}
-                        onClick={() => setOpen(false)}
+                        onClick={() => setOpen?.(false)}
                         className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:bg-accent',
+                            'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors relative',
                             isActive
-                                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                : 'text-muted-foreground hover:text-foreground'
+                                ? 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-[#bef264] before:rounded-l-lg'
+                                : 'text-white/80 hover:text-white hover:bg-white/10'
                         )}
+                        title={collapsed ? item.name : undefined}
                     >
-                        <item.icon className="h-5 w-5" />
-                        {item.name}
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        <span className={cn(
+                            "whitespace-nowrap transition-all duration-300 ml-3",
+                            collapsed ? "w-0 opacity-0 overflow-hidden ml-0" : "w-auto opacity-100"
+                        )}>
+                            {item.name}
+                        </span>
                     </Link>
                 );
             })}
@@ -52,12 +61,11 @@ function NavLinks({ pathname, setOpen }: { pathname: string; setOpen: (open: boo
     );
 }
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
-    const [open, setOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const { collapsed, setCollapsed } = useSidebar();
+    const { collapsed, setCollapsed, setMobileOpen } = useSidebar();
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -84,14 +92,9 @@ export function Sidebar() {
     return (
         <>
             {/* Mobile Sidebar */}
-            <Sheet open={open} onOpenChange={setOpen}>
-                <SheetTrigger asChild className="md:hidden">
-                    <Button variant="ghost" size="icon" className="fixed left-4 top-4 z-50">
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-64 p-4">
-                    <div className="mb-8 flex items-center gap-2">
+            <Sheet open={mobileOpen} onOpenChange={onMobileClose}>
+                <SheetContent side="left" className="w-64 p-4 bg-[#22c55e] border-[#22c55e]">
+                    <div className="mb-6 flex items-center gap-3 px-3">
                         <div className="h-8 w-8 relative shrink-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -100,19 +103,19 @@ export function Sidebar() {
                                 className="h-full w-full object-contain"
                             />
                         </div>
-                        <span className="text-lg font-bold text-black">ScholarTrack</span>
+                        <span className="text-lg font-bold text-white">ScholarTrack</span>
                     </div>
                     <div className="flex-1">
-                        <NavLinks pathname={pathname} setOpen={setOpen} />
+                        <NavLinks pathname={pathname} setOpen={onMobileClose} />
                     </div>
-                    <div className="border-t pt-4 space-y-2">
-                        <p className="text-xs text-muted-foreground px-3">
+                    <div className="border-t border-white/20 pt-4 space-y-2 mt-4">
+                        <p className="text-xs text-white/60 px-3">
                             Scholarship Tracking System
                         </p>
-                        <p className="text-xs text-muted-foreground px-3">v1.0.0</p>
+                        <p className="text-xs text-white/60 px-3">v1.0.0</p>
                         <Button
                             variant="ghost"
-                            className="w-full justify-start gap-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
+                            className="w-full justify-start gap-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10"
                             onClick={handleLogout}
                             disabled={isLoggingOut}
                         >
@@ -125,61 +128,80 @@ export function Sidebar() {
 
             {/* Desktop Sidebar */}
             <aside className={cn(
-                "fixed left-0 top-0 z-40 hidden h-screen border-r bg-card transition-all duration-300 md:block overflow-hidden",
-                collapsed ? "w-0 opacity-0 border-0" : "w-64 opacity-100"
+                "fixed left-0 top-0 z-40 hidden h-screen border-r border-[#22c55e] bg-[#22c55e] md:block transition-all duration-300 overflow-hidden",
+                collapsed ? "w-16" : "w-64"
             )}>
-                <div className="flex h-full flex-col w-64">
-                    <div className="flex h-16 items-center gap-2 border-b px-6">
+                <div className="flex h-full flex-col">
+                    <div className="flex h-16 items-center border-b border-white/20 px-4 gap-3">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setCollapsed(!collapsed)}
-                            className="h-8 w-8 shrink-0"
+                            className="h-8 w-8 text-white hover:bg-white/10 hover:text-white shrink-0"
                         >
-                            <PanelLeftClose className="h-5 w-5" />
+                            <Menu className="h-5 w-5" />
                         </Button>
-                        <div className="h-8 w-8 relative shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src="/images/logo.png"
-                                alt="ScholarTrack Logo"
-                                className="h-full w-full object-contain"
-                            />
+                        <div className={cn(
+                            "flex items-center gap-3 transition-all duration-300 overflow-hidden",
+                            collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+                        )}>
+                            <div className="h-8 w-8 relative shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="/images/logo.png"
+                                    alt="ScholarTrack Logo"
+                                    className="h-full w-full object-contain"
+                                />
+                            </div>
+                            <span className="text-lg font-bold text-white whitespace-nowrap">ScholarTrack</span>
                         </div>
-                        <span className="text-lg font-bold text-black">ScholarTrack</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
-                        <NavLinks pathname={pathname} setOpen={setOpen} />
+                        <NavLinks pathname={pathname} collapsed={collapsed} />
                     </div>
-                    <div className="border-t p-4 space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                            Scholarship Tracking System
-                        </p>
-                        <p className="text-xs text-muted-foreground">v1.0.0</p>
+                    <div className={cn(
+                        "border-t border-white/20 p-4 space-y-2"
+                    )}>
+                        <div className={cn(
+                            "transition-all duration-300 overflow-hidden",
+                            collapsed ? "h-0 opacity-0" : "h-auto opacity-100"
+                        )}>
+                            <p className="text-xs text-white/60">
+                                Scholarship Tracking System
+                            </p>
+                            <p className="text-xs text-white/60">v1.0.0</p>
+                        </div>
                         <Button
                             variant="ghost"
-                            className="w-full justify-start gap-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent mt-2"
+                            className={cn(
+                                "text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center",
+                                collapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start mt-2"
+                            )}
                             onClick={handleLogout}
                             disabled={isLoggingOut}
+                            title={collapsed ? "Logout" : undefined}
                         >
-                            <LogOut className="h-5 w-5" />
-                            {isLoggingOut ? 'Logging out...' : 'Logout'}
+                            <LogOut className="h-5 w-5 shrink-0" />
+                            <span className={cn(
+                                "whitespace-nowrap transition-all duration-300",
+                                collapsed ? "w-0 opacity-0 overflow-hidden ml-0" : "w-auto opacity-100 ml-3"
+                            )}>
+                                {isLoggingOut ? 'Logging out...' : 'Logout'}
+                            </span>
                         </Button>
                     </div>
                 </div>
             </aside>
 
-            {/* Toggle Button for Desktop - When Collapsed */}
-            {collapsed && (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setCollapsed(false)}
-                    className="fixed left-4 top-4 z-50 hidden md:flex"
-                >
-                    <PanelLeftOpen className="h-5 w-5" />
-                </Button>
-            )}
+            {/* Mobile Menu Button */}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileOpen(true)}
+                className="fixed left-4 top-4 z-50 md:hidden"
+            >
+                <Menu className="h-5 w-5" />
+            </Button>
         </>
     );
 }

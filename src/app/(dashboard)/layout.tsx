@@ -1,6 +1,25 @@
+'use client';
+
 import { Sidebar } from "@/components/layout";
-import { SidebarProvider, MainContent } from "@/components/layout/layout-wrapper";
+import { SidebarProvider, MainContent, useSidebar } from "@/components/layout/layout-wrapper";
 import { AuthProvider } from "@/components/auth/auth-provider";
+
+function DashboardContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { mobileOpen, setMobileOpen } = useSidebar();
+
+  return (
+    <>
+      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <MainContent>
+        {children}
+      </MainContent>
+    </>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -10,11 +29,10 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-[#93A87E] via-[#A8B89A] to-[#93A87E]">
-          <Sidebar />
-          <MainContent>
+        <div className="min-h-screen bg-white">
+          <DashboardContent>
             {children}
-          </MainContent>
+          </DashboardContent>
         </div>
       </SidebarProvider>
     </AuthProvider>
