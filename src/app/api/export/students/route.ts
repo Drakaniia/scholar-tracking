@@ -32,10 +32,11 @@ export async function GET(request: NextRequest) {
             ],
         });
 
-        const calculateTotalFees = (fees: any) => {
+        const calculateTotalFees = (fees: { tuitionFee: number | { toNumber: () => number }; otherFee: number | { toNumber: () => number }; miscellaneousFee: number | { toNumber: () => number }; laboratoryFee: number | { toNumber: () => number } } | null) => {
             if (!fees) return 0;
-            return Number(fees.tuitionFee) + Number(fees.otherFee) + 
-                   Number(fees.miscellaneousFee) + Number(fees.laboratoryFee);
+            const toNum = (val: number | { toNumber: () => number }) => typeof val === 'number' ? val : val.toNumber();
+            return toNum(fees.tuitionFee) + toNum(fees.otherFee) + 
+                   toNum(fees.miscellaneousFee) + toNum(fees.laboratoryFee);
         };
 
         if (format === 'xlsx') {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
                 
                 if (gradeLevelStudents.length === 0) return;
 
-                const sheetData: any[] = [];
+                const sheetData: (string | number)[][] = [];
                 
                 // Add title
                 sheetData.push([`${GRADE_LEVEL_LABELS[gradeLevel]} - Detailed Student Scholarship Report`]);
