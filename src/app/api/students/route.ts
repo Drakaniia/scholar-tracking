@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { CreateStudentInput } from '@/types';
+import { getSession } from '@/lib/auth';
 
 // GET /api/students - Get all students
 export async function GET(request: NextRequest) {
@@ -62,6 +63,15 @@ export async function GET(request: NextRequest) {
 // POST /api/students - Create a new student
 export async function POST(request: NextRequest) {
     try {
+        const session = await getSession();
+        
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
         const body: CreateStudentInput = await request.json();
 
         const student = await prisma.student.create({
@@ -74,6 +84,12 @@ export async function POST(request: NextRequest) {
                 gradeLevel: body.gradeLevel,
                 yearLevel: body.yearLevel,
                 status: body.status,
+                scholarshipId: body.scholarshipId || null,
+                awardDate: body.awardDate || null,
+                startTerm: body.startTerm || null,
+                endTerm: body.endTerm || null,
+                grantAmount: body.grantAmount || null,
+                scholarshipStatus: body.scholarshipStatus || null,
             },
         });
 
