@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,11 +62,7 @@ export default function ScholarshipsPage() {
   const [deletingScholarship, setDeletingScholarship] = useState<Scholarship | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchScholarships();
-  }, [sourceFilter]);
-
-  const fetchScholarships = async () => {
+  const fetchScholarships = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (sourceFilter && sourceFilter !== 'all') {
@@ -84,7 +80,11 @@ export default function ScholarshipsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sourceFilter]);
+
+  useEffect(() => {
+    fetchScholarships();
+  }, [fetchScholarships]);
 
   const handleCreate = async (data: CreateScholarshipInput) => {
     setSubmitting(true);

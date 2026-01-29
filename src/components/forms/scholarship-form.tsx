@@ -14,7 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import { SCHOLARSHIP_TYPES, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, CreateScholarshipInput } from '@/types';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, CreateScholarshipInput } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
 
