@@ -169,15 +169,34 @@ export async function logAudit(
   ipAddress?: string,
   userAgent?: string
 ) {
-  await prisma.auditLog.create({
-    data: {
-      userId,
-      action,
-      resourceType,
-      resourceId,
-      details: details ? JSON.parse(JSON.stringify(details)) : null,
-      ipAddress,
-      userAgent,
-    },
-  });
+  try {
+    // If userId is provided, verify it exists in the database
+    if (userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      
+      // If user doesn't exist, set userId to null to avoid foreign key constraint error
+      if (!userExists) {
+        console.warn(`User ID ${userId} not found in database, logging audit with null userId`);
+        userId = null;
+      }
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        details: details ? JSON.parse(JSON.stringify(details)) : null,
+        ipAddress,
+        userAgent,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create audit log:', error);
+    // Don't throw the error to prevent breaking the main operation
+  }
 }
