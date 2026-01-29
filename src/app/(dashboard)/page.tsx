@@ -33,7 +33,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { CustomPieChart, CustomBarChart } from '@/components/charts';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
-import { fetchWithCache } from '@/lib/cache';
+import { fetchWithCache, prefetchEndpoints } from '@/lib/cache';
 
 interface DashboardData {
   stats: {
@@ -107,6 +107,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
+
+  // Prefetch all pages in the background for instant navigation
+  useEffect(() => {
+    const prefetchAllPages = async () => {
+      await prefetchEndpoints([
+        '/api/students?limit=100',
+        '/api/scholarships',
+        '/api/dashboard/detailed',
+        '/api/users',
+      ]);
+      console.log('✓ All pages prefetched for instant navigation');
+    };
+    
+    // Start prefetching after a short delay to prioritize dashboard load
+    const timer = setTimeout(prefetchAllPages, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     async function fetchDashboard() {
