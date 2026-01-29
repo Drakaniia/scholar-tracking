@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { UpdateStudentInput } from '@/types';
+import { getSession } from '@/lib/auth';
 
 // GET /api/students/[id] - Get single student
 export async function GET(
@@ -50,6 +51,15 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getSession();
+        
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
         const { id } = await params;
         const studentId = parseInt(id);
         const body: UpdateStudentInput = await request.json();
@@ -79,6 +89,15 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getSession();
+        
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
         const { id } = await params;
         const studentId = parseInt(id);
 

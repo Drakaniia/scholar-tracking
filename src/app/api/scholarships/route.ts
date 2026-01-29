@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { CreateScholarshipInput } from '@/types';
+import { getSession } from '@/lib/auth';
 
 // GET /api/scholarships - Get all scholarships
 export async function GET(request: NextRequest) {
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
         const type = searchParams.get('type') || '';
+        const source = searchParams.get('source') || '';
         const status = searchParams.get('status') || '';
 
         const skip = (page - 1) * limit;
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
                     }
                     : {},
                 type ? { type } : {},
+                source ? { source } : {},
                 status ? { status } : {},
             ],
         };
@@ -64,6 +67,15 @@ export async function GET(request: NextRequest) {
 // POST /api/scholarships - Create a new scholarship
 export async function POST(request: NextRequest) {
     try {
+        const session = await getSession();
+        
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
         const body: CreateScholarshipInput = await request.json();
 
         const scholarship = await prisma.scholarship.create({
@@ -71,6 +83,7 @@ export async function POST(request: NextRequest) {
                 scholarshipName: body.scholarshipName,
                 sponsor: body.sponsor,
                 type: body.type,
+                source: body.source,
                 amount: body.amount,
                 requirements: body.requirements || null,
                 status: body.status,
