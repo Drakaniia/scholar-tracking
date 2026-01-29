@@ -35,6 +35,7 @@ import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from
 import { StudentForm } from '@/components/forms/student-form';
 import { ExportButton } from '@/components/shared';
 import { useAuth } from '@/components/auth/auth-provider';
+import { fetchWithCache, clientCache } from '@/lib/cache';
 
 interface Student {
     id: number;
@@ -104,8 +105,13 @@ export default function StudentsPage() {
             if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
             params.append('limit', '100');
 
-            const res = await fetch(`/api/students?${params}`);
-            const json = await res.json();
+            const url = `/api/students?${params}`;
+            const json = await fetchWithCache<{ success: boolean; data: Student[] }>(
+                url,
+                undefined,
+                5 * 60 * 1000 // 5 minutes cache
+            );
+            
             if (json.success) {
                 setStudents(json.data);
             }
@@ -129,6 +135,8 @@ export default function StudentsPage() {
             const json = await res.json();
             if (json.success) {
                 toast.success('Student deleted successfully');
+                // Invalidate cache
+                clientCache.invalidatePattern('/api/students');
                 fetchStudents();
             } else {
                 toast.error(json.error || 'Delete failed');
@@ -166,6 +174,9 @@ export default function StudentsPage() {
                 );
                 setDialogOpen(false);
                 setEditingStudent(null);
+                // Invalidate cache
+                clientCache.invalidatePattern('/api/students');
+                clientCache.invalidatePattern('/api/dashboard');
                 fetchStudents();
             } else {
                 toast.error(json.error || 'Operation failed');

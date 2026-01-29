@@ -33,6 +33,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { CustomPieChart, CustomBarChart } from '@/components/charts';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import { fetchWithCache } from '@/lib/cache';
 
 interface DashboardData {
   stats: {
@@ -115,8 +116,13 @@ export default function DashboardPage() {
           params.append('source', scholarshipSourceFilter);
         }
         
-        const res = await fetch(`/api/dashboard?${params}`);
-        const json = await res.json();
+        const url = `/api/dashboard?${params}`;
+        const json = await fetchWithCache<{ success: boolean; data: DashboardData }>(
+          url,
+          undefined,
+          5 * 60 * 1000 // 5 minutes cache
+        );
+        
         if (json.success) {
           setData(json.data);
         }
@@ -132,8 +138,13 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchDetailedView() {
       try {
-        const res = await fetch('/api/dashboard/detailed');
-        const json = await res.json();
+        const url = '/api/dashboard/detailed';
+        const json = await fetchWithCache<{ success: boolean; data: DetailedStudent[] }>(
+          url,
+          undefined,
+          5 * 60 * 1000 // 5 minutes cache
+        );
+        
         if (json.success) {
           setDetailedStudents(json.data);
         }
