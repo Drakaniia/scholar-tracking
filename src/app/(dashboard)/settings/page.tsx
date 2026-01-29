@@ -23,6 +23,7 @@ import { Users, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/auth-provider';
 import { USER_ROLE_LABELS, USER_STATUS_LABELS } from '@/types';
+import { fetchWithCache, clientCache } from '@/lib/cache';
 
 interface User {
   id: number;
@@ -48,8 +49,13 @@ export default function SettingsPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/users');
-      const data = await res.json();
+      const url = '/api/users';
+      const data = await fetchWithCache<{ success: boolean; data: User[] }>(
+        url,
+        undefined,
+        5 * 60 * 1000 // 5 minutes cache
+      );
+      
       if (data.success) {
         setUsers(data.data);
       } else {
@@ -75,6 +81,8 @@ export default function SettingsPage() {
       
       if (result.success) {
         toast.success('User role updated successfully');
+        // Invalidate cache
+        clientCache.invalidate('/api/users:{}');
         fetchUsers();
       } else {
         toast.error(result.error || 'Failed to update user role');
@@ -99,6 +107,8 @@ export default function SettingsPage() {
       
       if (result.success) {
         toast.success('User status updated successfully');
+        // Invalidate cache
+        clientCache.invalidate('/api/users:{}');
         fetchUsers();
       } else {
         toast.error(result.error || 'Failed to update user status');

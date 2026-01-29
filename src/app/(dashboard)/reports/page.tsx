@@ -15,6 +15,7 @@ import {
 import { FileSpreadsheet } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/shared';
+import { fetchWithCache } from '@/lib/cache';
 
 interface DetailedStudent {
   id: number;
@@ -58,8 +59,13 @@ export default function ReportsPage() {
 
   const fetchDetailedView = async () => {
     try {
-      const res = await fetch('/api/dashboard/detailed');
-      const json = await res.json();
+      const url = '/api/dashboard/detailed';
+      const json = await fetchWithCache<{ success: boolean; data: DetailedStudent[] }>(
+        url,
+        undefined,
+        5 * 60 * 1000 // 5 minutes cache
+      );
+      
       if (json.success) {
         setDetailedStudents(json.data);
       }
