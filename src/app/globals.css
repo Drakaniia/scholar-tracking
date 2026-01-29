@@ -130,3 +130,13 @@
     @apply text-muted-foreground;
   }
 }
+
+/* Custom gradient background for login page */
+.login-gradient-bg {
+  background: linear-gradient(135deg, #1a936f 0%, #88d4ab 50%, #114b5f 100%) !important;
+}
+
+/* Ensure login page body doesn't interfere with gradient */
+body.login-page-body {
+  background: transparent !important;
+}
