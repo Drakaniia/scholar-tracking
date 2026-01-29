@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { fetchWithCache, clientCache } from '@/lib/cache';
 
 interface Scholarship {
   id: number;
@@ -69,8 +70,13 @@ export default function ScholarshipsPage() {
         params.append('source', sourceFilter);
       }
       
-      const res = await fetch(`/api/scholarships?${params}`);
-      const data = await res.json();
+      const url = `/api/scholarships?${params}`;
+      const data = await fetchWithCache<{ success: boolean; data: Scholarship[] }>(
+        url,
+        undefined,
+        5 * 60 * 1000 // 5 minutes cache
+      );
+      
       if (data.success) {
         setScholarships(data.data);
       }
@@ -99,6 +105,9 @@ export default function ScholarshipsPage() {
       if (result.success) {
         toast.success('Scholarship created successfully');
         setDialogOpen(false);
+        // Invalidate cache
+        clientCache.invalidatePattern('/api/scholarships');
+        clientCache.invalidatePattern('/api/dashboard');
         fetchScholarships();
       } else {
         toast.error(result.error || 'Failed to create scholarship');
@@ -127,6 +136,9 @@ export default function ScholarshipsPage() {
         toast.success('Scholarship updated successfully');
         setDialogOpen(false);
         setEditingScholarship(null);
+        // Invalidate cache
+        clientCache.invalidatePattern('/api/scholarships');
+        clientCache.invalidatePattern('/api/dashboard');
         fetchScholarships();
       } else {
         toast.error(result.error || 'Failed to update scholarship');
@@ -153,6 +165,9 @@ export default function ScholarshipsPage() {
         toast.success('Scholarship deleted successfully');
         setDeleteDialogOpen(false);
         setDeletingScholarship(null);
+        // Invalidate cache
+        clientCache.invalidatePattern('/api/scholarships');
+        clientCache.invalidatePattern('/api/dashboard');
         fetchScholarships();
       } else {
         toast.error(result.error || 'Failed to delete scholarship');

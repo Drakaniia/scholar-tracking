@@ -170,3 +170,27 @@ export async function mutateCache(
     }
   }
 }
+
+/**
+ * Prefetch multiple endpoints in the background
+ * Useful for preloading data when user lands on dashboard
+ */
+export async function prefetchEndpoints(endpoints: string[]): Promise<void> {
+  const promises = endpoints.map(endpoint => 
+    fetchWithCache(endpoint, undefined, 5 * 60 * 1000).catch(err => {
+      console.warn(`Failed to prefetch ${endpoint}:`, err);
+    })
+  );
+  
+  await Promise.allSettled(promises);
+}
+
+/**
+ * Get cache statistics
+ */
+export function getCacheStats() {
+  return {
+    size: clientCache.size(),
+    clear: () => clientCache.clear(),
+  };
+}
