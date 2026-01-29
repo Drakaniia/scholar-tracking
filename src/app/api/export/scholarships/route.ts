@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
             'Name',
             'Sponsor',
             'Type',
+            'Source',
             'Amount',
             'Requirements',
             'Status',
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
             s.scholarshipName,
             s.sponsor,
             s.type,
+            s.source,
             Number(s.amount),
             s.requirements || '',
             s.status,
@@ -52,6 +54,7 @@ export async function GET(request: NextRequest) {
                 { wch: 35 }, // Name
                 { wch: 30 }, // Sponsor
                 { wch: 10 }, // Type
+                { wch: 12 }, // Source
                 { wch: 12 }, // Amount
                 { wch: 50 }, // Requirements
                 { wch: 10 }, // Status
@@ -100,11 +103,12 @@ export async function GET(request: NextRequest) {
 
         autoTable(doc, {
             startY: 45,
-            head: [['Name', 'Sponsor', 'Type', 'Amount', 'Status', 'Students']],
+            head: [['Name', 'Sponsor', 'Type', 'Source', 'Amount', 'Status', 'Students']],
             body: scholarships.map((s) => [
                 s.scholarshipName,
                 s.sponsor,
                 s.type,
+                s.source === 'INTERNAL' ? 'Internal' : 'External',
                 `₱${Number(s.amount).toLocaleString()}`,
                 s.status,
                 String(s._count.students),
