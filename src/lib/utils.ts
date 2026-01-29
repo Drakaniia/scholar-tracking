@@ -6,12 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format a number as currency (PHP)
+ * Format a number as currency (no currency symbol, just numbers with commas)
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
