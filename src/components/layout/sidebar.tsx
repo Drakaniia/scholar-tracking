@@ -10,12 +10,14 @@ import {
     FileSpreadsheet,
     LogOut,
     Menu,
+    Settings,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { useSidebar } from './layout-wrapper';
+import { useAuth } from '@/components/auth/auth-provider';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -66,6 +68,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const router = useRouter();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { collapsed, setCollapsed, setMobileOpen } = useSidebar();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'ADMIN';
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -73,17 +77,25 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             const response = await fetch('/api/auth/logout', {
                 method: 'POST',
             });
+            
+            const data = await response.json();
 
-            if (response.ok) {
+            if (response.ok && data.success) {
                 toast.success('Logged out successfully');
                 router.push('/login');
                 router.refresh();
             } else {
-                toast.error('Failed to logout');
+                toast.error(data.error || 'Failed to logout');
+                // Still redirect even if there's an error
+                router.push('/login');
+                router.refresh();
             }
         } catch (error) {
             console.error('Logout error:', error);
             toast.error('An error occurred during logout');
+            // Still redirect even on error
+            router.push('/login');
+            router.refresh();
         } finally {
             setIsLoggingOut(false);
         }
@@ -113,6 +125,21 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                             Scholarship Tracking System
                         </p>
                         <p className="text-xs text-white/60 px-3">v1.0.0</p>
+                        {isAdmin && (
+                            <Link
+                                href="/settings"
+                                onClick={() => onMobileClose?.()}
+                                className={cn(
+                                    'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                                    pathname === '/settings'
+                                        ? 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90'
+                                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                                )}
+                            >
+                                <Settings className="h-5 w-5 mr-3" />
+                                Settings
+                            </Link>
+                        )}
                         <Button
                             variant="ghost"
                             className="w-full justify-start gap-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10"
@@ -171,6 +198,25 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                             </p>
                             <p className="text-xs text-white/60">v1.0.0</p>
                         </div>
+                        {isAdmin && (
+                            <Link
+                                href="/settings"
+                                className={cn(
+                                    "text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center rounded-lg",
+                                    collapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start px-3 py-2.5",
+                                    pathname === '/settings' && 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90'
+                                )}
+                                title={collapsed ? "Settings" : undefined}
+                            >
+                                <Settings className="h-5 w-5 shrink-0" />
+                                <span className={cn(
+                                    "whitespace-nowrap transition-all duration-300",
+                                    collapsed ? "w-0 opacity-0 overflow-hidden ml-0" : "w-auto opacity-100 ml-3"
+                                )}>
+                                    Settings
+                                </span>
+                            </Link>
+                        )}
                         <Button
                             variant="ghost"
                             className={cn(
