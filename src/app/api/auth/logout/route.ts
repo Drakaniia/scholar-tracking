@@ -13,11 +13,17 @@ export async function POST(request: NextRequest) {
 
     await destroySession();
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
+    // Still destroy session even if audit log fails
+    try {
+      await destroySession();
+    } catch (e) {
+      console.error('Failed to destroy session:', e);
+    }
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Logout failed' },
       { status: 500 }
     );
   }
