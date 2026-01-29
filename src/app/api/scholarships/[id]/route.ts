@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { UpdateScholarshipInput } from '@/types';
+import { getSession } from '@/lib/auth';
 
 // GET /api/scholarships/[id] - Get single scholarship
 export async function GET(
@@ -68,6 +69,15 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getSession();
+        
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
         const { id } = await params;
         const scholarshipId = parseInt(id);
         const body: UpdateScholarshipInput = await request.json();
@@ -97,6 +107,15 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getSession();
+        
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
         const { id } = await params;
         const scholarshipId = parseInt(id);
 

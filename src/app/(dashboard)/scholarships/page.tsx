@@ -26,12 +26,22 @@ import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
 import { ExportButton } from '@/components/shared';
 import type { CreateScholarshipInput } from '@/types';
+import { useAuth } from '@/components/auth/auth-provider';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Scholarship {
   id: number;
   scholarshipName: string;
   sponsor: string;
   type: string;
+  source: string;
   amount: number;
   requirements: string | null;
   status: string;
@@ -41,8 +51,11 @@ interface Scholarship {
 }
 
 export default function ScholarshipsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
@@ -51,11 +64,16 @@ export default function ScholarshipsPage() {
 
   useEffect(() => {
     fetchScholarships();
-  }, []);
+  }, [sourceFilter]);
 
   const fetchScholarships = async () => {
     try {
-      const res = await fetch('/api/scholarships');
+      const params = new URLSearchParams();
+      if (sourceFilter && sourceFilter !== 'all') {
+        params.append('source', sourceFilter);
+      }
+      
+      const res = await fetch(`/api/scholarships?${params}`);
       const data = await res.json();
       if (data.success) {
         setScholarships(data.data);
@@ -188,19 +206,36 @@ export default function ScholarshipsPage() {
       >
         <div className="flex gap-2">
           <ExportButton endpoint="/api/export/scholarships" filename="scholarships-report" />
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Scholarship
-          </Button>
+          {isAdmin && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Scholarship
+            </Button>
+          )}
         </div>
       </PageHeader>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5" />
-            All Scholarships
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5" />
+              All Scholarships
+            </CardTitle>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Filter by source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                {SCHOLARSHIP_SOURCES.map((source) => (
+                  <SelectItem key={source} value={source}>
+                    {SCHOLARSHIP_SOURCE_LABELS[source]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {scholarships.length === 0 ? (
@@ -208,10 +243,12 @@ export default function ScholarshipsPage() {
               <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No scholarships found</h3>
               <p className="text-muted-foreground">Get started by adding a new scholarship.</p>
-              <Button className="mt-4" onClick={openCreateDialog}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Scholarship
-              </Button>
+              {isAdmin && (
+                <Button className="mt-4" onClick={openCreateDialog}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Scholarship
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -221,10 +258,11 @@ export default function ScholarshipsPage() {
                     <TableHead>Scholarship Name</TableHead>
                     <TableHead>Sponsor</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Students</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -236,6 +274,11 @@ export default function ScholarshipsPage() {
                       <TableCell>{scholarship.sponsor}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{scholarship.type}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
+                          {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(scholarship.amount)}
@@ -252,24 +295,26 @@ export default function ScholarshipsPage() {
                           {scholarship.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => openEditDialog(scholarship)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => openDeleteDialog(scholarship)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => openEditDialog(scholarship)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => openDeleteDialog(scholarship)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -297,6 +342,7 @@ export default function ScholarshipsPage() {
               scholarshipName: editingScholarship.scholarshipName,
               sponsor: editingScholarship.sponsor,
               type: editingScholarship.type,
+              source: editingScholarship.source,
               amount: editingScholarship.amount,
               requirements: editingScholarship.requirements || '',
               status: editingScholarship.status,
