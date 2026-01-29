@@ -139,6 +139,9 @@ model Scholarship {
   // Scholarship Type: PAED, CHED, LGU
   type             String
   
+  // Scholarship Source: INTERNAL (within school), EXTERNAL (outside campus)
+  source           String  @default("INTERNAL")
+  
   amount           Decimal @db.Decimal(10, 2)
   requirements     String?
   status           String
