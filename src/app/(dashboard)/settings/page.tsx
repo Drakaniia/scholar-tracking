@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -20,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Settings, Users, Shield } from 'lucide-react';
+import { Users, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/auth-provider';
 import { USER_ROLE_LABELS, USER_STATUS_LABELS } from '@/types';
@@ -125,11 +124,7 @@ export default function SettingsPage() {
       <PageHeader
         title="Settings"
         description="Manage system settings and user permissions"
-      >
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-        </div>
-      </PageHeader>
+      />
 
       <Card>
         <CardHeader>
