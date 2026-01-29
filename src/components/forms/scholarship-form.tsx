@@ -14,7 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import { SCHOLARSHIP_TYPES, CreateScholarshipInput } from '@/types';
+import { SCHOLARSHIP_TYPES, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, CreateScholarshipInput } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
 
@@ -34,10 +34,10 @@ export function ScholarshipForm({
     loading = false,
 }: ScholarshipFormProps) {
     const [showCustomType, setShowCustomType] = useState(
-        defaultValues?.type && !SCHOLARSHIP_TYPES.includes(defaultValues.type as 'PAED' | 'CHED' | 'LGU')
+        defaultValues?.type && !['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'].includes(defaultValues.type)
     );
     const [customType, setCustomType] = useState(
-        defaultValues?.type && !SCHOLARSHIP_TYPES.includes(defaultValues.type as 'PAED' | 'CHED' | 'LGU') 
+        defaultValues?.type && !['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'].includes(defaultValues.type)
             ? defaultValues.type 
             : ''
     );
@@ -46,7 +46,8 @@ export function ScholarshipForm({
         defaultValues: {
             scholarshipName: '',
             sponsor: '',
-            type: 'PAED',
+            type: 'PAEB',
+            source: 'INTERNAL',
             amount: 0,
             requirements: '',
             status: 'Active',
@@ -114,11 +115,10 @@ export function ScholarshipForm({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {SCHOLARSHIP_TYPES.map((type) => (
-                                            <SelectItem key={type} value={type}>
-                                                {type}
-                                            </SelectItem>
-                                        ))}
+                                        <SelectItem value="PAEB">PAEB</SelectItem>
+                                        <SelectItem value="CHED">CHED</SelectItem>
+                                        <SelectItem value="LGU">LGU</SelectItem>
+                                        <SelectItem value="SCHOOL_GRANT">School Grant</SelectItem>
                                         <SelectItem value="OTHER">Other</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -133,6 +133,41 @@ export function ScholarshipForm({
                                 )}
                             </>
                         )}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="source">Source</Label>
+                    <Controller
+                        name="source"
+                        control={form.control}
+                        render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {SCHOLARSHIP_SOURCES.map((source) => (
+                                        <SelectItem key={source} value={source}>
+                                            {SCHOLARSHIP_SOURCE_LABELS[source]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <Input
+                        id="amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        {...form.register('amount', { valueAsNumber: true })}
+                        placeholder="10000"
                     />
                 </div>
                 <div className="space-y-2">
@@ -156,18 +191,6 @@ export function ScholarshipForm({
                         )}
                     />
                 </div>
-            </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₱)</Label>
-                <Input
-                    id="amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    {...form.register('amount', { valueAsNumber: true })}
-                    placeholder="10000"
-                />
             </div>
 
             <div className="space-y-2">
