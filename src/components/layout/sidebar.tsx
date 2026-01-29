@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -18,6 +19,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { useSidebar } from './layout-wrapper';
 import { useAuth } from '@/components/auth/auth-provider';
+import logoImage from '@/assets/images/logo.webp';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -108,11 +110,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 <SheetContent side="left" className="w-64 p-4 bg-[#22c55e] border-[#22c55e]">
                     <div className="mb-6 flex items-center gap-3 px-3">
                         <div className="h-8 w-8 relative shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src="/images/logo.png"
+                            <Image
+                                src={logoImage}
                                 alt="ScholarTrack Logo"
+                                width={32}
+                                height={32}
                                 className="h-full w-full object-contain"
+                                priority
                             />
                         </div>
                         <span className="text-lg font-bold text-white">ScholarTrack</span>
@@ -173,11 +177,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                             collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
                         )}>
                             <div className="h-8 w-8 relative shrink-0">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src="/images/logo.png"
+                                <Image
+                                    src={logoImage}
                                     alt="ScholarTrack Logo"
+                                    width={32}
+                                    height={32}
                                     className="h-full w-full object-contain"
+                                    priority
                                 />
                             </div>
                             <span className="text-lg font-bold text-white whitespace-nowrap">ScholarTrack</span>

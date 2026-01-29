@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from "react";
+import Image from "next/image";
 import { Mail, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Workspace from "@/components/illustration/workspace"; // Path to the workspace illustration
+import Workspace from "@/components/illustration/workspace";
 import { toast } from "sonner";
+import logoImage from "@/assets/images/logo.webp";
 
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -77,15 +79,16 @@ const AuthPage = () => {
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header with logo and text */}
         <header className="p-6 flex items-center gap-4">
-          <img
-            src="/images/logo.png"
-            alt="De La Salle John Bosco College"
-            className="h-16 w-auto object-contain"
-            onError={(e) => {
-              console.error('Logo failed to load');
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+          <div className="h-16 w-16 relative">
+            <Image
+              src={logoImage}
+              alt="De La Salle John Bosco College"
+              width={64}
+              height={64}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
           <div className="text-white">
             <h1 className="text-xl font-bold">De La Salle John Bosco College</h1>
             <p className="text-sm text-white/80">Scholarship Tracking System</p>
@@ -93,10 +96,10 @@ const AuthPage = () => {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 flex items-center justify-center px-4 pb-8">
+        <main className="flex-1 flex items-center justify-center px-4 pb-8 -mt-8">
           <div className="w-full max-w-5xl flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
             {/* Left side - Glassmorphism form */}
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-md transform lg:-translate-y-8">
               <div
                 className="rounded-3xl p-8 shadow-2xl border border-white/30"
                 style={{
@@ -217,7 +220,7 @@ const AuthPage = () => {
             </div>
 
             {/* Right side - Illustration */}
-            <div className="hidden lg:flex flex-1 justify-center items-center">
+            <div className="hidden lg:flex flex-1 justify-center items-center transform lg:-translate-y-8">
               <Workspace />
             </div>
           </div>
