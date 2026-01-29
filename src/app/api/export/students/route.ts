@@ -12,7 +12,7 @@ const GRADE_LEVEL_LABELS: Record<string, string> = {
 };
 
 const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
-const SCHOLARSHIP_TYPES = ['PAED', 'CHED', 'LGU'];
+const SCHOLARSHIP_TYPES = ['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'];
 
 // GET /api/export/students - Export detailed student scholarship report
 export async function GET(request: NextRequest) {
@@ -22,9 +22,15 @@ export async function GET(request: NextRequest) {
 
         // Fetch detailed student data with fees
         const students = await prisma.student.findMany({
+            where: {
+                scholarshipId: { not: null },
+            },
             include: {
                 scholarship: true,
-                fees: true,
+                fees: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
             },
             orderBy: [
                 { gradeLevel: 'asc' },
@@ -297,13 +303,13 @@ export async function GET(request: NextRequest) {
                             student.firstName,
                             student.middleInitial || '-',
                             student.yearLevel,
-                            fees ? `₱${Number(fees.tuitionFee).toLocaleString()}` : '-',
-                            fees ? `₱${Number(fees.otherFee).toLocaleString()}` : '-',
-                            fees ? `₱${Number(fees.miscellaneousFee).toLocaleString()}` : '-',
-                            fees ? `₱${Number(fees.laboratoryFee).toLocaleString()}` : '-',
-                            `₱${totalFees.toLocaleString()}`,
-                            fees ? `₱${Number(fees.amountSubsidy).toLocaleString()}` : '-',
-                            fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '-'
+                            fees ? Number(fees.tuitionFee) : 0,
+                            fees ? Number(fees.otherFee) : 0,
+                            fees ? Number(fees.miscellaneousFee) : 0,
+                            fees ? Number(fees.laboratoryFee) : 0,
+                            totalFees,
+                            fees ? Number(fees.amountSubsidy) : 0,
+                            fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '0%'
                         ];
                     }),
                     styles: { fontSize: 7 },
