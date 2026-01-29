@@ -33,6 +33,12 @@ export interface CreateStudentInput {
     gradeLevel: GradeLevel;
     yearLevel: string;
     status: string;
+    scholarshipId?: number | null;
+    awardDate?: Date | null;
+    startTerm?: string | null;
+    endTerm?: string | null;
+    grantAmount?: number | null;
+    scholarshipStatus?: string | null;
 }
 
 export type UpdateStudentInput = Partial<CreateStudentInput>;
@@ -41,12 +47,14 @@ export type UpdateStudentInput = Partial<CreateStudentInput>;
 // SCHOLARSHIP TYPES
 // ============================================
 export type ScholarshipType = 'PAED' | 'CHED' | 'LGU';
+export type ScholarshipSource = 'INTERNAL' | 'EXTERNAL';
 
 export interface Scholarship {
     id: number;
     scholarshipName: string;
     sponsor: string;
     type: string; // Changed to string to allow custom types
+    source: string; // INTERNAL or EXTERNAL
     amount: number;
     requirements: string | null;
     status: string;
@@ -60,6 +68,7 @@ export interface CreateScholarshipInput {
     scholarshipName: string;
     sponsor: string;
     type: string; // Changed to string to allow custom types
+    source: string; // INTERNAL or EXTERNAL
     amount: number;
     requirements?: string;
     status: string;
@@ -161,6 +170,13 @@ export const SCHOLARSHIP_TYPE_LABELS: Record<ScholarshipType, string> = {
     PAED: 'PAED Scholarship',
     CHED: 'CHED Scholarship',
     LGU: 'LGU Scholarship',
+};
+
+export const SCHOLARSHIP_SOURCES: ScholarshipSource[] = ['INTERNAL', 'EXTERNAL'] as const;
+
+export const SCHOLARSHIP_SOURCE_LABELS: Record<ScholarshipSource, string> = {
+    INTERNAL: 'Internal',
+    EXTERNAL: 'External',
 };
 
 export const DISBURSEMENT_METHODS = [
