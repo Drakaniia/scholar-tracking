@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -47,7 +46,7 @@ const GRADE_LEVEL_LABELS: Record<string, string> = {
 };
 
 const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
-const SCHOLARSHIP_TYPES = ['PAED', 'CHED', 'LGU'];
+const SCHOLARSHIP_TYPES = ['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'];
 
 export default function ReportsPage() {
   const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
@@ -108,101 +107,109 @@ export default function ReportsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="GRADE_SCHOOL" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              {GRADE_LEVELS.map((level) => (
-                <TabsTrigger key={level} value={level}>
-                  {GRADE_LEVEL_LABELS[level]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <div className="space-y-8">
+            {GRADE_LEVELS.map((gradeLevel) => {
+              // Check if this grade level has any students with scholarships
+              const hasStudents = SCHOLARSHIP_TYPES.some(type => 
+                getStudentsByGradeLevelAndScholarship(gradeLevel, type).length > 0
+              );
 
-            {GRADE_LEVELS.map((gradeLevel) => (
-              <TabsContent key={gradeLevel} value={gradeLevel}>
-                <div className="space-y-6">
-                  {SCHOLARSHIP_TYPES.map((scholarshipType) => {
-                    const students = getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType);
-                    
-                    if (students.length === 0) return null;
+              if (!hasStudents) return null;
 
-                    return (
-                      <div key={scholarshipType} className="space-y-2">
-                        <h3 className="text-lg font-semibold text-primary">
-                          {scholarshipType} Scholarship ({students.length} students)
-                        </h3>
-                        <div className="overflow-x-auto border rounded-lg">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-muted/50">
-                                <TableHead className="font-bold">Student No.</TableHead>
-                                <TableHead className="font-bold">Last Name</TableHead>
-                                <TableHead className="font-bold">First Name</TableHead>
-                                <TableHead className="font-bold">M.I.</TableHead>
-                                <TableHead className="font-bold">Year Level</TableHead>
-                                <TableHead className="font-bold text-right">Tuition</TableHead>
-                                <TableHead className="font-bold text-right">Other Fees</TableHead>
-                                <TableHead className="font-bold text-right">Misc.</TableHead>
-                                <TableHead className="font-bold text-right">Lab</TableHead>
-                                <TableHead className="font-bold text-right">Total Fees</TableHead>
-                                <TableHead className="font-bold text-right">Subsidy</TableHead>
-                                <TableHead className="font-bold text-right">% Subsidy</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {students.map((student) => {
-                                const fees = student.fees[0];
-                                const totalFees = fees ? calculateTotalFees(fees) : 0;
-                                
-                                return (
-                                  <TableRow key={student.id}>
-                                    <TableCell className="font-medium">{student.studentNo}</TableCell>
-                                    <TableCell className="font-medium">{student.lastName}</TableCell>
-                                    <TableCell>{student.firstName}</TableCell>
-                                    <TableCell>{student.middleInitial || '-'}</TableCell>
-                                    <TableCell>{student.yearLevel}</TableCell>
-                                    <TableCell className="text-right">
-                                      {fees ? formatCurrency(Number(fees.tuitionFee)) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      {fees ? formatCurrency(Number(fees.otherFee)) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      {fees ? formatCurrency(Number(fees.miscellaneousFee)) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      {fees ? formatCurrency(Number(fees.laboratoryFee)) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                      {formatCurrency(totalFees)}
-                                    </TableCell>
-                                    <TableCell className="text-right text-green-600 font-semibold">
-                                      {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <Badge variant="secondary">
-                                        {fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '-'}
-                                      </Badge>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
+              return (
+                <div key={gradeLevel} className="space-y-4">
+                  {/* Master Header - Grade Level */}
+                  <div className="bg-primary text-primary-foreground px-4 py-3 rounded-lg">
+                    <h2 className="text-xl font-bold">{GRADE_LEVEL_LABELS[gradeLevel]}</h2>
+                  </div>
+
+                  {/* Subheaders - Scholarship Types */}
+                  <div className="space-y-6 pl-4">
+                    {SCHOLARSHIP_TYPES.map((scholarshipType) => {
+                      const students = getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType);
+                      
+                      if (students.length === 0) return null;
+
+                      return (
+                        <div key={scholarshipType} className="space-y-2">
+                          <div className="bg-muted px-4 py-2 rounded-md">
+                            <h3 className="text-lg font-semibold text-primary">
+                              {scholarshipType} Scholarship ({students.length} student{students.length !== 1 ? 's' : ''})
+                            </h3>
+                          </div>
+                          <div className="overflow-x-auto border rounded-lg">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                  <TableHead className="font-bold">Student No.</TableHead>
+                                  <TableHead className="font-bold">Last Name</TableHead>
+                                  <TableHead className="font-bold">First Name</TableHead>
+                                  <TableHead className="font-bold">M.I.</TableHead>
+                                  <TableHead className="font-bold">Year Level</TableHead>
+                                  <TableHead className="font-bold text-right">Tuition</TableHead>
+                                  <TableHead className="font-bold text-right">Other Fees</TableHead>
+                                  <TableHead className="font-bold text-right">Misc.</TableHead>
+                                  <TableHead className="font-bold text-right">Lab</TableHead>
+                                  <TableHead className="font-bold text-right">Total Fees</TableHead>
+                                  <TableHead className="font-bold text-right">Subsidy</TableHead>
+                                  <TableHead className="font-bold text-right">% Subsidy</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {students.map((student) => {
+                                  const fees = student.fees[0];
+                                  const totalFees = fees ? calculateTotalFees(fees) : 0;
+                                  
+                                  return (
+                                    <TableRow key={student.id}>
+                                      <TableCell className="font-medium">{student.studentNo}</TableCell>
+                                      <TableCell className="font-medium">{student.lastName}</TableCell>
+                                      <TableCell>{student.firstName}</TableCell>
+                                      <TableCell>{student.middleInitial || '-'}</TableCell>
+                                      <TableCell>{student.yearLevel}</TableCell>
+                                      <TableCell className="text-right">
+                                        {fees ? formatCurrency(Number(fees.tuitionFee)) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {fees ? formatCurrency(Number(fees.otherFee)) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {fees ? formatCurrency(Number(fees.miscellaneousFee)) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {fees ? formatCurrency(Number(fees.laboratoryFee)) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right font-semibold">
+                                        {formatCurrency(totalFees)}
+                                      </TableCell>
+                                      <TableCell className="text-right text-green-600 font-semibold">
+                                        {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Badge variant="secondary">
+                                          {fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '-'}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                  {!SCHOLARSHIP_TYPES.some(type => 
-                    getStudentsByGradeLevelAndScholarship(gradeLevel, type).length > 0
-                  ) && (
-                    <div className="text-center py-12 text-muted-foreground">
-                      No students with scholarships in this grade level
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+              );
+            })}
+
+            {detailedStudents.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                No students with scholarships found
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
