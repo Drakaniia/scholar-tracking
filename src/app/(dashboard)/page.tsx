@@ -7,6 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -25,6 +32,7 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { CustomPieChart, CustomBarChart } from '@/components/charts';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
 interface DashboardData {
   stats: {
@@ -97,11 +105,17 @@ export default function DashboardPage() {
   const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(true);
+  const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
 
   useEffect(() => {
     async function fetchDashboard() {
       try {
-        const res = await fetch('/api/dashboard');
+        const params = new URLSearchParams();
+        if (scholarshipSourceFilter && scholarshipSourceFilter !== 'all') {
+          params.append('source', scholarshipSourceFilter);
+        }
+        
+        const res = await fetch(`/api/dashboard?${params}`);
         const json = await res.json();
         if (json.success) {
           setData(json.data);
@@ -113,7 +127,7 @@ export default function DashboardPage() {
       }
     }
     fetchDashboard();
-  }, []);
+  }, [scholarshipSourceFilter]);
 
   useEffect(() => {
     async function fetchDetailedView() {
@@ -185,7 +199,7 @@ export default function DashboardPage() {
   ];
 
   const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
-  const SCHOLARSHIP_TYPES = ['PAED', 'CHED', 'LGU'];
+  const SCHOLARSHIP_TYPES = ['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'];
 
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
     return detailedStudents.filter(
@@ -237,14 +251,30 @@ export default function DashboardPage() {
         {/* Pie Chart - Scholarships by Type */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Scholarships by Type
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Scholarships by Type
+              </CardTitle>
+              <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  {SCHOLARSHIP_SOURCES.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {SCHOLARSHIP_SOURCE_LABELS[source]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
               <CustomPieChart 
+                key={scholarshipSourceFilter}
                 data={data.charts.scholarshipsByType.map(item => ({
                   name: item.type,
                   value: item._count.id

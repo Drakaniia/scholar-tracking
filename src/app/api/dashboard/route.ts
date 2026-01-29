@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 // GET /api/dashboard - Get dashboard statistics
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const searchParams = request.nextUrl.searchParams;
+        const sourceFilter = searchParams.get('source') || '';
+
         // Get basic counts
         const [
             totalStudents,
@@ -56,11 +59,29 @@ export async function GET() {
             _count: { id: true },
         });
 
-        // Get scholarships by type
-        const scholarshipsByType = await prisma.scholarship.groupBy({
-            by: ['type'],
-            _count: { id: true },
-        });
+        // Get scholarships by type - filter by source if provided
+        let scholarshipsByType;
+        
+        if (sourceFilter && (sourceFilter === 'INTERNAL' || sourceFilter === 'EXTERNAL')) {
+            // When filtering by source, get the count of scholarships with that source
+            scholarshipsByType = await prisma.scholarship.groupBy({
+                by: ['type'],
+                where: { 
+                    source: sourceFilter,
+                    status: 'Active'
+                },
+                _count: { id: true },
+            });
+        } else {
+            // No filter - get all active scholarships
+            scholarshipsByType = await prisma.scholarship.groupBy({
+                by: ['type'],
+                where: {
+                    status: 'Active'
+                },
+                _count: { id: true },
+            });
+        }
 
         return NextResponse.json({
             success: true,
