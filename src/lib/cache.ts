@@ -20,11 +20,13 @@ interface CacheConfig {
 
 class ClientCache {
   private cache: Map<string, CacheEntry<unknown>>;
-  private defaultTTL: number = 3 * 60 * 1000; // 3 minutes default (reduced from 5)
-  private staleTime: number = 15 * 1000; // 15 seconds stale time (reduced from 30)
+  private defaultTTL: number = 5 * 60 * 1000; // 5 minutes default
+  private staleTime: number = 10 * 1000; // 10 seconds stale time (optimized)
   private maxSize: number = 10 * 1024 * 1024; // 10MB max cache size
   private maxEntries: number = 100; // Max 100 cache entries
   private currentSize: number = 0;
+  private revalidationQueue: Set<string> = new Set();
+  private revalidationInProgress: Map<string, Promise<unknown>> = new Map();
 
   constructor(config?: CacheConfig) {
     this.cache = new Map();
@@ -35,18 +37,20 @@ class ClientCache {
       this.maxEntries = config.maxEntries || this.maxEntries;
     }
     
-    // Cleanup expired entries every minute
+    // Cleanup expired entries every 2 minutes (less frequent)
     if (typeof window !== 'undefined') {
-      setInterval(() => this.cleanup(), 60 * 1000);
+      setInterval(() => this.cleanup(), 2 * 60 * 1000);
     }
   }
 
   /**
-   * Estimate size of data in bytes
+   * Estimate size of data in bytes (optimized)
    */
   private estimateSize(data: unknown): number {
     try {
-      return new Blob([JSON.stringify(data)]).size;
+      const str = JSON.stringify(data);
+      // Use faster byte length calculation
+      return str.length * 2; // Approximate 2 bytes per character
     } catch {
       return 0;
     }
@@ -66,31 +70,37 @@ class ClientCache {
   }
 
   /**
-   * Evict least recently used entries if cache is full
+   * Evict least recently used entries if cache is full (optimized with LRU)
    */
   private evictIfNeeded(newEntrySize: number): void {
     // Check if we need to evict based on size
-    while (this.currentSize + newEntrySize > this.maxSize && this.cache.size > 0) {
-      const oldestKey = this.cache.keys().next().value as string | undefined;
-      if (!oldestKey) break;
+    if (this.currentSize + newEntrySize > this.maxSize) {
+      // Sort by hits (LRU) and remove least used
+      const entries = Array.from(this.cache.entries())
+        .sort((a, b) => a[1].hits - b[1].hits);
       
-      const entry = this.cache.get(oldestKey);
-      if (entry) {
+      for (const [key, entry] of entries) {
+        if (this.currentSize + newEntrySize <= this.maxSize) break;
         this.currentSize -= entry.size;
+        this.cache.delete(key);
       }
-      this.cache.delete(oldestKey);
     }
 
     // Check if we need to evict based on entry count
-    while (this.cache.size >= this.maxEntries) {
-      const oldestKey = this.cache.keys().next().value as string | undefined;
-      if (!oldestKey) break;
+    if (this.cache.size >= this.maxEntries) {
+      // Sort by hits and timestamp (LRU)
+      const entries = Array.from(this.cache.entries())
+        .sort((a, b) => {
+          if (a[1].hits !== b[1].hits) return a[1].hits - b[1].hits;
+          return a[1].timestamp - b[1].timestamp;
+        });
       
-      const entry = this.cache.get(oldestKey);
-      if (entry) {
+      const toRemove = this.cache.size - this.maxEntries + 1;
+      for (let i = 0; i < toRemove && i < entries.length; i++) {
+        const [key, entry] = entries[i];
         this.currentSize -= entry.size;
+        this.cache.delete(key);
       }
-      this.cache.delete(oldestKey);
     }
   }
 
@@ -198,7 +208,7 @@ class ClientCache {
 export const clientCache = new ClientCache();
 
 /**
- * Fetch with cache - implements stale-while-revalidate pattern
+ * Fetch with cache - implements optimized stale-while-revalidate pattern
  */
 export async function fetchWithCache<T>(
   url: string,
@@ -211,41 +221,70 @@ export async function fetchWithCache<T>(
   const cached = clientCache.get<T>(cacheKey);
   
   if (cached) {
-    // If stale, revalidate in background (non-blocking)
+    // If stale, revalidate in background (non-blocking, deduplicated)
     if (clientCache.isStale(cacheKey)) {
-      // Use queueMicrotask for better performance
-      queueMicrotask(() => {
-        fetch(url, options)
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-          })
-          .then(data => {
-            if (data.success) {
-              clientCache.set(cacheKey, data, ttl);
-            }
-          })
-          .catch(err => console.warn('Background revalidation failed:', err));
-      });
+      // Check if revalidation is already in progress
+      const inProgress = clientCache['revalidationInProgress'].get(cacheKey);
+      
+      if (!inProgress && !clientCache['revalidationQueue'].has(cacheKey)) {
+        clientCache['revalidationQueue'].add(cacheKey);
+        
+        // Use requestIdleCallback for better performance (fallback to setTimeout)
+        const scheduleRevalidation = typeof requestIdleCallback !== 'undefined' 
+          ? requestIdleCallback 
+          : (cb: () => void) => setTimeout(cb, 0);
+        
+        scheduleRevalidation(() => {
+          const revalidationPromise = fetch(url, options)
+            .then(res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then(data => {
+              if (data.success) {
+                clientCache.set(cacheKey, data, ttl);
+              }
+            })
+            .catch(err => console.warn('Background revalidation failed:', err))
+            .finally(() => {
+              clientCache['revalidationQueue'].delete(cacheKey);
+              clientCache['revalidationInProgress'].delete(cacheKey);
+            });
+          
+          clientCache['revalidationInProgress'].set(cacheKey, revalidationPromise);
+        });
+      }
     }
     
     return cached;
   }
 
+  // Check if fetch is already in progress
+  const inProgress = clientCache['revalidationInProgress'].get(cacheKey);
+  if (inProgress) {
+    return inProgress as Promise<T>;
+  }
+
   // Fetch fresh data
-  const response = await fetch(url, options);
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-  
-  const data = await response.json();
+  const fetchPromise = fetch(url, options)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        clientCache.set(cacheKey, data, ttl);
+      }
+      return data;
+    })
+    .finally(() => {
+      clientCache['revalidationInProgress'].delete(cacheKey);
+    });
 
-  if (data.success) {
-    clientCache.set(cacheKey, data, ttl);
-  }
-
-  return data;
+  clientCache['revalidationInProgress'].set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 /**
