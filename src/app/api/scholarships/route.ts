@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { CreateScholarshipInput } from '@/types';
 import { getSession } from '@/lib/auth';
-import { getPaginationParams, buildSearchWhere } from '@/lib/query-optimizer';
+import { getPaginationParams, buildSearchWhere, queryOptimizer, generateQueryKey } from '@/lib/query-optimizer';
 
 // GET /api/scholarships - Get all scholarships
 export async function GET(request: NextRequest) {
@@ -14,6 +14,28 @@ export async function GET(request: NextRequest) {
         const type = searchParams.get('type') || '';
         const source = searchParams.get('source') || '';
         const status = searchParams.get('status') || '';
+
+        // Use server-side cache for scholarship queries
+        const cacheKey = generateQueryKey('scholarships-list', { page, limit, search, type, source, status });
+        const cachedData = queryOptimizer.get<{ scholarships: unknown[]; total: number }>(cacheKey);
+        
+        if (cachedData) {
+            return NextResponse.json({
+                success: true,
+                data: cachedData.scholarships,
+                total: cachedData.total,
+                page,
+                limit,
+                totalPages: Math.ceil(cachedData.total / limit),
+                cached: true,
+            }, {
+                headers: {
+                    'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+                    'CDN-Cache-Control': 'public, s-maxage=60',
+                    'X-Cache': 'HIT',
+                },
+            });
+        }
 
         const { skip, take } = getPaginationParams(page, limit);
 
@@ -34,7 +56,17 @@ export async function GET(request: NextRequest) {
                 skip,
                 take,
                 orderBy: { createdAt: 'desc' },
-                include: {
+                select: {
+                    id: true,
+                    scholarshipName: true,
+                    sponsor: true,
+                    type: true,
+                    source: true,
+                    amount: true,
+                    requirements: true,
+                    status: true,
+                    createdAt: true,
+                    updatedAt: true,
                     _count: {
                         select: { students: true },
                     },
@@ -43,6 +75,9 @@ export async function GET(request: NextRequest) {
             prisma.scholarship.count({ where }),
         ]);
 
+        // Cache for 90 seconds
+        queryOptimizer.set(cacheKey, { scholarships, total }, 90 * 1000);
+
         return NextResponse.json({
             success: true,
             data: scholarships,
@@ -50,10 +85,12 @@ export async function GET(request: NextRequest) {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+            cached: false,
         }, {
             headers: {
-                'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-                'CDN-Cache-Control': 'public, s-maxage=30',
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+                'CDN-Cache-Control': 'public, s-maxage=60',
+                'X-Cache': 'MISS',
             },
         });
     } catch (error) {
