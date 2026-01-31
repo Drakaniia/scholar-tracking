@@ -227,7 +227,11 @@ const AuthPage = () => {
                 width={500}
                 height={400}
                 className="w-full h-auto max-w-md"
-                priority
+                priority={false}
+                loading="lazy"
+                quality={85}
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg=="
               />
             </div>
           </div>
