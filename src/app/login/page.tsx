@@ -6,9 +6,9 @@ import { Mail, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Workspace from "@/components/illustration/workspace";
 import { toast } from "sonner";
 import logoImage from "@/assets/images/logo.webp";
+import illustrationImage from "@/assets/images/illustration.svg";
 
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -221,7 +221,14 @@ const AuthPage = () => {
 
             {/* Right side - Illustration */}
             <div className="hidden lg:flex flex-1 justify-center items-center transform lg:-translate-y-8">
-              <Workspace />
+              <Image
+                src={illustrationImage}
+                alt="Workspace Illustration"
+                width={500}
+                height={400}
+                className="w-full h-auto max-w-md"
+                priority
+              />
             </div>
           </div>
         </main>
