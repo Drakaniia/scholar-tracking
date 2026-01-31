@@ -11,8 +11,8 @@ interface QueryCacheEntry<T> {
 
 class QueryOptimizer {
   private queryCache: Map<string, QueryCacheEntry<unknown>>;
-  private defaultTTL: number = 2 * 60 * 1000; // 2 minutes for server-side cache
-  private maxEntries: number = 50;
+  private defaultTTL: number = 3 * 60 * 1000; // 3 minutes for server-side cache (increased)
+  private maxEntries: number = 100; // Increased from 50
 
   constructor() {
     this.queryCache = new Map();
