@@ -20,38 +20,70 @@ export default async function proxy(request: NextRequest) {
   // Public routes that don't require authentication
   const publicRoutes = ['/login', '/api/auth/login'];
   
+  // Create response
+  let response: NextResponse;
+  
   if (publicRoutes.includes(pathname)) {
-    return NextResponse.next();
+    response = NextResponse.next();
+  } else {
+    // Check for authentication token
+    const token = request.cookies.get('auth-token')?.value;
+    
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Verify token
+    const user = await verifyToken(token);
+    
+    if (!user) {
+      // Invalid token, redirect to login
+      response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('auth-token');
+      return response;
+    }
+
+    // Add user info to request headers for API routes
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', String((user as Record<string, unknown>).id));
+    requestHeaders.set('x-user-role', String((user as Record<string, unknown>).role));
+    requestHeaders.set('x-user-username', String((user as Record<string, unknown>).username));
+
+    response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
-  // Check for authentication token
-  const token = request.cookies.get('auth-token')?.value;
-  
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // Add security headers
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // Add compression hint
+  if (!response.headers.has('Content-Encoding')) {
+    response.headers.set('Accept-Encoding', 'gzip, deflate, br');
   }
 
-  // Verify token
-  const user = await verifyToken(token);
-  
-  if (!user) {
-    // Invalid token, redirect to login
-    const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete('auth-token');
-    return response;
+  // Add cache headers for static assets
+  if (pathname.startsWith('/_next/static/') || pathname.startsWith('/assets/')) {
+    response.headers.set(
+      'Cache-Control',
+      'public, max-age=31536000, immutable'
+    );
   }
 
-  // Add user info to request headers for API routes
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id', String((user as Record<string, unknown>).id));
-  requestHeaders.set('x-user-role', String((user as Record<string, unknown>).role));
-  requestHeaders.set('x-user-username', String((user as Record<string, unknown>).username));
+  // Add cache headers for images
+  if (pathname.match(/\.(jpg|jpeg|png|gif|webp|avif|svg|ico)$/)) {
+    response.headers.set(
+      'Cache-Control',
+      'public, max-age=2592000, stale-while-revalidate=86400'
+    );
+  }
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return response;
 }
 
 export const config = {
