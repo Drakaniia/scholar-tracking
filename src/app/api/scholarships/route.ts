@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { CreateScholarshipInput } from '@/types';
 import { getSession } from '@/lib/auth';
+import { getPaginationParams, buildSearchWhere } from '@/lib/query-optimizer';
 
 // GET /api/scholarships - Get all scholarships
 export async function GET(request: NextRequest) {
@@ -14,29 +15,24 @@ export async function GET(request: NextRequest) {
         const source = searchParams.get('source') || '';
         const status = searchParams.get('status') || '';
 
-        const skip = (page - 1) * limit;
+        const { skip, take } = getPaginationParams(page, limit);
 
-        const where = {
-            AND: [
-                search
-                    ? {
-                        OR: [
-                            { scholarshipName: { contains: search, mode: 'insensitive' as const } },
-                            { sponsor: { contains: search, mode: 'insensitive' as const } },
-                        ],
-                    }
-                    : {},
-                type ? { type } : {},
-                source ? { source } : {},
-                status ? { status } : {},
-            ],
-        };
+        const additionalFilters: Record<string, unknown> = {};
+        if (type) additionalFilters.type = type;
+        if (source) additionalFilters.source = source;
+        if (status) additionalFilters.status = status;
+
+        const where = buildSearchWhere(
+            search,
+            ['scholarshipName', 'sponsor'],
+            additionalFilters
+        );
 
         const [scholarships, total] = await Promise.all([
             prisma.scholarship.findMany({
                 where,
                 skip,
-                take: limit,
+                take,
                 orderBy: { createdAt: 'desc' },
                 include: {
                     _count: {
@@ -54,6 +50,11 @@ export async function GET(request: NextRequest) {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+        }, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+                'CDN-Cache-Control': 'public, s-maxage=30',
+            },
         });
     } catch (error) {
         console.error('Error fetching scholarships:', error);

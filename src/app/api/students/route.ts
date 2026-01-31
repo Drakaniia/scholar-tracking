@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { CreateStudentInput } from '@/types';
 import { getSession } from '@/lib/auth';
+import { getPaginationParams, buildSearchWhere } from '@/lib/query-optimizer';
 
 // GET /api/students - Get all students
 export async function GET(request: NextRequest) {
@@ -12,32 +13,31 @@ export async function GET(request: NextRequest) {
         const search = searchParams.get('search') || '';
         const gradeLevel = searchParams.get('gradeLevel') || '';
 
-        const skip = (page - 1) * limit;
+        const { skip, take } = getPaginationParams(page, limit);
 
-        const where = {
-            AND: [
-                search
-                    ? {
-                        OR: [
-                            { lastName: { contains: search, mode: 'insensitive' as const } },
-                            { firstName: { contains: search, mode: 'insensitive' as const } },
-                            { studentNo: { contains: search, mode: 'insensitive' as const } },
-                            { program: { contains: search, mode: 'insensitive' as const } },
-                        ],
-                    }
-                    : {},
-                gradeLevel ? { gradeLevel } : {},
-            ],
-        };
+        const where = buildSearchWhere(
+            search,
+            ['lastName', 'firstName', 'studentNo', 'program'],
+            gradeLevel ? { gradeLevel } : undefined
+        );
 
         const [students, total] = await Promise.all([
             prisma.student.findMany({
                 where,
                 skip,
-                take: limit,
+                take,
                 orderBy: { createdAt: 'desc' },
                 include: {
-                    scholarship: true,
+                    scholarship: {
+                        select: {
+                            id: true,
+                            scholarshipName: true,
+                            sponsor: true,
+                            type: true,
+                            source: true,
+                            status: true,
+                        },
+                    },
                 },
             }),
             prisma.student.count({ where }),
@@ -50,6 +50,11 @@ export async function GET(request: NextRequest) {
             page,
             limit,
             totalPages: Math.ceil(total / limit),
+        }, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+                'CDN-Cache-Control': 'public, s-maxage=30',
+            },
         });
     } catch (error) {
         console.error('Error fetching students:', error);

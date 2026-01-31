@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { batchQueries } from '@/lib/query-optimizer';
 
 // GET /api/dashboard - Get dashboard statistics
 export async function GET(request: NextRequest) {
@@ -7,63 +8,49 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const sourceFilter = searchParams.get('source') || '';
 
-        // Get basic counts
-        const [
-            totalStudents,
-            studentsWithScholarships,
-            totalScholarships,
-            activeScholarships,
-        ] = await Promise.all([
-            prisma.student.count(),
-            prisma.student.count({ where: { scholarshipId: { not: null } } }),
-            prisma.scholarship.count(),
-            prisma.scholarship.count({ where: { status: 'Active' } }),
-        ]);
-
-        // Get students with active scholarships for total awarded
-        const studentsWithGrants = await prisma.student.findMany({
-            where: { 
-                grantAmount: { not: null },
-                scholarshipStatus: 'Active',
-            },
-            select: { grantAmount: true },
+        // Batch all queries together for better performance
+        const results = await batchQueries({
+            totalStudents: () => prisma.student.count(),
+            studentsWithScholarships: () => prisma.student.count({ where: { scholarshipId: { not: null } } }),
+            totalScholarships: () => prisma.scholarship.count(),
+            activeScholarships: () => prisma.scholarship.count({ where: { status: 'Active' } }),
+            studentsWithGrants: () => prisma.student.findMany({
+                where: { 
+                    grantAmount: { not: null },
+                    scholarshipStatus: 'Active',
+                },
+                select: { grantAmount: true },
+            }),
+            disbursements: () => prisma.disbursement.findMany({
+                select: { amount: true },
+            }),
+            recentStudents: () => prisma.student.findMany({
+                take: 5,
+                orderBy: { updatedAt: 'desc' },
+                include: {
+                    scholarship: true,
+                },
+            }),
+            studentsByGradeLevel: () => prisma.student.groupBy({
+                by: ['gradeLevel'],
+                _count: { id: true },
+            }),
         });
 
-        const totalAmountAwarded = studentsWithGrants.reduce(
+        const totalAmountAwarded = results.studentsWithGrants.reduce(
             (sum: number, student: { grantAmount: unknown }) => sum + Number(student.grantAmount || 0),
             0
         );
 
-        // Get total disbursed
-        const disbursements = await prisma.disbursement.findMany({
-            select: { amount: true },
-        });
-
-        const totalDisbursed = disbursements.reduce(
+        const totalDisbursed = results.disbursements.reduce(
             (sum: number, disbursement: { amount: unknown }) => sum + Number(disbursement.amount),
             0
         );
-
-        // Get recent students with scholarships
-        const recentStudents = await prisma.student.findMany({
-            take: 5,
-            orderBy: { updatedAt: 'desc' },
-            include: {
-                scholarship: true,
-            },
-        });
-
-        // Get students by grade level
-        const studentsByGradeLevel = await prisma.student.groupBy({
-            by: ['gradeLevel'],
-            _count: { id: true },
-        });
 
         // Get scholarships by type - filter by source if provided
         let scholarshipsByType;
         
         if (sourceFilter && (sourceFilter === 'INTERNAL' || sourceFilter === 'EXTERNAL')) {
-            // When filtering by source, get the count of scholarships with that source
             scholarshipsByType = await prisma.scholarship.groupBy({
                 by: ['type'],
                 where: { 
@@ -73,7 +60,6 @@ export async function GET(request: NextRequest) {
                 _count: { id: true },
             });
         } else {
-            // No filter - get all active scholarships
             scholarshipsByType = await prisma.scholarship.groupBy({
                 by: ['type'],
                 where: {
@@ -87,18 +73,24 @@ export async function GET(request: NextRequest) {
             success: true,
             data: {
                 stats: {
-                    totalStudents,
-                    studentsWithScholarships,
-                    totalScholarships,
-                    activeScholarships,
+                    totalStudents: results.totalStudents,
+                    studentsWithScholarships: results.studentsWithScholarships,
+                    totalScholarships: results.totalScholarships,
+                    activeScholarships: results.activeScholarships,
                     totalAmountAwarded,
                     totalDisbursed,
                 },
-                recentStudents,
+                recentStudents: results.recentStudents,
                 charts: {
-                    studentsByGradeLevel,
+                    studentsByGradeLevel: results.studentsByGradeLevel,
                     scholarshipsByType,
                 },
+            },
+        }, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+                'CDN-Cache-Control': 'public, s-maxage=60',
+                'Vercel-CDN-Cache-Control': 'public, s-maxage=60',
             },
         });
     } catch (error) {
