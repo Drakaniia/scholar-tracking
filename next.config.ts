@@ -5,12 +5,22 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', '@/components/ui'],
+    optimizePackageImports: ['lucide-react', '@/components/ui', 'recharts'],
   },
   // Enable static page generation caching
   staticPageGenerationTimeout: 60,
+  // Compress responses
+  compress: true,
+  // Enable React strict mode for better performance
+  reactStrictMode: true,
+  // Enable production source maps for debugging (optional)
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;
