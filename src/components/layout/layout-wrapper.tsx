@@ -31,10 +31,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 }
 
 export function MainContent({ children }: { children: ReactNode }) {
-    const { collapsed } = useSidebar();
-
     return (
-        <main className={`transition-all duration-300 ${collapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+        <main className="pt-16">
             <div className="container mx-auto p-4 md:p-8">
                 {children}
             </div>

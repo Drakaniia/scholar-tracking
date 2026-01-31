@@ -12,10 +12,12 @@ import {
     LogOut,
     Menu,
     Settings,
+    ChevronDown,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useSidebar } from './layout-wrapper';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -33,43 +35,11 @@ interface SidebarProps {
     onMobileClose?: () => void;
 }
 
-function NavLinks({ pathname, setOpen, collapsed }: { pathname: string; setOpen?: (open: boolean) => void; collapsed?: boolean }) {
-    return (
-        <nav className="flex flex-col gap-1">
-            {navigation.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                    <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={() => setOpen?.(false)}
-                        className={cn(
-                            'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors relative',
-                            isActive
-                                ? 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-[#bef264] before:rounded-l-lg'
-                                : 'text-white/80 hover:text-white hover:bg-white/10'
-                        )}
-                        title={collapsed ? item.name : undefined}
-                    >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        <span className={cn(
-                            "whitespace-nowrap transition-all duration-300 ml-3",
-                            collapsed ? "w-0 opacity-0 overflow-hidden ml-0" : "w-auto opacity-100"
-                        )}>
-                            {item.name}
-                        </span>
-                    </Link>
-                );
-            })}
-        </nav>
-    );
-}
-
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const { collapsed, setCollapsed, setMobileOpen } = useSidebar();
+    const { setMobileOpen } = useSidebar();
     const { user } = useAuth();
     const isAdmin = user?.role === 'ADMIN';
 
@@ -88,14 +58,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 router.refresh();
             } else {
                 toast.error(data.error || 'Failed to logout');
-                // Still redirect even if there's an error
                 router.push('/login');
                 router.refresh();
             }
         } catch (error) {
             console.error('Logout error:', error);
             toast.error('An error occurred during logout');
-            // Still redirect even on error
             router.push('/login');
             router.refresh();
         } finally {
@@ -105,7 +73,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
     return (
         <>
-            {/* Mobile Sidebar */}
+            {/* Mobile Menu Sheet */}
             <Sheet open={mobileOpen} onOpenChange={onMobileClose}>
                 <SheetContent side="left" className="w-64 p-4 bg-[#22c55e] border-[#22c55e]">
                     <div className="mb-6 flex items-center gap-3 px-3">
@@ -121,14 +89,28 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                         </div>
                         <span className="text-lg font-bold text-white">ScholarTrack</span>
                     </div>
-                    <div className="flex-1">
-                        <NavLinks pathname={pathname} setOpen={onMobileClose} />
-                    </div>
+                    <nav className="flex flex-col gap-1">
+                        {navigation.map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    onClick={() => onMobileClose?.()}
+                                    className={cn(
+                                        'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                                        isActive
+                                            ? 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90'
+                                            : 'text-white/80 hover:text-white hover:bg-white/10'
+                                    )}
+                                >
+                                    <item.icon className="h-5 w-5 mr-3" />
+                                    {item.name}
+                                </Link>
+                            );
+                        })}
+                    </nav>
                     <div className="border-t border-white/20 pt-4 space-y-2 mt-4">
-                        <p className="text-xs text-white/60 px-3">
-                            Scholarship Tracking System
-                        </p>
-                        <p className="text-xs text-white/60 px-3">v1.0.0</p>
                         {isAdmin && (
                             <Link
                                 href="/settings"
@@ -157,103 +139,92 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 </SheetContent>
             </Sheet>
 
-            {/* Desktop Sidebar */}
-            <aside className={cn(
-                "fixed left-0 top-0 z-40 hidden h-screen border-r border-[#22c55e] bg-[#22c55e] md:block transition-all duration-300 overflow-hidden",
-                collapsed ? "w-16" : "w-64"
-            )}>
-                <div className="flex h-full flex-col">
-                    <div className="flex h-16 items-center border-b border-white/20 px-4 gap-3">
+            {/* Top Header */}
+            <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#22c55e] border-b border-[#1ea34d] shadow-sm">
+                <div className="h-full px-4 flex items-center justify-between">
+                    {/* Left: Logo and Brand */}
+                    <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 relative shrink-0">
+                            <Image
+                                src={logoImage}
+                                alt="ScholarTrack Logo"
+                                width={32}
+                                height={32}
+                                className="h-full w-full object-contain"
+                                priority
+                            />
+                        </div>
+                        <span className="text-lg font-bold text-white hidden sm:block">ScholarTrack</span>
+                    </div>
+
+                    {/* Center: Desktop Navigation */}
+                    <nav className="hidden md:flex items-center gap-1">
+                        {navigation.map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={cn(
+                                        'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                                        isActive
+                                            ? 'bg-[#84cc16] text-white'
+                                            : 'text-white/80 hover:text-white hover:bg-white/10'
+                                    )}
+                                >
+                                    <item.icon className="h-4 w-4" />
+                                    {item.name}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Right: User Menu */}
+                    <div className="flex items-center gap-2">
+                        {/* Desktop User Dropdown */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild className="hidden md:flex">
+                                <Button variant="ghost" className="text-white hover:bg-white/10 gap-2">
+                                    <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">
+                                        {user?.username?.charAt(0).toUpperCase() || 'U'}
+                                    </div>
+                                    <span className="text-sm">{user?.username || 'User'}</span>
+                                    <ChevronDown className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <div className="px-2 py-1.5 text-sm">
+                                    <p className="font-medium">{user?.username}</p>
+                                    <p className="text-xs text-muted-foreground">{user?.role}</p>
+                                </div>
+                                <DropdownMenuSeparator />
+                                {isAdmin && (
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/settings" className="cursor-pointer">
+                                            <Settings className="h-4 w-4 mr-2" />
+                                            Settings
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+                                    <LogOut className="h-4 w-4 mr-2" />
+                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Mobile Menu Button */}
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setCollapsed(!collapsed)}
-                            className="h-8 w-8 text-white hover:bg-white/10 hover:text-white shrink-0"
+                            onClick={() => setMobileOpen(true)}
+                            className="md:hidden text-white hover:bg-white/10"
                         >
                             <Menu className="h-5 w-5" />
                         </Button>
-                        <div className={cn(
-                            "flex items-center gap-3 transition-all duration-300 overflow-hidden",
-                            collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
-                        )}>
-                            <div className="h-8 w-8 relative shrink-0">
-                                <Image
-                                    src={logoImage}
-                                    alt="ScholarTrack Logo"
-                                    width={32}
-                                    height={32}
-                                    className="h-full w-full object-contain"
-                                    priority
-                                />
-                            </div>
-                            <span className="text-lg font-bold text-white whitespace-nowrap">ScholarTrack</span>
-                        </div>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4">
-                        <NavLinks pathname={pathname} collapsed={collapsed} />
-                    </div>
-                    <div className={cn(
-                        "border-t border-white/20 p-4 space-y-2"
-                    )}>
-                        <div className={cn(
-                            "transition-all duration-300 overflow-hidden",
-                            collapsed ? "h-0 opacity-0" : "h-auto opacity-100"
-                        )}>
-                            <p className="text-xs text-white/60">
-                                Scholarship Tracking System
-                            </p>
-                            <p className="text-xs text-white/60">v1.0.0</p>
-                        </div>
-                        {isAdmin && (
-                            <Link
-                                href="/settings"
-                                className={cn(
-                                    "text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center rounded-lg",
-                                    collapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start px-3 py-2.5",
-                                    pathname === '/settings' && 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90'
-                                )}
-                                title={collapsed ? "Settings" : undefined}
-                            >
-                                <Settings className="h-5 w-5 shrink-0" />
-                                <span className={cn(
-                                    "whitespace-nowrap transition-all duration-300",
-                                    collapsed ? "w-0 opacity-0 overflow-hidden ml-0" : "w-auto opacity-100 ml-3"
-                                )}>
-                                    Settings
-                                </span>
-                            </Link>
-                        )}
-                        <Button
-                            variant="ghost"
-                            className={cn(
-                                "text-sm font-medium text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center",
-                                collapsed ? "w-8 h-8 p-0 justify-center" : "w-full justify-start mt-2"
-                            )}
-                            onClick={handleLogout}
-                            disabled={isLoggingOut}
-                            title={collapsed ? "Logout" : undefined}
-                        >
-                            <LogOut className="h-5 w-5 shrink-0" />
-                            <span className={cn(
-                                "whitespace-nowrap transition-all duration-300",
-                                collapsed ? "w-0 opacity-0 overflow-hidden ml-0" : "w-auto opacity-100 ml-3"
-                            )}>
-                                {isLoggingOut ? 'Logging out...' : 'Logout'}
-                            </span>
-                        </Button>
                     </div>
                 </div>
-            </aside>
-
-            {/* Mobile Menu Button */}
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileOpen(true)}
-                className="fixed left-4 top-4 z-50 md:hidden"
-            >
-                <Menu className="h-5 w-5" />
-            </Button>
+            </header>
         </>
     );
 }
