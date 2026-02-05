@@ -57,18 +57,19 @@ interface DashboardData {
   };
   recentStudents: Array<{
     id: number;
-    studentNo: string;
     lastName: string;
     firstName: string;
     middleInitial: string | null;
     gradeLevel: string;
     yearLevel: string;
-    scholarshipStatus: string | null;
-    scholarship: {
-      scholarshipName: string;
-      type: string;
-    } | null;
-    awardDate: string | null;
+    scholarships: Array<{
+      scholarshipStatus: string;
+      scholarship: {
+        scholarshipName: string;
+        type: string;
+      };
+    }>;
+    updatedAt: string;
   }>;
   charts: {
     studentsByGradeLevel: Array<{
@@ -84,16 +85,18 @@ interface DashboardData {
 
 interface DetailedStudent {
   id: number;
-  studentNo: string;
   lastName: string;
   firstName: string;
   middleInitial: string | null;
   gradeLevel: string;
   yearLevel: string;
-  scholarship: {
-    scholarshipName: string;
-    type: string;
-  } | null;
+  scholarships: Array<{
+    scholarship: {
+      scholarshipName: string;
+      type: string;
+      source: string;
+    };
+  }>;
   fees: Array<{
     tuitionFee: number;
     otherFee: number;
@@ -213,10 +216,10 @@ export default function DashboardPage() {
   const recentAwards = data?.recentStudents?.slice(0, 5).map((student, index) => ({
     id: student.id,
     studentName: `${student.firstName} ${student.lastName}`,
-    scholarshipName: student.scholarship?.scholarshipName || 'Scholarship Program',
-    type: student.scholarship?.type || 'GRANT',
+    scholarshipName: student.scholarships?.[0]?.scholarship?.scholarshipName || 'Scholarship Program',
+    type: student.scholarships?.[0]?.scholarship?.type || 'GRANT',
     amount: 25000 + (index * 5000),
-    date: student.awardDate || new Date().toLocaleDateString(),
+    date: student.updatedAt || new Date().toLocaleDateString(),
     status: 'active' as const,
   })) || [];
 
@@ -225,7 +228,7 @@ export default function DashboardPage() {
 
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
     return detailedStudents.filter(
-      (s) => s.gradeLevel === gradeLevel && s.scholarship?.type === scholarshipType
+      (s) => s.gradeLevel === gradeLevel && s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
     );
   };
 
@@ -404,28 +407,28 @@ export default function DashboardPage() {
                   <TabsTrigger 
                     key="GRADE_SCHOOL" 
                     value="GRADE_SCHOOL"
-                    className="data-[state=active]:bg-[hsl(var(--pastel-purple))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-purple))] data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 transition-all"
                   >
                     {GRADE_LEVEL_LABELS['GRADE_SCHOOL']}
                   </TabsTrigger>
                   <TabsTrigger 
                     key="JUNIOR_HIGH" 
                     value="JUNIOR_HIGH"
-                    className="data-[state=active]:bg-[hsl(var(--pastel-blue))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-blue))] data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 transition-all"
                   >
                     {GRADE_LEVEL_LABELS['JUNIOR_HIGH']}
                   </TabsTrigger>
                   <TabsTrigger 
                     key="SENIOR_HIGH" 
                     value="SENIOR_HIGH"
-                    className="data-[state=active]:bg-[hsl(var(--pastel-pink))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-pink))] data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 transition-all"
                   >
                     {GRADE_LEVEL_LABELS['SENIOR_HIGH']}
                   </TabsTrigger>
                   <TabsTrigger 
                     key="COLLEGE" 
                     value="COLLEGE"
-                    className="data-[state=active]:bg-[hsl(var(--pastel-orange))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-orange))] data-[state=active]:text-gray-800 dark:data-[state=active]:text-gray-900 data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400 transition-all"
                   >
                     {GRADE_LEVEL_LABELS['COLLEGE']}
                   </TabsTrigger>
