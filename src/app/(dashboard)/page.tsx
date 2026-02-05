@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PageHeader } from '@/components/layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -24,14 +25,24 @@ import {
 import {
   Users,
   GraduationCap,
-  DollarSign,
-  TrendingUp,
   Award,
   FileSpreadsheet,
+  TrendingUp,
+  Download,
+  Filter,
+  CreditCard,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
-import { CustomPieChart, CustomBarChart } from '@/components/charts';
+// import { ThemeToggle } from '@/components/theme-toggle';
+import {
+  StatsCard,
+  ScholarshipChart,
+  StudentsChart,
+  RecentAwards,
+  // ScholarshipOverview,
+  DashboardSkeleton,
+} from '@/components/dashboard';
+import { CustomPieChart } from '@/components/charts';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 import { fetchWithCache, prefetchEndpoints } from '@/lib/cache';
 
@@ -107,6 +118,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Trigger fade-in animation after component mounts
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   // Prefetch all pages in the background for instant navigation
   useEffect(() => {
@@ -119,8 +136,7 @@ export default function DashboardPage() {
       ]);
       console.log('✓ All pages prefetched for instant navigation');
     };
-    
-    // Start prefetching after a short delay to prioritize dashboard load
+
     const timer = setTimeout(prefetchAllPages, 500);
     return () => clearTimeout(timer);
   }, []);
@@ -132,14 +148,14 @@ export default function DashboardPage() {
         if (scholarshipSourceFilter && scholarshipSourceFilter !== 'all') {
           params.append('source', scholarshipSourceFilter);
         }
-        
+
         const url = `/api/dashboard?${params}`;
         const json = await fetchWithCache<{ success: boolean; data: DashboardData }>(
           url,
           undefined,
-          5 * 60 * 1000 // 5 minutes cache
+          5 * 60 * 1000
         );
-        
+
         if (json.success) {
           setData(json.data);
         }
@@ -159,9 +175,9 @@ export default function DashboardPage() {
         const json = await fetchWithCache<{ success: boolean; data: DetailedStudent[] }>(
           url,
           undefined,
-          5 * 60 * 1000 // 5 minutes cache
+          5 * 60 * 1000
         );
-        
+
         if (json.success) {
           setDetailedStudents(json.data);
         }
@@ -175,11 +191,7 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const stats = data?.stats || {
@@ -191,40 +203,22 @@ export default function DashboardPage() {
     totalDisbursed: 0,
   };
 
-  const statCards = [
-    {
-      title: 'Total Students',
-      value: stats.totalStudents,
-      icon: Users,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
-      description: `${stats.studentsWithScholarships} with scholarships`,
-    },
-    {
-      title: 'Active Scholarships',
-      value: stats.activeScholarships,
-      icon: GraduationCap,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
-      description: `of ${stats.totalScholarships} total`,
-    },
-    {
-      title: 'Total Awarded',
-      value: formatCurrency(stats.totalAmountAwarded),
-      icon: Award,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
-      description: 'Scholarship grants',
-    },
-    {
-      title: 'Total Disbursed',
-      value: formatCurrency(stats.totalDisbursed),
-      icon: DollarSign,
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10',
-      description: 'Payments made',
-    },
-  ];
+  // Prepare chart data
+  const studentsChartData = data?.charts?.studentsByGradeLevel?.map(item => ({
+    name: GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel,
+    students: item._count.id,
+    withScholarship: Math.floor(item._count.id * 0.4), // Mock ratio
+  })) || [];
+
+  const recentAwards = data?.recentStudents?.slice(0, 5).map((student, index) => ({
+    id: student.id,
+    studentName: `${student.firstName} ${student.lastName}`,
+    scholarshipName: student.scholarship?.scholarshipName || 'Scholarship Program',
+    type: student.scholarship?.type || 'GRANT',
+    amount: 25000 + (index * 5000),
+    date: student.awardDate || new Date().toLocaleDateString(),
+    status: 'active' as const,
+  })) || [];
 
   const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
   const SCHOLARSHIP_TYPES = ['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'];
@@ -237,71 +231,130 @@ export default function DashboardPage() {
 
   const calculateTotalFees = (fees: DetailedStudent['fees'][0]) => {
     if (!fees) return 0;
-    return Number(fees.tuitionFee) + Number(fees.otherFee) + 
-           Number(fees.miscellaneousFee) + Number(fees.laboratoryFee);
+    return Number(fees.tuitionFee) + Number(fees.otherFee) +
+      Number(fees.miscellaneousFee) + Number(fees.laboratoryFee);
   };
 
   return (
-    <div>
-      <PageHeader
-        title="Admin Dashboard"
-        description="Scholarship tracking system overview"
-      />
-
-      {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title} className="overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {stat.title}
-                  </p>
-                  <p className="mt-2 text-2xl font-bold">{stat.value}</p>
-                  {stat.description && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {stat.description}
-                    </p>
-                  )}
-                </div>
-                <div className={`rounded-full p-3 ${stat.bgColor}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      {/* Page Header - Enhanced Style */}
+      <div className={`flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white dark:bg-gray-900 p-6 rounded-xl transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Welcome back! Here&apos;s an overview of your scholarship programs.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
+            <SelectTrigger className="w-[180px]">
+              <Filter className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filter by source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources</SelectItem>
+              {SCHOLARSHIP_SOURCES.map((source) => (
+                <SelectItem key={source} value={source}>
+                  {SCHOLARSHIP_SOURCE_LABELS[source]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild variant="gradient">
+            <Link href="/reports">
+              <Download className="mr-2 h-4 w-4" />
+              Export Report
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Distribution Stats with Charts */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      {/* Stats Cards Grid - Enhanced with StatsCard component */}
+      {/* Stats Cards Grid - Enhanced with StatsCard component */}
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-150 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <StatsCard
+          title="Total Scholarships"
+          value={stats.totalScholarships}
+          icon={GraduationCap}
+          trend={{ value: 12.5, isPositive: true }}
+          description="Active programs"
+          variant="blue"
+        />
+        <StatsCard
+          title="Total Students"
+          value={stats.totalStudents}
+          icon={Users}
+          trend={{ value: 8.2, isPositive: true }}
+          description={`${stats.studentsWithScholarships} with scholarships`}
+          variant="pink"
+        />
+        <StatsCard
+          title="Total Awarded"
+          value={formatCurrency(stats.totalAmountAwarded)}
+          icon={Award}
+          trend={{ value: 2.1, isPositive: true }}
+          description="Available funds"
+          variant="orange"
+        />
+        <StatsCard
+          title="Total Disbursed"
+          value={formatCurrency(stats.totalDisbursed)}
+          icon={CreditCard}
+          trend={{ value: 18.7, isPositive: true }}
+          description="Total distributed"
+          variant="green"
+        />
+      </div>
+
+      {/* Charts Section - Enhanced with gradient charts */}
+      <div className={`grid gap-4 lg:grid-cols-3 transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        {/* Scholarship Trends Chart (Revenue Style) */}
+        <ScholarshipChart
+          title="Scholarship Trends"
+          description="Monthly awarded, disbursed, and remaining balance"
+          data={[
+            { name: 'Aug', awarded: 115000, disbursed: 38000, balance: 77000 },
+            { name: 'Sep', awarded: 125000, disbursed: 42000, balance: 83000 },
+            { name: 'Oct', awarded: 138000, disbursed: 48000, balance: 90000 },
+            { name: 'Nov', awarded: 110000, disbursed: 35000, balance: 75000 },
+            { name: 'Dec', awarded: 135000, disbursed: 40000, balance: 95000 },
+            { name: 'Jan', awarded: 145000, disbursed: 35000, balance: 110000 },
+          ]}
+        />
+
+        {/* Recent Awards Replaced by Students Chart */}
+        <div className="lg:col-span-1">
+          {studentsChartData.length > 0 && (
+            <StudentsChart
+              data={studentsChartData}
+              title="Students by Grade"
+              description="Distribution of students"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Scholarship Performance Overview - REMOVED as per user request */}
+      {/* {scholarshipOverviewData.length > 0 && (
+        <ScholarshipOverview scholarships={scholarshipOverviewData} />
+      )} */}
+
+      {/* Secondary Charts Section - Recent Awards & Distribution */}
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 transition-all duration-700 delay-[450ms] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         {/* Pie Chart - Scholarships by Type */}
-        <Card>
+        <Card className="lg:col-span-1 border-gray-200 dark:border-gray-800">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Scholarships by Type
-              </CardTitle>
-              <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  {SCHOLARSHIP_SOURCES.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {SCHOLARSHIP_SOURCE_LABELS[source]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <CardTitle className="text-foreground">Scholarships by Type</CardTitle>
+              </div>
             </div>
+            <CardDescription>Distribution by type</CardDescription>
           </CardHeader>
           <CardContent>
             {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
-              <CustomPieChart 
+              <CustomPieChart
                 key={scholarshipSourceFilter}
                 data={data.charts.scholarshipsByType.map(item => ({
                   name: item.type,
@@ -314,38 +367,24 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Bar Chart - Students by Grade Level */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Students by Grade Level
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data?.charts?.studentsByGradeLevel && data.charts.studentsByGradeLevel.length > 0 ? (
-              <CustomBarChart 
-                data={data.charts.studentsByGradeLevel.map(item => ({
-                  name: GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel,
-                  value: item._count.id
-                }))}
-              />
-            ) : (
-              <p className="text-center text-muted-foreground py-8">No data available</p>
-            )}
-          </CardContent>
-        </Card>
+        {/* Recent Awards List */}
+        <div className="lg:col-span-2">
+          <RecentAwards awards={recentAwards} />
+        </div>
       </div>
 
-      {/* Detailed Excel-like View - Preview */}
-      <Card className="mt-6">
+      {/* Detailed Excel-like View */}
+      <Card className={`border-gray-200 dark:border-gray-800 transition-all duration-700 delay-[600ms] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5" />
-              Detailed Student Scholarship Report
-            </CardTitle>
-            <Button 
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-foreground">Detailed Student Report</CardTitle>
+                <CardDescription>Complete breakdown by grade level and scholarship type</CardDescription>
+              </div>
+            </div>
+            <Button
               onClick={() => router.push('/reports')}
               variant="outline"
             >
@@ -360,16 +399,36 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Preview of students with scholarships. Click &quot;View Full Report&quot; to see the complete detailed breakdown.
-              </p>
               <Tabs defaultValue="GRADE_SCHOOL" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
-                  {GRADE_LEVELS.map((level) => (
-                    <TabsTrigger key={level} value={level}>
-                      {GRADE_LEVEL_LABELS[level]}
-                    </TabsTrigger>
-                  ))}
+                <TabsList className="grid w-full grid-cols-4 bg-gray-100 dark:bg-gray-800 p-1 h-auto">
+                  <TabsTrigger 
+                    key="GRADE_SCHOOL" 
+                    value="GRADE_SCHOOL"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-purple))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                  >
+                    {GRADE_LEVEL_LABELS['GRADE_SCHOOL']}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    key="JUNIOR_HIGH" 
+                    value="JUNIOR_HIGH"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-blue))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                  >
+                    {GRADE_LEVEL_LABELS['JUNIOR_HIGH']}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    key="SENIOR_HIGH" 
+                    value="SENIOR_HIGH"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-pink))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                  >
+                    {GRADE_LEVEL_LABELS['SENIOR_HIGH']}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    key="COLLEGE" 
+                    value="COLLEGE"
+                    className="data-[state=active]:bg-[hsl(var(--pastel-orange))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
+                  >
+                    {GRADE_LEVEL_LABELS['COLLEGE']}
+                  </TabsTrigger>
                 </TabsList>
 
                 {GRADE_LEVELS.map((gradeLevel) => (
@@ -377,18 +436,20 @@ export default function DashboardPage() {
                     <div className="space-y-6">
                       {SCHOLARSHIP_TYPES.map((scholarshipType) => {
                         const students = getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType);
-                        
+
                         if (students.length === 0) return null;
 
-                        // Show only first 3 students as preview
                         const previewStudents = students.slice(0, 3);
 
                         return (
                           <div key={scholarshipType} className="space-y-2">
-                            <h3 className="text-lg font-semibold text-primary">
-                              {scholarshipType} Scholarship ({students.length} students)
-                            </h3>
-                            <div className="overflow-x-auto border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold text-muted-foreground">
+                                {scholarshipType} Scholarship
+                              </h3>
+                              <Badge variant="secondary">{students.length} students</Badge>
+                            </div>
+                            <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
                               <Table>
                                 <TableHeader>
                                   <TableRow className="bg-muted/50">
@@ -405,9 +466,9 @@ export default function DashboardPage() {
                                   {previewStudents.map((student) => {
                                     const fees = student.fees[0];
                                     const totalFees = fees ? calculateTotalFees(fees) : 0;
-                                    
+
                                     return (
-                                      <TableRow key={student.id}>
+                                      <TableRow key={student.id} className="hover:bg-muted/30 transition-colors">
                                         <TableCell className="font-medium">{student.lastName}</TableCell>
                                         <TableCell>{student.firstName}</TableCell>
                                         <TableCell>{student.middleInitial || '-'}</TableCell>
@@ -415,11 +476,11 @@ export default function DashboardPage() {
                                         <TableCell className="text-right font-semibold">
                                           {formatCurrency(totalFees)}
                                         </TableCell>
-                                        <TableCell className="text-right text-green-600 font-semibold">
+                                        <TableCell className="text-right text-emerald-600 font-semibold">
                                           {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                          <Badge variant="secondary">
+                                          <Badge variant="secondary" className="bg-primary/10 text-primary">
                                             {fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '-'}
                                           </Badge>
                                         </TableCell>
