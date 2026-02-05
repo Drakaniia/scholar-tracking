@@ -29,7 +29,7 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <SidebarProvider>
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white dark:bg-gray-950">
           <DashboardContent>
             {children}
           </DashboardContent>

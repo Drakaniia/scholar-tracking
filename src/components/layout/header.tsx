@@ -9,7 +9,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
     return (
-        <header className="fixed top-0 left-0 right-0 z-30 h-16 bg-white border-b border-gray-200">
+        <header className="fixed top-0 left-0 right-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
             <div className="flex h-full items-center gap-4 px-6 md:pl-72">
                 <Button
                     variant="ghost"
@@ -28,7 +28,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                             className="h-full w-full object-contain"
                         />
                     </div>
-                    <span className="text-lg font-bold text-gray-900">ScholarTrack</span>
+                    <span className="text-lg font-bold text-gray-900 dark:text-gray-100">ScholarTrack</span>
                 </div>
             </div>
         </header>
