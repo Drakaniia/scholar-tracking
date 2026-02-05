@@ -38,5 +38,3 @@ export async function GET() {
         );
     }
 }
-
-export { GET as default };
