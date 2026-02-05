@@ -19,16 +19,18 @@ import { fetchWithCache } from '@/lib/cache';
 
 interface DetailedStudent {
   id: number;
-  studentNo: string;
   lastName: string;
   firstName: string;
   middleInitial: string | null;
   gradeLevel: string;
   yearLevel: string;
-  scholarship: {
-    scholarshipName: string;
-    type: string;
-  } | null;
+  scholarships: Array<{
+    scholarship: {
+      scholarshipName: string;
+      type: string;
+      source: string;
+    };
+  }>;
   fees: Array<{
     tuitionFee: number;
     otherFee: number;
@@ -78,7 +80,7 @@ export default function ReportsPage() {
 
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
     return detailedStudents.filter(
-      (s) => s.gradeLevel === gradeLevel && s.scholarship?.type === scholarshipType
+      (s) => s.gradeLevel === gradeLevel && s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
     );
   };
 
@@ -147,11 +149,11 @@ export default function ReportsPage() {
                             <Table>
                               <TableHeader>
                                 <TableRow className="bg-muted/50">
-                                  <TableHead className="font-bold">Student No.</TableHead>
                                   <TableHead className="font-bold">Last Name</TableHead>
                                   <TableHead className="font-bold">First Name</TableHead>
                                   <TableHead className="font-bold">M.I.</TableHead>
                                   <TableHead className="font-bold">Year Level</TableHead>
+                                  <TableHead className="font-bold">Scholarships</TableHead>
                                   <TableHead className="font-bold text-right">Tuition</TableHead>
                                   <TableHead className="font-bold text-right">Other Fees</TableHead>
                                   <TableHead className="font-bold text-right">Misc.</TableHead>
@@ -165,14 +167,17 @@ export default function ReportsPage() {
                                 {students.map((student) => {
                                   const fees = student.fees[0];
                                   const totalFees = fees ? calculateTotalFees(fees) : 0;
+                                  const scholarshipNames = student.scholarships.map(ss => ss.scholarship.scholarshipName).join(', ');
                                   
                                   return (
                                     <TableRow key={student.id}>
-                                      <TableCell className="font-medium">{student.studentNo}</TableCell>
                                       <TableCell className="font-medium">{student.lastName}</TableCell>
                                       <TableCell>{student.firstName}</TableCell>
                                       <TableCell>{student.middleInitial || '-'}</TableCell>
                                       <TableCell>{student.yearLevel}</TableCell>
+                                      <TableCell className="max-w-xs truncate" title={scholarshipNames}>
+                                        {scholarshipNames}
+                                      </TableCell>
                                       <TableCell className="text-right">
                                         {fees ? formatCurrency(Number(fees.tuitionFee)) : '-'}
                                       </TableCell>
