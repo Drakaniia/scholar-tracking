@@ -222,7 +222,7 @@ export default function ScholarshipsPage() {
         <div className="flex gap-2">
           <ExportButton endpoint="/api/export/scholarships" filename="scholarships-report" />
           {isAdmin && (
-            <Button onClick={openCreateDialog}>
+            <Button onClick={openCreateDialog} variant="gradient">
               <Plus className="mr-2 h-4 w-4" />
               Add Scholarship
             </Button>
@@ -230,10 +230,10 @@ export default function ScholarshipsPage() {
         </div>
       </PageHeader>
 
-      <Card>
+      <Card className="border-gray-200 dark:border-gray-800">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-foreground">
               <GraduationCap className="h-5 w-5" />
               All Scholarships
             </CardTitle>

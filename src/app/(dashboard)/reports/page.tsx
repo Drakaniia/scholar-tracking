@@ -105,9 +105,9 @@ export default function ReportsPage() {
         <ExportButton endpoint="/api/export/students" filename="detailed-student-scholarship-report" />
       </PageHeader>
 
-      <Card>
+      <Card className="border-gray-200 dark:border-gray-800">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <FileSpreadsheet className="h-5 w-5" />
             Detailed Student Scholarship Report
           </CardTitle>
@@ -139,11 +139,11 @@ export default function ReportsPage() {
                       return (
                         <div key={scholarshipType} className="space-y-2">
                           <div className="bg-muted px-4 py-2 rounded-md">
-                            <h3 className="text-lg font-semibold text-primary">
+                            <h3 className="text-lg font-semibold text-muted-foreground">
                               {scholarshipType} Scholarship ({students.length} student{students.length !== 1 ? 's' : ''})
                             </h3>
                           </div>
-                          <div className="overflow-x-auto border rounded-lg">
+                          <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
                             <Table>
                               <TableHeader>
                                 <TableRow className="bg-muted/50">

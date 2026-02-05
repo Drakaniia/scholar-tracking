@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logoImage from "@/assets/images/logo.webp";
 import illustrationImage from "@/assets/images/illustration.svg";
+import Grainient from "@/components/ui/grainient";
 
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -58,22 +59,36 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden login-gradient-bg">
-      {/* Green gradient background - now using CSS class */}
-
-      {/* Decorative organic shapes */}
-      <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-30"
-        style={{ background: "radial-gradient(circle, #88d4ab 0%, transparent 70%)", transform: "translate(30%, -30%)" }}
-      />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full opacity-20"
-        style={{ background: "radial-gradient(circle, #1a936f 0%, transparent 70%)", transform: "translate(-30%, 30%)" }}
-      />
-      <div className="absolute top-1/2 right-1/4 w-64 h-64 rounded-full opacity-25"
-        style={{ background: "radial-gradient(circle, #114b5f 0%, transparent 70%)" }}
-      />
-      <div className="absolute top-1/4 left-1/3 w-48 h-48 rounded-full opacity-20"
-        style={{ background: "radial-gradient(circle, #88d4ab 0%, transparent 70%)" }}
-      />
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Grainient animated background */}
+      <div className="absolute inset-0 w-full h-full">
+        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+          <Grainient
+            color1="#8ad0cc"
+            color2="#62ff29"
+            color3="#11e8cf"
+            timeSpeed={0.25}
+            colorBalance={0}
+            warpStrength={1}
+            warpFrequency={5}
+            warpSpeed={2}
+            warpAmplitude={50}
+            blendAngle={0}
+            blendSoftness={0.05}
+            rotationAmount={500}
+            noiseScale={2}
+            grainAmount={0.09}
+            grainScale={2}
+            grainAnimated={false}
+            contrast={1.5}
+            gamma={1}
+            saturation={1}
+            centerX={0}
+            centerY={0}
+            zoom={0.9}
+          />
+        </div>
+      </div>
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -101,25 +116,36 @@ const AuthPage = () => {
             {/* Left side - Glassmorphism form */}
             <div className="w-full max-w-md transform lg:-translate-y-8">
               <div
-                className="rounded-3xl p-8 shadow-2xl border border-white/30"
+                className="rounded-3xl p-8 shadow-2xl border"
                 style={{
-                  background: "rgba(255, 255, 255, 0.85)",
+                  background: "rgba(255, 255, 255, 0.1)",
                   backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)"
+                  WebkitBackdropFilter: "blur(20px)",
+                  borderColor: "rgba(255, 255, 255, 0.2)",
+                  boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
                 }}
               >
                 {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 bg-white/50 rounded-xl p-1 mb-6">
+                  <TabsList className="grid w-full grid-cols-2 rounded-xl p-1 mb-6" style={{
+                    background: "rgba(255, 255, 255, 0.15)",
+                    backdropFilter: "blur(10px)"
+                  }}>
                     <TabsTrigger
                       value="login"
-                      className={`rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1a936f] data-[state=inactive]:text-gray-500`}
+                      className="rounded-lg data-[state=active]:text-gray-800 text-gray-600 transition-all"
+                      style={{
+                        backgroundColor: activeTab === "login" ? "rgba(255, 255, 255, 0.25)" : "transparent"
+                      }}
                     >
                       Login
                     </TabsTrigger>
                     <TabsTrigger
                       value="signup"
-                      className={`rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#1a936f] data-[state=inactive]:text-gray-500`}
+                      className="rounded-lg data-[state=active]:text-gray-800 text-gray-600 transition-all"
+                      style={{
+                        backgroundColor: activeTab === "signup" ? "rgba(255, 255, 255, 0.25)" : "transparent"
+                      }}
                     >
                       Sign Up
                     </TabsTrigger>
@@ -130,13 +156,17 @@ const AuthPage = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Username field - always visible */}
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600" />
                     <Input
                       type="text"
                       placeholder="Username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="pl-11 h-12 bg-white/60 border-gray-200 focus:border-[#1a936f] focus:ring-[#1a936f] rounded-xl"
+                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.1)",
+                        backdropFilter: "blur(10px)"
+                      }}
                       disabled={isLoading}
                       required
                     />
@@ -144,13 +174,17 @@ const AuthPage = () => {
 
                   {/* Password field - always visible */}
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600" />
                     <Input
                       type="password"
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-11 h-12 bg-white/60 border-gray-200 focus:border-[#1a936f] focus:ring-[#1a936f] rounded-xl"
+                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.1)",
+                        backdropFilter: "blur(10px)"
+                      }}
                       disabled={isLoading}
                       required
                     />
@@ -166,13 +200,17 @@ const AuthPage = () => {
                       overflow: "hidden"
                     }}
                   >
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600 z-10" />
                     <Input
                       type="password"
                       placeholder="Confirm Password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-11 h-12 bg-white/60 border-gray-200 focus:border-[#1a936f] focus:ring-[#1a936f] rounded-xl"
+                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.1)",
+                        backdropFilter: "blur(10px)"
+                      }}
                       disabled={isLoading || activeTab !== "signup"}
                       required={activeTab === "signup"}
                       tabIndex={activeTab === "signup" ? 0 : -1}
@@ -191,7 +229,7 @@ const AuthPage = () => {
                   >
                     <a
                       href="#"
-                      className="text-sm text-[#1a936f] hover:text-[#114b5f] transition-colors hover:underline"
+                      className="text-sm text-gray-700 hover:text-gray-900 transition-colors hover:underline"
                       onClick={(e) => e.preventDefault()}
                       tabIndex={activeTab === "login" ? 0 : -1}
                     >
@@ -203,10 +241,11 @@ const AuthPage = () => {
                   <div style={{ marginTop: "1.25rem" }}>
                     <Button
                       type="submit"
-                      className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                      className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 text-gray-800"
                       style={{
-                        background: "linear-gradient(135deg, #1a936f 0%, #114b5f 100%)",
-                        color: "white"
+                        background: "rgba(255, 255, 255, 0.25)",
+                        backdropFilter: "blur(10px)",
+                        boxShadow: "0 4px 15px 0 rgba(255, 255, 255, 0.2)"
                       }}
                       disabled={isLoading}
                     >

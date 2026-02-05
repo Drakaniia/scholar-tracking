@@ -37,6 +37,27 @@ import { ExportButton } from '@/components/shared';
 import { useAuth } from '@/components/auth/auth-provider';
 import { fetchWithCache, clientCache } from '@/lib/cache';
 
+// Pastel colors for scholarships
+const PASTEL_COLORS = [
+    'hsl(var(--pastel-purple))',
+    'hsl(var(--pastel-blue))',
+    'hsl(var(--pastel-pink))',
+    'hsl(var(--pastel-orange))',
+    'hsl(var(--pastel-green))',
+];
+
+// Function to get consistent color for a scholarship name
+const getScholarshipColor = (scholarshipName: string): string => {
+    // Create a simple hash from the scholarship name
+    let hash = 0;
+    for (let i = 0; i < scholarshipName.length; i++) {
+        hash = scholarshipName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    // Use absolute value and modulo to get a consistent index
+    const index = Math.abs(hash) % PASTEL_COLORS.length;
+    return PASTEL_COLORS[index];
+};
+
 interface Student {
     id: number;
     studentNo: string;
@@ -220,7 +241,7 @@ export default function StudentsPage() {
                             }}
                         >
                             <DialogTrigger asChild>
-                                <Button>
+                                <Button variant="gradient">
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Student
                                 </Button>
@@ -258,7 +279,7 @@ export default function StudentsPage() {
             </PageHeader>
 
             {/* Filters */}
-            <Card className="mb-6">
+            <Card className="mb-6 border-gray-200 dark:border-gray-800">
                 <CardContent className="p-4">
                     <div className="flex flex-col gap-4 sm:flex-row">
                         <div className="relative flex-1">
@@ -288,7 +309,7 @@ export default function StudentsPage() {
             </Card>
 
             {/* Students Table */}
-            <Card>
+            <Card className="border-gray-200 dark:border-gray-800">
                 <CardContent className="p-0">
                     {loading ? (
                         <div className="flex h-48 items-center justify-center">
@@ -343,7 +364,14 @@ export default function StudentsPage() {
                                         </TableCell>
                                         <TableCell>
                                             {student.scholarship ? (
-                                                <Badge variant={student.scholarshipStatus === 'Active' ? 'default' : 'secondary'}>
+                                                <Badge 
+                                                    variant="outline"
+                                                    style={{
+                                                        backgroundColor: getScholarshipColor(student.scholarship.scholarshipName),
+                                                        color: '#374151',
+                                                        borderColor: getScholarshipColor(student.scholarship.scholarshipName),
+                                                    }}
+                                                >
                                                     {student.scholarship.scholarshipName}
                                                 </Badge>
                                             ) : (
@@ -428,7 +456,7 @@ export default function StudentsPage() {
                             </div>
 
                             {/* Scholarship Information */}
-                            <div className="border-t pt-4">
+                            <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
                                 <h3 className="text-lg font-semibold mb-4">Scholarship Information</h3>
                                 {selectedStudent.scholarship ? (
                                     <div className="space-y-4">
@@ -478,7 +506,7 @@ export default function StudentsPage() {
 
                             {/* Disbursements */}
                             {selectedStudent.disbursements && selectedStudent.disbursements.length > 0 && (
-                                <div className="border-t pt-4">
+                                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
                                     <h3 className="text-lg font-semibold mb-4">Disbursement History</h3>
                                     <div className="space-y-2">
                                         {selectedStudent.disbursements.map((disbursement) => (
@@ -507,7 +535,7 @@ export default function StudentsPage() {
 
                             {/* Fees Information */}
                             {selectedStudent.fees && selectedStudent.fees.length > 0 && (
-                                <div className="border-t pt-4">
+                                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
                                     <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
                                     {selectedStudent.fees.map((fee, index) => (
                                         <div key={index} className="space-y-2 mb-4">
@@ -529,11 +557,11 @@ export default function StudentsPage() {
                                                     <span className="text-muted-foreground">Laboratory:</span>
                                                     <span>{fee.laboratoryFee.toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex justify-between font-semibold border-t pt-2">
+                                                <div className="flex justify-between font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
                                                     <span>Total Fees:</span>
                                                     <span>{(Number(fee.tuitionFee) + Number(fee.otherFee) + Number(fee.miscellaneousFee) + Number(fee.laboratoryFee)).toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex justify-between font-semibold text-green-600 border-t pt-2">
+                                                <div className="flex justify-between font-semibold text-green-600 border-t border-gray-200 dark:border-gray-800 pt-2">
                                                     <span>Subsidy ({fee.percentSubsidy}%):</span>
                                                     <span>{fee.amountSubsidy.toLocaleString()}</span>
                                                 </div>

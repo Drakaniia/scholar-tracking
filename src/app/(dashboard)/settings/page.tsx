@@ -136,9 +136,9 @@ export default function SettingsPage() {
         description="Manage system settings and user permissions"
       />
 
-      <Card>
+      <Card className="border-gray-200 dark:border-gray-800">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
             <Users className="h-5 w-5" />
             User Management
           </CardTitle>

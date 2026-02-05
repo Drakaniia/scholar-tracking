@@ -53,7 +53,7 @@ export function ExportButton({ endpoint, filename }: ExportButtonProps) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button variant="gradient">
                     <FileDown className="mr-2 h-4 w-4" />
                     Export
                 </Button>
