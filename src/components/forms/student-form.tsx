@@ -52,7 +52,6 @@ export function StudentForm({
 
     const form = useForm<CreateStudentInput>({
         defaultValues: {
-            studentNo: '',
             lastName: '',
             firstName: '',
             middleInitial: '',
@@ -120,15 +119,6 @@ export function StudentForm({
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-            <div className="space-y-2">
-                <Label htmlFor="studentNo">Student No.</Label>
-                <Input
-                    id="studentNo"
-                    {...form.register('studentNo', { required: true })}
-                    placeholder="e.g., STU-2024-001"
-                />
-            </div>
-
             <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2 col-span-1">
                     <Label htmlFor="lastName">Last Name</Label>

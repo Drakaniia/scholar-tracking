@@ -13,10 +13,6 @@ export function validateStudent(data: Partial<CreateStudentInput>): string[] {
         errors.push('First name is required');
     }
 
-    if (!data.studentNo?.trim()) {
-        errors.push('Student number is required');
-    }
-
     if (!data.program?.trim()) {
         errors.push('Program is required');
     }

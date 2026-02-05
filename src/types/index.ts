@@ -3,29 +3,36 @@
 // ============================================
 export interface Student {
     id: number;
-    studentNo: string;
     lastName: string;
     firstName: string;
     middleInitial: string | null;
     program: string;
     gradeLevel: GradeLevel;
     yearLevel: string;
-    scholarshipId: number | null;
-    awardDate: Date | null;
-    startTerm: string | null;
-    endTerm: string | null;
-    grantAmount: number | null;
-    scholarshipStatus: string | null;
     status: string;
     createdAt: Date;
     updatedAt: Date;
-    scholarship?: Scholarship;
+    scholarships?: StudentScholarship[];
     fees?: StudentFees[];
     disbursements?: Disbursement[];
 }
 
+export interface StudentScholarship {
+    id: number;
+    studentId: number;
+    scholarshipId: number;
+    awardDate: Date;
+    startTerm: string;
+    endTerm: string;
+    grantAmount: number;
+    scholarshipStatus: string;
+    createdAt: Date;
+    updatedAt: Date;
+    scholarship?: Scholarship;
+    student?: Student;
+}
+
 export interface CreateStudentInput {
-    studentNo: string;
     lastName: string;
     firstName: string;
     middleInitial?: string;
@@ -60,7 +67,7 @@ export interface Scholarship {
     status: string;
     createdAt: Date;
     updatedAt: Date;
-    students?: Student[];
+    students?: StudentScholarship[];
     disbursements?: Disbursement[];
 }
 
