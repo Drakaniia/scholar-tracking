@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
         const where = buildSearchWhere(
             search,
-            ['lastName', 'firstName', 'studentNo', 'program'],
+            ['lastName', 'firstName', 'program'],
             gradeLevel ? { gradeLevel } : undefined
         );
 
@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
                 select: {
                     id: true,
-                    studentNo: true,
                     lastName: true,
                     firstName: true,
                     middleInitial: true,
@@ -59,20 +58,27 @@ export async function GET(request: NextRequest) {
                     gradeLevel: true,
                     yearLevel: true,
                     status: true,
-                    scholarshipId: true,
-                    scholarshipStatus: true,
-                    grantAmount: true,
-                    awardDate: true,
                     createdAt: true,
                     updatedAt: true,
-                    scholarship: {
+                    scholarships: {
                         select: {
                             id: true,
-                            scholarshipName: true,
-                            sponsor: true,
-                            type: true,
-                            source: true,
-                            status: true,
+                            scholarshipId: true,
+                            awardDate: true,
+                            startTerm: true,
+                            endTerm: true,
+                            grantAmount: true,
+                            scholarshipStatus: true,
+                            scholarship: {
+                                select: {
+                                    id: true,
+                                    scholarshipName: true,
+                                    sponsor: true,
+                                    type: true,
+                                    source: true,
+                                    status: true,
+                                },
+                            },
                         },
                     },
                 },
@@ -123,7 +129,6 @@ export async function POST(request: NextRequest) {
 
         const student = await prisma.student.create({
             data: {
-                studentNo: body.studentNo,
                 lastName: body.lastName,
                 firstName: body.firstName,
                 middleInitial: body.middleInitial || null,
@@ -131,14 +136,23 @@ export async function POST(request: NextRequest) {
                 gradeLevel: body.gradeLevel,
                 yearLevel: body.yearLevel,
                 status: body.status,
-                scholarshipId: body.scholarshipId || null,
-                awardDate: body.awardDate || null,
-                startTerm: body.startTerm || null,
-                endTerm: body.endTerm || null,
-                grantAmount: body.grantAmount || null,
-                scholarshipStatus: body.scholarshipStatus || null,
             },
         });
+
+        // If scholarship is provided, create the relationship
+        if (body.scholarshipId) {
+            await prisma.studentScholarship.create({
+                data: {
+                    studentId: student.id,
+                    scholarshipId: body.scholarshipId,
+                    awardDate: body.awardDate || new Date(),
+                    startTerm: body.startTerm || '',
+                    endTerm: body.endTerm || '',
+                    grantAmount: body.grantAmount || 0,
+                    scholarshipStatus: body.scholarshipStatus || 'Active',
+                },
+            });
+        }
 
         return NextResponse.json({
             success: true,

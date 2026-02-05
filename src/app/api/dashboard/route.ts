@@ -30,12 +30,14 @@ export async function GET(request: NextRequest) {
         // Batch all queries together for better performance
         const results = await batchQueries({
             totalStudents: () => prisma.student.count(),
-            studentsWithScholarships: () => prisma.student.count({ where: { scholarshipId: { not: null } } }),
+            studentsWithScholarships: () => prisma.studentScholarship.groupBy({
+                by: ['studentId'],
+                _count: { studentId: true },
+            }).then(result => result.length),
             totalScholarships: () => prisma.scholarship.count(),
             activeScholarships: () => prisma.scholarship.count({ where: { status: 'Active' } }),
-            studentsWithGrants: () => prisma.student.aggregate({
+            studentsWithGrants: () => prisma.studentScholarship.aggregate({
                 where: { 
-                    grantAmount: { not: null },
                     scholarshipStatus: 'Active',
                 },
                 _sum: { grantAmount: true },
@@ -48,18 +50,23 @@ export async function GET(request: NextRequest) {
                 orderBy: { updatedAt: 'desc' },
                 select: {
                     id: true,
-                    studentNo: true,
                     firstName: true,
                     lastName: true,
                     program: true,
                     gradeLevel: true,
-                    scholarshipStatus: true,
                     updatedAt: true,
-                    scholarship: {
+                    scholarships: {
+                        take: 1,
+                        orderBy: { createdAt: 'desc' },
                         select: {
-                            id: true,
-                            scholarshipName: true,
-                            sponsor: true,
+                            scholarshipStatus: true,
+                            scholarship: {
+                                select: {
+                                    id: true,
+                                    scholarshipName: true,
+                                    sponsor: true,
+                                },
+                            },
                         },
                     },
                 },

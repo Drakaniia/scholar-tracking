@@ -23,10 +23,16 @@ export async function GET(request: NextRequest) {
         // Fetch detailed student data with fees
         const students = await prisma.student.findMany({
             where: {
-                scholarshipId: { not: null },
+                scholarships: {
+                    some: {},
+                },
             },
             include: {
-                scholarship: true,
+                scholarships: {
+                    include: {
+                        scholarship: true,
+                    },
+                },
                 fees: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
@@ -64,7 +70,7 @@ export async function GET(request: NextRequest) {
                 // Group by scholarship type
                 SCHOLARSHIP_TYPES.forEach((scholarshipType) => {
                     const typeStudents = gradeLevelStudents.filter(
-                        s => s.scholarship?.type === scholarshipType
+                        s => s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
                     );
 
                     if (typeStudents.length === 0) return;
@@ -75,11 +81,11 @@ export async function GET(request: NextRequest) {
 
                     // Add column headers
                     sheetData.push([
-                        'Student No.',
                         'Last Name',
                         'First Name',
                         'M.I.',
                         'Year Level',
+                        'Scholarships',
                         'Tuition Fee',
                         'Other Fees',
                         'Miscellaneous',
@@ -93,13 +99,14 @@ export async function GET(request: NextRequest) {
                     typeStudents.forEach((student) => {
                         const fees = student.fees[0];
                         const totalFees = fees ? calculateTotalFees(fees) : 0;
+                        const scholarshipNames = student.scholarships.map(ss => ss.scholarship.scholarshipName).join(', ');
 
                         sheetData.push([
-                            student.studentNo,
                             student.lastName,
                             student.firstName,
                             student.middleInitial || '-',
                             student.yearLevel,
+                            scholarshipNames,
                             fees ? Number(fees.tuitionFee) : 0,
                             fees ? Number(fees.otherFee) : 0,
                             fees ? Number(fees.miscellaneousFee) : 0,
@@ -185,7 +192,7 @@ export async function GET(request: NextRequest) {
 
                 SCHOLARSHIP_TYPES.forEach((scholarshipType) => {
                     const typeStudents = gradeLevelStudents.filter(
-                        s => s.scholarship?.type === scholarshipType
+                        s => s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
                     );
 
                     if (typeStudents.length === 0) return;
@@ -195,11 +202,11 @@ export async function GET(request: NextRequest) {
 
                     // Headers
                     csvData.push([
-                        'Student No.',
                         'Last Name',
                         'First Name',
                         'M.I.',
                         'Year Level',
+                        'Scholarships',
                         'Tuition Fee',
                         'Other Fees',
                         'Miscellaneous',
@@ -213,13 +220,14 @@ export async function GET(request: NextRequest) {
                     typeStudents.forEach((student) => {
                         const fees = student.fees[0];
                         const totalFees = fees ? calculateTotalFees(fees) : 0;
+                        const scholarshipNames = student.scholarships.map(ss => ss.scholarship.scholarshipName).join(', ');
 
                         csvData.push([
-                            student.studentNo,
                             student.lastName,
                             student.firstName,
                             student.middleInitial || '-',
                             student.yearLevel,
+                            scholarshipNames,
                             fees ? Number(fees.tuitionFee) : 0,
                             fees ? Number(fees.otherFee) : 0,
                             fees ? Number(fees.miscellaneousFee) : 0,
@@ -261,7 +269,7 @@ export async function GET(request: NextRequest) {
 
             SCHOLARSHIP_TYPES.forEach((scholarshipType) => {
                 const typeStudents = gradeLevelStudents.filter(
-                    s => s.scholarship?.type === scholarshipType
+                    s => s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
                 );
 
                 if (typeStudents.length === 0) return;
@@ -280,11 +288,11 @@ export async function GET(request: NextRequest) {
                 autoTable(doc, {
                     startY: startY,
                     head: [[
-                        'Student No.',
                         'Last Name',
                         'First Name',
                         'M.I.',
                         'Year',
+                        'Scholarships',
                         'Tuition',
                         'Other',
                         'Misc.',
@@ -296,13 +304,14 @@ export async function GET(request: NextRequest) {
                     body: typeStudents.map((student) => {
                         const fees = student.fees[0];
                         const totalFees = fees ? calculateTotalFees(fees) : 0;
+                        const scholarshipNames = student.scholarships.map(ss => ss.scholarship.scholarshipName).join(', ');
 
                         return [
-                            student.studentNo,
                             student.lastName,
                             student.firstName,
                             student.middleInitial || '-',
                             student.yearLevel,
+                            scholarshipNames,
                             fees ? Number(fees.tuitionFee) : 0,
                             fees ? Number(fees.otherFee) : 0,
                             fees ? Number(fees.miscellaneousFee) : 0,

@@ -16,24 +16,23 @@ export async function GET(
             where: { id: scholarshipId },
             include: {
                 students: {
-                    select: {
-                        id: true,
-                        studentNo: true,
-                        lastName: true,
-                        firstName: true,
-                        middleInitial: true,
-                        gradeLevel: true,
-                        yearLevel: true,
-                        scholarshipStatus: true,
-                        awardDate: true,
-                        grantAmount: true,
+                    include: {
+                        student: {
+                            select: {
+                                id: true,
+                                lastName: true,
+                                firstName: true,
+                                middleInitial: true,
+                                gradeLevel: true,
+                                yearLevel: true,
+                            },
+                        },
                     },
                 },
                 disbursements: {
                     include: {
                         student: {
                             select: {
-                                studentNo: true,
                                 lastName: true,
                                 firstName: true,
                             },

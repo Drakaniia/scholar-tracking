@@ -6,17 +6,24 @@ export async function GET() {
     try {
         const students = await prisma.student.findMany({
             where: {
-                scholarshipId: { not: null },
+                scholarships: {
+                    some: {},
+                },
             },
             orderBy: [
                 { gradeLevel: 'asc' },
                 { lastName: 'asc' },
             ],
             include: {
-                scholarship: {
-                    select: {
-                        scholarshipName: true,
-                        type: true,
+                scholarships: {
+                    include: {
+                        scholarship: {
+                            select: {
+                                scholarshipName: true,
+                                type: true,
+                                source: true,
+                            },
+                        },
                     },
                 },
                 fees: {
