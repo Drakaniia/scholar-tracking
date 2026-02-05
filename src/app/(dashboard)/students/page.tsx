@@ -29,7 +29,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
@@ -48,19 +48,16 @@ const PASTEL_COLORS = [
 
 // Function to get consistent color for a scholarship name
 const getScholarshipColor = (scholarshipName: string): string => {
-    // Create a simple hash from the scholarship name
     let hash = 0;
     for (let i = 0; i < scholarshipName.length; i++) {
         hash = scholarshipName.charCodeAt(i) + ((hash << 5) - hash);
     }
-    // Use absolute value and modulo to get a consistent index
     const index = Math.abs(hash) % PASTEL_COLORS.length;
     return PASTEL_COLORS[index];
 };
 
 interface Student {
     id: number;
-    studentNo: string;
     lastName: string;
     firstName: string;
     middleInitial: string | null;
@@ -68,20 +65,23 @@ interface Student {
     gradeLevel: GradeLevel;
     yearLevel: string;
     status: string;
-    scholarshipId: number | null;
-    scholarshipStatus: string | null;
-    scholarship: {
-        scholarshipName: string;
-        type: string;
-        source: string;
-    } | null;
+    scholarships: Array<{
+        id: number;
+        scholarshipId: number;
+        awardDate: string;
+        startTerm: string;
+        endTerm: string;
+        grantAmount: number;
+        scholarshipStatus: string;
+        scholarship: {
+            scholarshipName: string;
+            type: string;
+            source: string;
+        };
+    }>;
 }
 
 interface StudentDetail extends Student {
-    awardDate: string | null;
-    startTerm: string | null;
-    endTerm: string | null;
-    grantAmount: number | null;
     disbursements: Array<{
         id: number;
         amount: number;
@@ -118,6 +118,7 @@ export default function StudentsPage() {
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
+    const [showFullDetails, setShowFullDetails] = useState(false);
 
     const fetchStudents = useCallback(async () => {
         try {
@@ -130,7 +131,7 @@ export default function StudentsPage() {
             const json = await fetchWithCache<{ success: boolean; data: Student[] }>(
                 url,
                 undefined,
-                5 * 60 * 1000 // 5 minutes cache
+                5 * 60 * 1000
             );
             
             if (json.success) {
@@ -156,7 +157,6 @@ export default function StudentsPage() {
             const json = await res.json();
             if (json.success) {
                 toast.success('Student deleted successfully');
-                // Invalidate cache
                 clientCache.invalidatePattern('/api/students');
                 fetchStudents();
             } else {
@@ -195,7 +195,6 @@ export default function StudentsPage() {
                 );
                 setDialogOpen(false);
                 setEditingStudent(null);
-                // Invalidate cache
                 clientCache.invalidatePattern('/api/students');
                 clientCache.invalidatePattern('/api/dashboard');
                 fetchStudents();
@@ -211,6 +210,7 @@ export default function StudentsPage() {
     const handleViewDetails = async (studentId: number) => {
         setLoadingDetail(true);
         setDetailDialogOpen(true);
+        setShowFullDetails(false);
         try {
             const res = await fetch(`/api/students/${studentId}`);
             const json = await res.json();
@@ -259,7 +259,6 @@ export default function StudentsPage() {
                                 </DialogHeader>
                                 <StudentForm
                                     defaultValues={editingStudent ? {
-                                        studentNo: editingStudent.studentNo,
                                         lastName: editingStudent.lastName,
                                         firstName: editingStudent.firstName,
                                         middleInitial: editingStudent.middleInitial || '',
@@ -285,7 +284,7 @@ export default function StudentsPage() {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name, student no, or program..."
+                                placeholder="Search by name or program..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-10"
@@ -324,14 +323,12 @@ export default function StudentsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Student No.</TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Grade Level</TableHead>
                                     <TableHead>Year Level</TableHead>
                                     <TableHead>Program</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Scholarships</TableHead>
-                                    <TableHead>Source</TableHead>
                                     {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                                 </TableRow>
                             </TableHeader>
@@ -342,9 +339,6 @@ export default function StudentsPage() {
                                         className="cursor-pointer hover:bg-muted/50"
                                         onClick={() => handleViewDetails(student.id)}
                                     >
-                                        <TableCell className="font-mono text-sm">
-                                            {student.studentNo}
-                                        </TableCell>
                                         <TableCell className="font-medium">
                                             {student.lastName}, {student.firstName} {student.middleInitial || ''}
                                         </TableCell>
@@ -363,29 +357,25 @@ export default function StudentsPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {student.scholarship ? (
-                                                <Badge 
-                                                    variant="outline"
-                                                    style={{
-                                                        backgroundColor: getScholarshipColor(student.scholarship.scholarshipName),
-                                                        color: '#374151',
-                                                        borderColor: getScholarshipColor(student.scholarship.scholarshipName),
-                                                    }}
-                                                >
-                                                    {student.scholarship.scholarshipName}
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-muted-foreground">None</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {student.scholarship ? (
-                                                <Badge variant={student.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
-                                                    {student.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-muted-foreground">-</span>
-                                            )}
+                                            <div className="flex flex-wrap gap-1">
+                                                {student.scholarships && student.scholarships.length > 0 ? (
+                                                    student.scholarships.map((ss) => (
+                                                        <Badge 
+                                                            key={ss.id}
+                                                            variant="outline"
+                                                            style={{
+                                                                backgroundColor: getScholarshipColor(ss.scholarship.scholarshipName),
+                                                                color: '#374151',
+                                                                borderColor: getScholarshipColor(ss.scholarship.scholarshipName),
+                                                            }}
+                                                        >
+                                                            {ss.scholarship.scholarshipName}
+                                                        </Badge>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-muted-foreground">None</span>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         {isAdmin && (
                                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -416,13 +406,15 @@ export default function StudentsPage() {
                 </CardContent>
             </Card>
 
-            {/* Student Detail Dialog */}
+            {/* Student Detail Dialog - Scholarships First */}
             <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Student Details</DialogTitle>
+                        <DialogTitle>
+                            {selectedStudent && `${selectedStudent.firstName} ${selectedStudent.lastName}'s Scholarships`}
+                        </DialogTitle>
                         <DialogDescription>
-                            Complete information about the student and their scholarships
+                            View scholarship information and student details
                         </DialogDescription>
                     </DialogHeader>
                     {loadingDetail ? (
@@ -431,144 +423,180 @@ export default function StudentsPage() {
                         </div>
                     ) : selectedStudent ? (
                         <div className="space-y-6">
-                            {/* Basic Information */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Student Number</p>
-                                    <p className="text-lg font-mono">{selectedStudent.studentNo}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                                    <p className="text-lg">{selectedStudent.lastName}, {selectedStudent.firstName} {selectedStudent.middleInitial || ''}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
-                                    <Badge variant="outline">{GRADE_LEVEL_LABELS[selectedStudent.gradeLevel]}</Badge>
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-muted-foreground">Year Level</p>
-                                    <p className="text-lg">{selectedStudent.yearLevel}</p>
-                                </div>
-                                <div className="col-span-2">
-                                    <p className="text-sm font-medium text-muted-foreground">Program</p>
-                                    <p className="text-lg">{selectedStudent.program}</p>
-                                </div>
-                            </div>
-
-                            {/* Scholarship Information */}
-                            <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-                                <h3 className="text-lg font-semibold mb-4">Scholarship Information</h3>
-                                {selectedStudent.scholarship ? (
+                            {/* Scholarships Section - PRIMARY VIEW */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4">Scholarships</h3>
+                                {selectedStudent.scholarships && selectedStudent.scholarships.length > 0 ? (
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Scholarship Name</p>
-                                                <p className="text-lg">{selectedStudent.scholarship.scholarshipName}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Type</p>
-                                                <Badge variant="outline">{selectedStudent.scholarship.type}</Badge>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Source</p>
-                                                <Badge variant={selectedStudent.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
-                                                    {selectedStudent.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                                                </Badge>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Status</p>
-                                                <Badge variant={selectedStudent.scholarshipStatus === 'Active' ? 'default' : 'secondary'}>
-                                                    {selectedStudent.scholarshipStatus}
-                                                </Badge>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Grant Amount</p>
-                                                <p className="text-lg font-semibold">{selectedStudent.grantAmount?.toLocaleString()}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Award Date</p>
-                                                <p className="text-lg">{selectedStudent.awardDate ? new Date(selectedStudent.awardDate).toLocaleDateString() : '-'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">Start Term</p>
-                                                <p className="text-lg">{selectedStudent.startTerm || '-'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-muted-foreground">End Term</p>
-                                                <p className="text-lg">{selectedStudent.endTerm || '-'}</p>
-                                            </div>
+                                        {selectedStudent.scholarships.map((ss) => (
+                                            <Card key={ss.id} className="border-2" style={{ borderColor: getScholarshipColor(ss.scholarship.scholarshipName) }}>
+                                                <CardContent className="p-4">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div>
+                                                            <h4 className="text-lg font-semibold">{ss.scholarship.scholarshipName}</h4>
+                                                            <p className="text-sm text-muted-foreground">{ss.scholarship.type}</p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Badge variant={ss.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
+                                                                {ss.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                                                            </Badge>
+                                                            <Badge variant={ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'}>
+                                                                {ss.scholarshipStatus}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                                        <div>
+                                                            <p className="text-muted-foreground">Grant Amount</p>
+                                                            <p className="text-lg font-semibold">₱{ss.grantAmount.toLocaleString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-muted-foreground">Award Date</p>
+                                                            <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-muted-foreground">Start Term</p>
+                                                            <p>{ss.startTerm}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-muted-foreground">End Term</p>
+                                                            <p>{ss.endTerm}</p>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                        <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+                                            <p className="text-sm font-medium text-muted-foreground">Total Scholarship Amount</p>
+                                            <p className="text-2xl font-bold">
+                                                ₱{selectedStudent.scholarships.reduce((sum, ss) => sum + Number(ss.grantAmount), 0).toLocaleString()}
+                                            </p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="text-muted-foreground">No scholarship assigned</p>
+                                    <p className="text-muted-foreground">No scholarships assigned</p>
                                 )}
                             </div>
 
-                            {/* Disbursements */}
-                            {selectedStudent.disbursements && selectedStudent.disbursements.length > 0 && (
-                                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-                                    <h3 className="text-lg font-semibold mb-4">Disbursement History</h3>
-                                    <div className="space-y-2">
-                                        {selectedStudent.disbursements.map((disbursement) => (
-                                            <div key={disbursement.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                                                <div>
-                                                    <p className="font-medium">{disbursement.scholarship.scholarshipName}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {disbursement.term} • {new Date(disbursement.disbursementDate).toLocaleDateString()} • {disbursement.method}
-                                                    </p>
-                                                    <Badge variant={disbursement.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="mt-1">
-                                                        {disbursement.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                                                    </Badge>
-                                                </div>
-                                                <p className="text-lg font-semibold">{disbursement.amount.toLocaleString()}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="mt-4 p-3 bg-primary/10 rounded-lg">
-                                        <p className="text-sm font-medium text-muted-foreground">Total Disbursed</p>
-                                        <p className="text-2xl font-bold">
-                                            {selectedStudent.disbursements.reduce((sum, d) => sum + Number(d.amount), 0).toLocaleString()}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+                            {/* Show Full Details Button */}
+                            <Button 
+                                variant="outline" 
+                                className="w-full"
+                                onClick={() => setShowFullDetails(!showFullDetails)}
+                            >
+                                {showFullDetails ? (
+                                    <>
+                                        <ChevronUp className="mr-2 h-4 w-4" />
+                                        Hide Full Details
+                                    </>
+                                ) : (
+                                    <>
+                                        <ChevronDown className="mr-2 h-4 w-4" />
+                                        Show Full Details
+                                    </>
+                                )}
+                            </Button>
 
-                            {/* Fees Information */}
-                            {selectedStudent.fees && selectedStudent.fees.length > 0 && (
-                                <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-                                    <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
-                                    {selectedStudent.fees.map((fee, index) => (
-                                        <div key={index} className="space-y-2 mb-4">
-                                            <p className="font-medium">{fee.term} - {fee.academicYear}</p>
-                                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">Tuition Fee:</span>
-                                                    <span>{fee.tuitionFee.toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">Other Fee:</span>
-                                                    <span>{fee.otherFee.toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">Miscellaneous:</span>
-                                                    <span>{fee.miscellaneousFee.toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">Laboratory:</span>
-                                                    <span>{fee.laboratoryFee.toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
-                                                    <span>Total Fees:</span>
-                                                    <span>{(Number(fee.tuitionFee) + Number(fee.otherFee) + Number(fee.miscellaneousFee) + Number(fee.laboratoryFee)).toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between font-semibold text-green-600 border-t border-gray-200 dark:border-gray-800 pt-2">
-                                                    <span>Subsidy ({fee.percentSubsidy}%):</span>
-                                                    <span>{fee.amountSubsidy.toLocaleString()}</span>
-                                                </div>
+
+                            {/* Full Student Details - Hidden by default */}
+                            {showFullDetails && (
+                                <>
+                                    {/* Basic Information */}
+                                    <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                                        <h3 className="text-lg font-semibold mb-4">Student Information</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">Full Name</p>
+                                                <p className="text-lg">{selectedStudent.lastName}, {selectedStudent.firstName} {selectedStudent.middleInitial || ''}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                                                <Badge variant={selectedStudent.status === 'Active' ? 'default' : 'secondary'}>
+                                                    {selectedStudent.status}
+                                                </Badge>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
+                                                <Badge variant="outline">{GRADE_LEVEL_LABELS[selectedStudent.gradeLevel]}</Badge>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">Year Level</p>
+                                                <p className="text-lg">{selectedStudent.yearLevel}</p>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <p className="text-sm font-medium text-muted-foreground">Program</p>
+                                                <p className="text-lg">{selectedStudent.program}</p>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+
+                                    {/* Disbursements */}
+                                    {selectedStudent.disbursements && selectedStudent.disbursements.length > 0 && (
+                                        <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                                            <h3 className="text-lg font-semibold mb-4">Disbursement History</h3>
+                                            <div className="space-y-2">
+                                                {selectedStudent.disbursements.map((disbursement) => (
+                                                    <div key={disbursement.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                                                        <div>
+                                                            <p className="font-medium">{disbursement.scholarship.scholarshipName}</p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {disbursement.term} • {new Date(disbursement.disbursementDate).toLocaleDateString()} • {disbursement.method}
+                                                            </p>
+                                                            <Badge variant={disbursement.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="mt-1">
+                                                                {disbursement.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="text-lg font-semibold">₱{disbursement.amount.toLocaleString()}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                                                <p className="text-sm font-medium text-muted-foreground">Total Disbursed</p>
+                                                <p className="text-2xl font-bold">
+                                                    ₱{selectedStudent.disbursements.reduce((sum, d) => sum + Number(d.amount), 0).toLocaleString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Fees Information */}
+                                    {selectedStudent.fees && selectedStudent.fees.length > 0 && (
+                                        <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+                                            <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
+                                            {selectedStudent.fees.map((fee, index) => (
+                                                <div key={index} className="space-y-2 mb-4">
+                                                    <p className="font-medium">{fee.term} - {fee.academicYear}</p>
+                                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Tuition Fee:</span>
+                                                            <span>₱{fee.tuitionFee.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Other Fee:</span>
+                                                            <span>₱{fee.otherFee.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Miscellaneous:</span>
+                                                            <span>₱{fee.miscellaneousFee.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-muted-foreground">Laboratory:</span>
+                                                            <span>₱{fee.laboratoryFee.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between font-semibold border-t border-gray-200 dark:border-gray-800 pt-2">
+                                                            <span>Total Fees:</span>
+                                                            <span>₱{(Number(fee.tuitionFee) + Number(fee.otherFee) + Number(fee.miscellaneousFee) + Number(fee.laboratoryFee)).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between font-semibold text-green-600 border-t border-gray-200 dark:border-gray-800 pt-2">
+                                                            <span>Subsidy ({fee.percentSubsidy}%):</span>
+                                                            <span>₱{fee.amountSubsidy.toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     ) : (
