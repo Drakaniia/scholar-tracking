@@ -14,7 +14,7 @@ import {
     Settings,
     ChevronDown,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -43,6 +43,29 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const { setMobileOpen } = useSidebar();
     const { user } = useAuth();
     const isAdmin = user?.role === 'ADMIN';
+    
+    // Morphing border animation state
+    const [borderStyle, setBorderStyle] = useState({ left: 0, width: 0 });
+    const navRef = useRef<HTMLDivElement>(null);
+
+    // Calculate border position and width based on active link
+    useEffect(() => {
+        if (navRef.current) {
+            const activeIndex = navigation.findIndex(item => item.href === pathname);
+            if (activeIndex !== -1) {
+                const links = navRef.current.querySelectorAll('a');
+                const activeLink = links[activeIndex] as HTMLElement;
+                if (activeLink) {
+                    const navRect = navRef.current.getBoundingClientRect();
+                    const linkRect = activeLink.getBoundingClientRect();
+                    setBorderStyle({
+                        left: linkRect.left - navRect.left,
+                        width: linkRect.width,
+                    });
+                }
+            }
+        }
+    }, [pathname]);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -158,25 +181,28 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                         <span className="text-lg font-bold text-gray-800 dark:text-gray-100 hidden sm:block">ScholarTrack</span>
                     </div>
 
-                    {/* Center: Desktop Navigation */}
-                    <nav className="hidden md:flex items-center gap-1">
-                        {navigation.map((item, index) => {
+                    {/* Center: Desktop Navigation with Morphing Border */}
+                    <nav ref={navRef} className="hidden md:flex items-center gap-1 relative">
+                        {/* Morphing border indicator */}
+                        <div
+                            className="absolute bottom-0 h-[3px] transition-all duration-300 ease-out"
+                            style={{
+                                left: `${borderStyle.left}px`,
+                                width: `${borderStyle.width}px`,
+                                background: 'linear-gradient(90deg, hsl(var(--pastel-purple)), hsl(var(--pastel-blue)), hsl(var(--pastel-pink)), hsl(var(--pastel-orange)))',
+                            }}
+                        />
+                        {navigation.map((item) => {
                             const isActive = pathname === item.href;
-                            const pastelColors = [
-                                'border-[hsl(var(--pastel-purple))]',
-                                'border-[hsl(var(--pastel-blue))]',
-                                'border-[hsl(var(--pastel-pink))]',
-                                'border-[hsl(var(--pastel-orange))]',
-                            ];
                             return (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     className={cn(
-                                        'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out',
+                                        'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out relative',
                                         isActive
-                                            ? `border-b-[3px] ${pastelColors[index]} bg-primary text-primary-foreground`
-                                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 border-b-[3px] border-transparent'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'
                                     )}
                                 >
                                     <item.icon className="h-4 w-4" />
