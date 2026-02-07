@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logoImage from "@/assets/images/logo.webp";
 import illustrationImage from "@/assets/images/illustration.svg";
-import Grainient from "@/components/ui/grainient";
+import DotGrid from "@/components/DotGrid";
 
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -59,35 +59,21 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Grainient animated background */}
+    <div className="min-h-screen relative overflow-hidden bg-[#0f0a1a]">
+      {/* DotGrid animated background */}
       <div className="absolute inset-0 w-full h-full">
-        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-          <Grainient
-            color1="#8ad0cc"
-            color2="#62ff29"
-            color3="#11e8cf"
-            timeSpeed={0.25}
-            colorBalance={0}
-            warpStrength={1}
-            warpFrequency={5}
-            warpSpeed={2}
-            warpAmplitude={50}
-            blendAngle={0}
-            blendSoftness={0.05}
-            rotationAmount={500}
-            noiseScale={2}
-            grainAmount={0.09}
-            grainScale={2}
-            grainAnimated={false}
-            contrast={1.5}
-            gamma={1}
-            saturation={1}
-            centerX={0}
-            centerY={0}
-            zoom={0.9}
-          />
-        </div>
+        <DotGrid
+          dotSize={4}
+          gap={15}
+          baseColor="#271E37"
+          activeColor="#89ff29"
+          proximity={120}
+          shockRadius={250}
+          shockStrength={5}
+          resistance={750}
+          returnDuration={1.5}
+          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+        />
       </div>
 
       {/* Content */}
