@@ -23,9 +23,9 @@ export function PageHeader({
             )}
         >
             <div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-black">{title}</h1>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-gray-900 dark:text-white">{title}</h1>
                 {description && (
-                    <p className="mt-1 text-gray-600">{description}</p>
+                    <p className="mt-1 text-gray-600 dark:text-gray-400">{description}</p>
                 )}
             </div>
             {children && <div className="flex items-center gap-2">{children}</div>}
