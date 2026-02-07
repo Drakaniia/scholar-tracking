@@ -119,18 +119,20 @@ const AuthPage = () => {
                   }}>
                     <TabsTrigger
                       value="login"
-                      className="rounded-lg data-[state=active]:text-gray-800 text-gray-600 transition-all"
+                      className="rounded-lg data-[state=active]:text-white text-white/70 transition-all border-0"
                       style={{
-                        backgroundColor: activeTab === "login" ? "rgba(255, 255, 255, 0.25)" : "transparent"
+                        backgroundColor: activeTab === "login" ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                        border: "none"
                       }}
                     >
                       Login
                     </TabsTrigger>
                     <TabsTrigger
                       value="signup"
-                      className="rounded-lg data-[state=active]:text-gray-800 text-gray-600 transition-all"
+                      className="rounded-lg data-[state=active]:text-white text-white/70 transition-all border-0"
                       style={{
-                        backgroundColor: activeTab === "signup" ? "rgba(255, 255, 255, 0.25)" : "transparent"
+                        backgroundColor: activeTab === "signup" ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                        border: "none"
                       }}
                     >
                       Sign Up
@@ -142,13 +144,13 @@ const AuthPage = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Username field - always visible */}
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/70" />
                     <Input
                       type="text"
                       placeholder="Username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30"
+                      className="pl-11 h-12 rounded-xl text-white placeholder:text-white/60 border-white/30"
                       style={{
                         background: "rgba(255, 255, 255, 0.1)",
                         backdropFilter: "blur(10px)"
@@ -160,13 +162,13 @@ const AuthPage = () => {
 
                   {/* Password field - always visible */}
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/70" />
                     <Input
                       type="password"
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30"
+                      className="pl-11 h-12 rounded-xl text-white placeholder:text-white/60 border-white/30"
                       style={{
                         background: "rgba(255, 255, 255, 0.1)",
                         backdropFilter: "blur(10px)"
@@ -186,13 +188,13 @@ const AuthPage = () => {
                       overflow: "hidden"
                     }}
                   >
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600 z-10" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/70 z-10" />
                     <Input
                       type="password"
                       placeholder="Confirm Password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30"
+                      className="pl-11 h-12 rounded-xl text-white placeholder:text-white/60 border-white/30"
                       style={{
                         background: "rgba(255, 255, 255, 0.1)",
                         backdropFilter: "blur(10px)"
@@ -215,7 +217,7 @@ const AuthPage = () => {
                   >
                     <a
                       href="#"
-                      className="text-sm text-gray-700 hover:text-gray-900 transition-colors hover:underline"
+                      className="text-sm text-white/80 hover:text-white transition-colors hover:underline"
                       onClick={(e) => e.preventDefault()}
                       tabIndex={activeTab === "login" ? 0 : -1}
                     >
@@ -227,7 +229,7 @@ const AuthPage = () => {
                   <div style={{ marginTop: "1.25rem" }}>
                     <Button
                       type="submit"
-                      className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 text-gray-800"
+                      className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 text-white"
                       style={{
                         background: "rgba(255, 255, 255, 0.25)",
                         backdropFilter: "blur(10px)",
