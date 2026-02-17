@@ -3,32 +3,32 @@
 import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
-    title: string;
-    description?: string;
-    children?: React.ReactNode;
-    className?: string;
+ title: string;
+ description?: string;
+ children?: React.ReactNode;
+ className?: string;
 }
 
 export function PageHeader({
-    title,
-    description,
-    children,
-    className,
+ title,
+ description,
+ children,
+ className,
 }: PageHeaderProps) {
-    return (
-        <div
-            className={cn(
-                'flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between',
-                className
-            )}
-        >
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-gray-900 dark:text-white">{title}</h1>
-                {description && (
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">{description}</p>
-                )}
-            </div>
-            {children && <div className="flex items-center gap-2">{children}</div>}
-        </div>
-    );
+ return (
+ <div
+ className={cn(
+ 'flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between',
+ className
+ )}
+ >
+ <div>
+ <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-gray-900">{title}</h1>
+ {description && (
+ <p className="mt-1 text-gray-600">{description}</p>
+ )}
+ </div>
+ {children && <div className="flex items-center gap-2">{children}</div>}
+ </div>
+ );
 }
