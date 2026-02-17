@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { GridPattern } from "@/components/ui/grid-pattern";
+import { BorderBeam } from "@/components/ui/border-beam";
 import logoImage from "@/assets/images/logo.webp";
 import illustrationImage from "@/assets/images/illustration.svg";
-import DotGrid from "@/components/DotGrid";
 
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -43,10 +44,10 @@ const AuthPage = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        toast.success('Login successful! Redirecting...');
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
+        // Clear the dashboard visit flag to show loader on first dashboard visit
+        localStorage.removeItem('hasVisitedDashboard');
+        // Redirect immediately to dashboard
+        window.location.href = '/';
       } else {
         toast.error(result.error || 'Login failed');
         setIsLoading(false);
@@ -59,21 +60,10 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#0f0a1a]">
-      {/* DotGrid animated background */}
-      <div className="absolute inset-0 w-full h-full">
-        <DotGrid
-          dotSize={4}
-          gap={15}
-          baseColor="#271E37"
-          activeColor="#89ff29"
-          proximity={120}
-          shockRadius={250}
-          shockStrength={5}
-          resistance={750}
-          returnDuration={1.5}
-          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
-        />
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-r from-[#fefdfb] to-[#fefdfb]">
+      {/* GridPattern background */}
+      <div className="absolute inset-0 h-full w-full overflow-hidden">
+        <GridPattern />
       </div>
 
       {/* Content */}
@@ -90,92 +80,98 @@ const AuthPage = () => {
               priority
             />
           </div>
-          <div className="text-white">
-            <h1 className="text-xl font-bold">De La Salle John Bosco College</h1>
-            <p className="text-sm text-white/80">Scholarship Tracking System</p>
-          </div>
+        <div className="text-gray-800">
+          <h1 className="text-xl font-bold">De La Salle John Bosco College</h1>
+          <p className="text-sm">Scholarship Tracking System</p>
+        </div>
         </header>
 
         {/* Main content */}
         <main className="flex-1 flex items-center justify-center px-4 pb-8 -mt-8">
           <div className="w-full max-w-5xl flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-            {/* Left side - Glassmorphism form */}
+{/* Left side - Glassmorphism form */}
             <div className="w-full max-w-md transform lg:-translate-y-8">
-              <div
-                className="rounded-3xl p-8 shadow-2xl border"
-                style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  borderColor: "rgba(255, 255, 255, 0.2)",
-                  boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
-                }}
-              >
-                {/* Tabs */}
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 rounded-xl p-1 mb-6" style={{
-                    background: "rgba(255, 255, 255, 0.15)",
-                    backdropFilter: "blur(10px)"
-                  }}>
-                    <TabsTrigger
-                      value="login"
-                      className="rounded-lg data-[state=active]:text-white text-white/70 transition-all border-0"
-                      style={{
-                        backgroundColor: activeTab === "login" ? "rgba(255, 255, 255, 0.25)" : "transparent",
-                        border: "none"
-                      }}
-                    >
-                      Login
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="signup"
-                      className="rounded-lg data-[state=active]:text-white text-white/70 transition-all border-0"
-                      style={{
-                        backgroundColor: activeTab === "signup" ? "rgba(255, 255, 255, 0.25)" : "transparent",
-                        border: "none"
-                      }}
-                    >
-                      Sign Up
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <div
+                  className="rounded-3xl p-8 shadow-xl border relative overflow-hidden"
+                  style={{
+                    background: "rgba(255, 255, 255, 0.95)",
+                    borderColor: "rgba(220, 220, 220, 0.5)",
+                    boxShadow: "0 10px 25px 0 rgba(0, 0, 0, 0.1)"
+                  }}
+                >
+                  <BorderBeam
+                    size={300}
+                    duration={4}
+                    delay={0}
+                    colorFrom="#22c55e"
+                    colorTo="#14b8a6"
+                    reverse
+                  />
+                  {/* Tabs */}
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 rounded-xl p-1 mb-6" style={{
+                      background: "rgba(220, 220, 220, 0.3)",
+                      backdropFilter: "blur(10px)"
+                    }}>
+                      <TabsTrigger
+                        value="login"
+                        className="rounded-lg data-[state=active]:text-gray-800 text-gray-600 transition-all border-0"
+                        style={{
+                          backgroundColor: activeTab === "login" ? "rgba(255, 255, 255, 0.9)" : "transparent",
+                          border: "none"
+                        }}
+                      >
+                        Login
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="signup"
+                        className="rounded-lg data-[state=active]:text-gray-800 text-gray-600 transition-all border-0"
+                        style={{
+                          backgroundColor: activeTab === "signup" ? "rgba(255, 255, 255, 0.9)" : "transparent",
+                          border: "none"
+                        }}
+                      >
+                        Sign Up
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Username field - always visible */}
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/70" />
-                    <Input
-                      type="text"
-                      placeholder="Username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="pl-11 h-12 rounded-xl text-white placeholder:text-white/60 border-white/30"
-                      style={{
-                        background: "rgba(255, 255, 255, 0.1)",
-                        backdropFilter: "blur(10px)"
-                      }}
-                      disabled={isLoading}
-                      required
-                    />
+                  <Input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-gray-300"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.9)",
+                      backdropFilter: "blur(10px)"
+                    }}
+                    disabled={isLoading}
+                    required
+                  />
                   </div>
 
                   {/* Password field - always visible */}
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/70" />
-                    <Input
-                      type="password"
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-11 h-12 rounded-xl text-white placeholder:text-white/60 border-white/30"
-                      style={{
-                        background: "rgba(255, 255, 255, 0.1)",
-                        backdropFilter: "blur(10px)"
-                      }}
-                      disabled={isLoading}
-                      required
-                    />
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-gray-300"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.9)",
+                      backdropFilter: "blur(10px)"
+                    }}
+                    disabled={isLoading}
+                    required
+                  />
                   </div>
 
                   {/* Confirm Password field - only for signup, positioned absolutely to not affect layout */}
@@ -194,9 +190,9 @@ const AuthPage = () => {
                       placeholder="Confirm Password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-11 h-12 rounded-xl text-white placeholder:text-white/60 border-white/30"
+                      className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-gray-300"
                       style={{
-                        background: "rgba(255, 255, 255, 0.1)",
+                        background: "rgba(255, 255, 255, 0.9)",
                         backdropFilter: "blur(10px)"
                       }}
                       disabled={isLoading || activeTab !== "signup"}
@@ -217,7 +213,7 @@ const AuthPage = () => {
                   >
                     <a
                       href="#"
-                      className="text-sm text-white/80 hover:text-white transition-colors hover:underline"
+                      className="text-sm text-gray-600 hover:text-gray-900 transition-colors hover:underline"
                       onClick={(e) => e.preventDefault()}
                       tabIndex={activeTab === "login" ? 0 : -1}
                     >
@@ -231,18 +227,17 @@ const AuthPage = () => {
                       type="submit"
                       className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 text-white"
                       style={{
-                        background: "rgba(255, 255, 255, 0.25)",
-                        backdropFilter: "blur(10px)",
-                        boxShadow: "0 4px 15px 0 rgba(255, 255, 255, 0.2)"
+                        background: "linear-gradient(to right, #22c55e, #10b981, #14b8a6)",
+                        boxShadow: "0 4px 15px 0 rgba(34, 197, 94, 0.3)"
                       }}
                       disabled={isLoading}
                     >
                       <span className="transition-all duration-300">
-                        {isLoading ? "Please wait..." : activeTab === "login" ? "Login" : "Sign Up"}
+                        {activeTab === "login" ? "Login" : "Sign Up"}
                       </span>
                     </Button>
                   </div>
-                </form>
+</form>
               </div>
             </div>
 
