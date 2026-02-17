@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { GridPattern } from "@/components/ui/grid-pattern";
 import { BorderBeam } from "@/components/ui/border-beam";
 import logoImage from "@/assets/images/logo.webp";
 import illustrationImage from "@/assets/images/illustration.svg";
 
 const AuthPage = () => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -41,13 +43,20 @@ const AuthPage = () => {
         credentials: 'include',
       });
 
-      const result = await response.json();
+      // Handle different response types properly
+      let result;
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        result = await response.json();
+      } else {
+        // If response is not JSON, create a generic error object
+        result = { error: 'Invalid response format' };
+      }
 
       if (response.ok && result.success) {
-        // Clear the dashboard visit flag to show loader on first dashboard visit
-        localStorage.removeItem('hasVisitedDashboard');
+        // Set the dashboard visit flag so the loader doesn't show after login
+        localStorage.setItem('hasVisitedDashboard', 'true');
         // Redirect immediately to dashboard
-        window.location.href = '/';
+        router.push('/');
       } else {
         toast.error(result.error || 'Login failed');
         setIsLoading(false);
@@ -221,22 +230,29 @@ const AuthPage = () => {
                     </a>
                   </div>
 
-                  {/* Submit button - always visible, text morphs */}
-                  <div style={{ marginTop: "1.25rem" }}>
-                    <Button
-                      type="submit"
-                      className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 text-white"
-                      style={{
-                        background: "linear-gradient(to right, #22c55e, #10b981, #14b8a6)",
-                        boxShadow: "0 4px 15px 0 rgba(34, 197, 94, 0.3)"
-                      }}
-                      disabled={isLoading}
-                    >
-                      <span className="transition-all duration-300">
-                        {activeTab === "login" ? "Login" : "Sign Up"}
-                      </span>
-                    </Button>
-                  </div>
+                   {/* Submit button - always visible, text morphs */}
+                   <div style={{ marginTop: "1.25rem" }}>
+                     <Button
+                       type="submit"
+                       className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 text-white flex items-center justify-center"
+                       style={{
+                         background: "linear-gradient(to right, #22c55e, #10b981, #14b8a6)",
+                         boxShadow: "0 4px 15px 0 rgba(34, 197, 94, 0.3)"
+                       }}
+                       disabled={isLoading}
+                     >
+                       {isLoading ? (
+                         <>
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                           Please wait...
+                         </>
+                       ) : (
+                         <span className="transition-all duration-300">
+                           {activeTab === "login" ? "Login" : "Sign Up"}
+                         </span>
+                       )}
+                     </Button>
+                   </div>
 </form>
               </div>
             </div>
