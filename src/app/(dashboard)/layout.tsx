@@ -5,36 +5,36 @@ import { SidebarProvider, MainContent, useSidebar } from "@/components/layout/la
 import { AuthProvider } from "@/components/auth/auth-provider";
 
 function DashboardContent({
-  children,
+ children,
 }: {
-  children: React.ReactNode;
+ children: React.ReactNode;
 }) {
-  const { mobileOpen, setMobileOpen } = useSidebar();
+ const { mobileOpen, setMobileOpen } = useSidebar();
 
-  return (
-    <>
-      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-      <MainContent>
-        {children}
-      </MainContent>
-    </>
-  );
+ return (
+ <>
+ <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+ <MainContent>
+ {children}
+ </MainContent>
+ </>
+ );
 }
 
 export default function DashboardLayout({
-  children,
+ children,
 }: Readonly<{
-  children: React.ReactNode;
+ children: React.ReactNode;
 }>) {
-  return (
-    <AuthProvider>
-      <SidebarProvider>
-        <div className="min-h-screen bg-white dark:bg-gray-950">
-          <DashboardContent>
-            {children}
-          </DashboardContent>
-        </div>
-      </SidebarProvider>
-    </AuthProvider>
-  );
+ return (
+ <AuthProvider>
+ <SidebarProvider>
+ <div className="min-h-screen bg-white">
+ <DashboardContent>
+ {children}
+ </DashboardContent>
+ </div>
+ </SidebarProvider>
+ </AuthProvider>
+ );
 }
