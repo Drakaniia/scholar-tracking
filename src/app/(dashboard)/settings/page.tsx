@@ -31,7 +31,7 @@ import {
  SelectTrigger,
  SelectValue,
 } from '@/components/ui/select';
-import { Users, Shield, UserPlus, X } from 'lucide-react';
+import { Users, Shield, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/auth-provider';
 import { USER_ROLE_LABELS, USER_STATUS_LABELS } from '@/types';
@@ -465,7 +465,7 @@ export default function SettingsPage() {
  <Users className="mx-auto h-12 w-12 text-muted-foreground" />
  <h3 className="mt-4 text-lg font-semibold">No users found</h3>
  <p className="text-sm text-muted-foreground mt-2">
- Click "Create User" to add your first user
+ Click &quot;Create User&quot; to add your first user
  </p>
  </div>
  ) : (
