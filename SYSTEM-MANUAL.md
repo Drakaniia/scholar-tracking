@@ -131,11 +131,27 @@ npm run dev
 - Username: `admin`
 - Password: `admin123`
 
-**Staff Account:**
-- Username: `staff`
-- Password: `staff123`
+⚠️ **IMPORTANT**: For security, create additional users and change default passwords immediately!
 
-⚠️ **IMPORTANT**: Change these passwords immediately after first login!
+### 3.4 Creating New Users
+
+**Note**: Only administrators can create new users. User self-registration is disabled.
+
+**To create a new user:**
+
+1. Log in as an administrator
+2. Navigate to **Settings** from the main menu
+3. Click the **"Create User"** button
+4. Fill in the required information:
+   - **First Name** and **Last Name** (required)
+   - **Username** (must be unique, min. 3 characters)
+   - **Email** (must be unique, valid email format)
+   - **Password** (min. 8 characters)
+   - **Confirm Password** (must match)
+   - **Role** (ADMIN, STAFF, or VIEWER)
+   - **Status** (ACTIVE, INACTIVE, or SUSPENDED)
+5. Click **"Create User"**
+6. The new user can now log in with the credentials you created
 
 ---
 
@@ -143,11 +159,13 @@ npm run dev
 
 ### 4.1 Logging In
 
-1. Navigate to the login page
+1. Navigate to the login page (you'll see a welcome message)
 2. Enter your username
 3. Enter your password
-4. Click the "LOGIN" button
+4. Click the **"Login"** button
 5. Upon successful authentication, you'll be redirected to the dashboard
+
+**Note**: The system is admin-managed only. There is no public sign-up functionality.
 
 ### 4.2 Password Requirements
 
@@ -175,6 +193,15 @@ npm run dev
 - After 5 failed login attempts, your account will be locked for 15 minutes
 - Contact an administrator if you need immediate access
 - Lockout duration can be configured by administrators
+
+### 4.6 Forgot Password
+
+If you forget your password, contact an administrator who can:
+- Reset your password
+- Create a new temporary password for you
+- Deactivate your account if needed
+
+**Note**: There is no automated password reset feature for security reasons.
 
 ---
 
