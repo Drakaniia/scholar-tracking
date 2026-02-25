@@ -78,22 +78,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
       if (response.ok && data.success) {
         toast.success('Logged out successfully');
-        // Clear the dashboard visit flag so loader appears on next login
-        localStorage.removeItem('hasVisitedDashboard');
         router.push('/login');
         router.refresh();
       } else {
         toast.error(data.error || 'Failed to logout');
-        // Clear the dashboard visit flag so loader appears on next login
-        localStorage.removeItem('hasVisitedDashboard');
         router.push('/login');
         router.refresh();
       }
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('An error occurred during logout');
-      // Clear the dashboard visit flag so loader appears on next login
-      localStorage.removeItem('hasVisitedDashboard');
       router.push('/login');
       router.refresh();
     } finally {
@@ -170,7 +164,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
  </Sheet>
 
  {/* Top Header */}
- <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#0e442c] border-b border-[#0e442c] shadow-sm">
+ <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-gradient-to-r from-[#166534] to-[#14532d] border-b border-[#14532d] shadow-sm">
  <div className="h-full px-4 flex items-center justify-between">
  {/* Left: Logo and Brand */}
  <div className="flex items-center gap-3">

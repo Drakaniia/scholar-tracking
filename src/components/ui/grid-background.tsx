@@ -7,7 +7,7 @@ interface GridBackgroundProps {
 
 export function GridBackground({ children, className = "" }: GridBackgroundProps) {
   return (
-    <div className={`relative min-h-screen overflow-hidden bg-gradient-to-r from-[#9ed2ac] to-[#9ed2ac] ${className}`}>
+    <div className={`relative min-h-screen overflow-hidden bg-gradient-to-r from-[#fefdfb] to-[#fefdfb] ${className}`}>
       {/* GridPattern background */}
       <div className="absolute inset-0 h-full w-full overflow-hidden">
         <GridPattern />

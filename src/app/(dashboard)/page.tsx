@@ -33,78 +33,75 @@ import {
  CreditCard,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-// import { ThemeToggle } from '@/components/theme-toggle';
 import {
   StatsCard,
   ScholarshipChart,
   StudentsChart,
   RecentAwards,
-  // ScholarshipOverview,
 } from '@/components/dashboard';
 import { CustomPieChart } from '@/components/charts';
-
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
-import { fetchWithCache, prefetchEndpoints } from '@/lib/cache';
+import { prefetchEndpoints } from '@/lib/cache';
 
 interface DashboardData {
- stats: {
- totalStudents: number;
- studentsWithScholarships: number;
- totalScholarships: number;
- activeScholarships: number;
- totalAmountAwarded: number;
- totalDisbursed: number;
- };
- recentStudents: Array<{
- id: number;
- lastName: string;
- firstName: string;
- middleInitial: string | null;
- gradeLevel: string;
- yearLevel: string;
- scholarships: Array<{
- scholarshipStatus: string;
- scholarship: {
- scholarshipName: string;
- type: string;
- };
- }>;
- updatedAt: string;
- }>;
- charts: {
- studentsByGradeLevel: Array<{
- gradeLevel: string;
- _count: { id: number };
- }>;
- scholarshipsByType: Array<{
- type: string;
- _count: { id: number };
- }>;
- };
+  stats: {
+    totalStudents: number;
+    studentsWithScholarships: number;
+    totalScholarships: number;
+    activeScholarships: number;
+    totalAmountAwarded: number;
+    totalDisbursed: number;
+  };
+  recentStudents: Array<{
+    id: number;
+    lastName: string;
+    firstName: string;
+    middleInitial: string | null;
+    gradeLevel: string;
+    yearLevel: string;
+    scholarships: Array<{
+      scholarshipStatus: string;
+      scholarship: {
+        scholarshipName: string;
+        type: string;
+      };
+    }>;
+    updatedAt: string;
+  }>;
+  charts: {
+    studentsByGradeLevel: Array<{
+      gradeLevel: string;
+      _count: { id: number };
+    }>;
+    scholarshipsByType: Array<{
+      type: string;
+      _count: { id: number };
+    }>;
+  };
 }
 
 interface DetailedStudent {
- id: number;
- lastName: string;
- firstName: string;
- middleInitial: string | null;
- gradeLevel: string;
- yearLevel: string;
- scholarships: Array<{
- scholarship: {
- scholarshipName: string;
- type: string;
- source: string;
- };
- }>;
- fees: Array<{
- tuitionFee: number;
- otherFee: number;
- miscellaneousFee: number;
- laboratoryFee: number;
- amountSubsidy: number;
- percentSubsidy: number;
- }>;
+  id: number;
+  lastName: string;
+  firstName: string;
+  middleInitial: string | null;
+  gradeLevel: string;
+  yearLevel: string;
+  scholarships: Array<{
+    scholarship: {
+      scholarshipName: string;
+      type: string;
+      source: string;
+    };
+  }>;
+  fees: Array<{
+    tuitionFee: number;
+    otherFee: number;
+    miscellaneousFee: number;
+    laboratoryFee: number;
+    amountSubsidy: number;
+    percentSubsidy: number;
+  }>;
 }
 
 const GRADE_LEVEL_LABELS: Record<string, string> = {
@@ -114,25 +111,30 @@ const GRADE_LEVEL_LABELS: Record<string, string> = {
  COLLEGE: 'College',
 };
 
-
-
 export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingDetails, setLoadingDetails] = useState(true);
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
-  const [showInitialLoader, setShowInitialLoader] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Check if this is the first visit after login and show initial loader if so
+  // Load data from sessionStorage (pre-fetched by loading page)
   useEffect(() => {
-    const firstVisit = localStorage.getItem('hasVisitedDashboard');
-    if (!firstVisit) {
-      setShowInitialLoader(true);
-      // Mark that user has visited dashboard to avoid showing loader on subsequent visits
-      localStorage.setItem('hasVisitedDashboard', 'true');
+    try {
+      const storedDashboard = sessionStorage.getItem('dashboardData');
+      const storedDetailed = sessionStorage.getItem('detailedStudents');
+      
+      if (storedDashboard) {
+        setData(JSON.parse(storedDashboard));
+      }
+      if (storedDetailed) {
+        setDetailedStudents(JSON.parse(storedDetailed));
+      }
+    } catch (error) {
+      console.error('Error loading cached data:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -157,61 +159,22 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        const params = new URLSearchParams();
-        if (scholarshipSourceFilter && scholarshipSourceFilter !== 'all') {
-          params.append('source', scholarshipSourceFilter);
-        }
-
-        const url = `/api/dashboard?${params}`;
-        const json = await fetchWithCache<{ success: boolean; data: DashboardData }>(
-          url,
-          undefined,
-          5 * 60 * 1000
-        );
-
-        if (json.success) {
-          setData(json.data);
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDashboard();
-  }, [scholarshipSourceFilter]);
-
-  useEffect(() => {
-    async function fetchDetailedView() {
-      try {
-        const url = '/api/dashboard/detailed';
-        const json = await fetchWithCache<{ success: boolean; data: DetailedStudent[] }>(
-          url,
-          undefined,
-          5 * 60 * 1000
-        );
-
-        if (json.success) {
-          setDetailedStudents(json.data);
-        }
-      } catch (error) {
-        console.error('Error fetching detailed view:', error);
-      } finally {
-        setLoadingDetails(false);
-      }
-    }
-    fetchDetailedView();
-  }, []);
-
-  if (loading && showInitialLoader) {
+  // If still loading from sessionStorage, show minimal loader
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
       </div>
     );
+  }
+
+  // If no data, redirect to loading page
+  if (!data) {
+    router.push('/loading');
+    return null;
   }
 
  const stats = data?.stats || {
@@ -290,7 +253,6 @@ export default function DashboardPage() {
  </div>
 
  {/* Stats Cards Grid - Enhanced with StatsCard component */}
- {/* Stats Cards Grid - Enhanced with StatsCard component */}
  <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-150 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
  <StatsCard
  title="Total Scholarships"
@@ -354,11 +316,6 @@ export default function DashboardPage() {
  </div>
  </div>
 
- {/* Scholarship Performance Overview - REMOVED as per user request */}
- {/* {scholarshipOverviewData.length > 0 && (
- <ScholarshipOverview scholarships={scholarshipOverviewData} />
- )} */}
-
  {/* Secondary Charts Section - Recent Awards & Distribution */}
  <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 transition-all duration-700 delay-[450ms] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
  {/* Pie Chart - Scholarships by Type */}
@@ -413,37 +370,32 @@ export default function DashboardPage() {
  </div>
  </CardHeader>
  <CardContent>
-  {loadingDetails ? (
-  <div className="flex h-48 items-center justify-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-  </div>
-  ) : (
  <div className="space-y-4">
  <Tabs defaultValue="GRADE_SCHOOL" className="space-y-4">
  <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 h-auto">
- <TabsTrigger 
- key="GRADE_SCHOOL" 
+ <TabsTrigger
+ key="GRADE_SCHOOL"
  value="GRADE_SCHOOL"
  className="data-[state=active]:bg-[hsl(var(--pastel-purple))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
  >
  {GRADE_LEVEL_LABELS['GRADE_SCHOOL']}
  </TabsTrigger>
- <TabsTrigger 
- key="JUNIOR_HIGH" 
+ <TabsTrigger
+ key="JUNIOR_HIGH"
  value="JUNIOR_HIGH"
  className="data-[state=active]:bg-[hsl(var(--pastel-blue))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
  >
  {GRADE_LEVEL_LABELS['JUNIOR_HIGH']}
  </TabsTrigger>
- <TabsTrigger 
- key="SENIOR_HIGH" 
+ <TabsTrigger
+ key="SENIOR_HIGH"
  value="SENIOR_HIGH"
  className="data-[state=active]:bg-[hsl(var(--pastel-pink))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
  >
  {GRADE_LEVEL_LABELS['SENIOR_HIGH']}
  </TabsTrigger>
- <TabsTrigger 
- key="COLLEGE" 
+ <TabsTrigger
+ key="COLLEGE"
  value="COLLEGE"
  className="data-[state=active]:bg-[hsl(var(--pastel-orange))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
  >
@@ -525,7 +477,6 @@ export default function DashboardPage() {
  ))}
  </Tabs>
  </div>
- )}
  </CardContent>
  </Card>
  </div>

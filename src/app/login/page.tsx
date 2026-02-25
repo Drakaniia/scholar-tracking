@@ -40,10 +40,8 @@ const LoginPage = () => {
       }
 
       if (response.ok && result.success) {
-        // Set the dashboard visit flag so the loader doesn't show after login
-        localStorage.setItem('hasVisitedDashboard', 'true');
-        // Redirect immediately to dashboard
-        router.push('/');
+        // Redirect to loading page which will fetch all data before showing dashboard
+        router.push('/loading');
       } else {
         toast.error(result.error || 'Login failed');
         setIsLoading(false);
