@@ -221,7 +221,7 @@ export default function DashboardPage() {
  return (
  <div className="space-y-6">
  {/* Page Header - Enhanced Style */}
- <div className={`flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+ <div className={`flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] shadow-sm transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
  <div>
  <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
  <p className="text-gray-600">
