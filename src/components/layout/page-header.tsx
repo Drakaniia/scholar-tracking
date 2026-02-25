@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
 
 interface PageHeaderProps {
  title: string;
@@ -16,9 +17,10 @@ export function PageHeader({
  className,
 }: PageHeaderProps) {
  return (
+ <Card className="border-gray-200 bg-white border-t-4 border-t-[#22c55e] mb-6">
  <div
  className={cn(
- 'flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between',
+ 'flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between',
  className
  )}
  >
@@ -30,5 +32,6 @@ export function PageHeader({
  </div>
  {children && <div className="flex items-center gap-2">{children}</div>}
  </div>
+ </Card>
  );
 }

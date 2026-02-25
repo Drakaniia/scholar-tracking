@@ -3,6 +3,7 @@
 import { Sidebar } from "@/components/layout";
 import { SidebarProvider, MainContent, useSidebar } from "@/components/layout/layout-wrapper";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { GridBackground } from "@/components/ui/grid-background";
 
 function DashboardContent({
  children,
@@ -29,11 +30,11 @@ export default function DashboardLayout({
  return (
  <AuthProvider>
  <SidebarProvider>
- <div className="min-h-screen bg-white">
+ <GridBackground>
  <DashboardContent>
  {children}
  </DashboardContent>
- </div>
+ </GridBackground>
  </SidebarProvider>
  </AuthProvider>
  );

@@ -56,7 +56,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-r from-[#fefdfb] to-[#fefdfb]">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-r from-[#9ed2ac] to-[#9ed2ac]">
       {/* GridPattern background */}
       <div className="absolute inset-0 h-full w-full overflow-hidden">
         <GridPattern />

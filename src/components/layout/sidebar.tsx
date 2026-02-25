@@ -170,7 +170,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
  </Sheet>
 
  {/* Top Header */}
- <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white border-b border-gray-200 shadow-sm">
+ <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-[#0e442c] border-b border-[#0e442c] shadow-sm">
  <div className="h-full px-4 flex items-center justify-between">
  {/* Left: Logo and Brand */}
  <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
  priority
  />
  </div>
- <span className="text-lg font-bold text-gray-800 hidden sm:block">ScholarTrack</span>
+ <span className="text-lg font-bold text-white hidden sm:block">ScholarTrack</span>
  </div>
 
  {/* Center: Desktop Navigation with Morphing Border */}
@@ -207,8 +207,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 className={cn(
     'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out relative',
     isActive
-    ? 'bg-primary text-primary-foreground'
-    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+    ? 'bg-white/20 text-white'
+    : 'text-white/80 hover:text-white hover:bg-white/10'
   )}
  >
  <item.icon className="h-4 w-4" />
@@ -223,8 +223,8 @@ className={cn(
  {/* Desktop User Dropdown */}
  <DropdownMenu>
  <DropdownMenuTrigger asChild className="hidden md:flex">
- <Button variant="ghost" className="text-gray-700 hover:bg-gray-100 gap-2">
- <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+ <Button variant="ghost" className="text-white hover:bg-white/10 gap-2">
+ <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold text-white">
  {user?.username?.charAt(0).toUpperCase() || 'U'}
  </div>
  <span className="text-sm">{user?.username || 'User'}</span>
@@ -257,7 +257,7 @@ className={cn(
  variant="ghost"
  size="icon"
  onClick={() => setMobileOpen(true)}
- className="md:hidden text-gray-700 hover:bg-gray-100"
+ className="md:hidden text-white hover:bg-white/10"
  >
  <Menu className="h-5 w-5" />
  </Button>
