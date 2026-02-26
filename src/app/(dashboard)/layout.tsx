@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout";
 import { SidebarProvider, MainContent, useSidebar } from "@/components/layout/layout-wrapper";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { GridBackground } from "@/components/ui/grid-background";
+import { PageTransition } from "@/components/layout/page-transition";
 
 function DashboardContent({
  children,
@@ -16,7 +17,9 @@ function DashboardContent({
  <>
  <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
  <MainContent>
+ <PageTransition>
  {children}
+ </PageTransition>
  </MainContent>
  </>
  );

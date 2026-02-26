@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
         const gradeLevel = searchParams.get('gradeLevel') || '';
+        const program = searchParams.get('program') || '';
+        const status = searchParams.get('status') || '';
+        const scholarshipId = searchParams.get('scholarshipId') || '';
 
         // Use server-side cache for student queries
-        const cacheKey = generateQueryKey('students-list', { page, limit, search, gradeLevel });
+        const cacheKey = generateQueryKey('students-list', { page, limit, search, gradeLevel, program, status, scholarshipId });
         const cachedData = queryOptimizer.get<{ students: unknown[]; total: number }>(cacheKey);
         
         if (cachedData) {
@@ -37,18 +40,45 @@ export async function GET(request: NextRequest) {
 
         const { skip, take } = getPaginationParams(page, limit);
 
+        // Build where clause with additional filters
+        const additionalFilters: Record<string, unknown> = {};
+        if (gradeLevel) additionalFilters.gradeLevel = gradeLevel;
+        if (program) additionalFilters.program = program;
+        if (status) additionalFilters.status = status;
+
         const where = buildSearchWhere(
             search,
             ['lastName', 'firstName', 'program'],
-            gradeLevel ? { gradeLevel } : undefined
+            additionalFilters
         );
+
+        // Add scholarship filter if specified
+        if (scholarshipId) {
+            if (scholarshipId === 'none') {
+                // Filter students with no scholarships
+                Object.assign(where, {
+                    scholarships: {
+                        none: {},
+                    },
+                });
+            } else {
+                // Filter students with specific scholarship
+                Object.assign(where, {
+                    scholarships: {
+                        some: {
+                            scholarshipId: parseInt(scholarshipId),
+                        },
+                    },
+                });
+            }
+        }
 
         const [students, total] = await Promise.all([
             prisma.student.findMany({
                 where,
                 skip,
                 take,
-                orderBy: { createdAt: 'desc' },
+                orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
                 select: {
                     id: true,
                     lastName: true,

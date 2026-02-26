@@ -62,6 +62,7 @@ export default function ScholarshipsPage() {
  const isAdmin = user?.role === 'ADMIN';
  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
  const [loading, setLoading] = useState(true);
+ const [isVisible, setIsVisible] = useState(false);
  const [sourceFilter, setSourceFilter] = useState<string>('all');
  const [dialogOpen, setDialogOpen] = useState(false);
  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -120,6 +121,8 @@ export default function ScholarshipsPage() {
  toast.error('Failed to load scholarships');
  } finally {
  setLoading(false);
+ // Trigger fade-in after content is loaded
+ setTimeout(() => setIsVisible(true), 50);
  }
  }, [sourceFilter, page]);
 
@@ -258,7 +261,7 @@ export default function ScholarshipsPage() {
  }
 
  return (
- <div>
+ <div className={`transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
  <PageHeader
  title="Scholarships"
  description="Manage scholarship programs and grants"

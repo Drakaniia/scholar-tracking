@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
  Table,
@@ -29,7 +29,7 @@ import {
  DialogTitle,
  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
@@ -113,22 +113,39 @@ export default function StudentsPage() {
  const [loading, setLoading] = useState(true);
  const [search, setSearch] = useState('');
  const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
+ const [programFilter, setProgramFilter] = useState<string>('all');
+ const [statusFilter, setStatusFilter] = useState<string>('all');
+ const [scholarshipFilter, setScholarshipFilter] = useState<string>('all');
  const [dialogOpen, setDialogOpen] = useState(false);
  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
  const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null);
  const [loadingDetail, setLoadingDetail] = useState(false);
  const [showFullDetails, setShowFullDetails] = useState(false);
+ const [page, setPage] = useState(1);
+ const [totalPages, setTotalPages] = useState(1);
+ const [total, setTotal] = useState(0);
+ const [programs, setPrograms] = useState<string[]>([]);
+ const [scholarships, setScholarships] = useState<Array<{ id: number; scholarshipName: string }>>([]);
 
  const fetchStudents = useCallback(async () => {
  try {
  const params = new URLSearchParams();
  if (search) params.append('search', search);
  if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
- params.append('limit', '100');
+ if (programFilter && programFilter !== 'all') params.append('program', programFilter);
+ if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+ if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
+ params.append('limit', '11');
+ params.append('page', page.toString());
 
  const url = `/api/students?${params}`;
- const json = await fetchWithCache<{ success: boolean; data: Student[] }>(
+ const json = await fetchWithCache<{ 
+ success: boolean; 
+ data: Student[];
+ total: number;
+ totalPages: number;
+ }>(
  url,
  undefined,
  5 * 60 * 1000
@@ -136,6 +153,8 @@ export default function StudentsPage() {
  
  if (json.success) {
  setStudents(json.data);
+ setTotal(json.total);
+ setTotalPages(json.totalPages);
  }
  } catch (error) {
  console.error('Error fetching students:', error);
@@ -143,11 +162,42 @@ export default function StudentsPage() {
  } finally {
  setLoading(false);
  }
- }, [search, gradeLevelFilter]);
+ }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, page]);
 
  useEffect(() => {
  fetchStudents();
- }, [search, gradeLevelFilter, fetchStudents]);
+ }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, fetchStudents]);
+
+ useEffect(() => {
+ // Reset to page 1 when filters change
+ setPage(1);
+ }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
+
+ useEffect(() => {
+ // Fetch filter options
+ const fetchFilterOptions = async () => {
+ try {
+ const [programsRes, scholarshipsRes] = await Promise.all([
+ fetch('/api/students/filter-options'),
+ fetch('/api/scholarships?limit=1000'),
+ ]);
+ 
+ const programsData = await programsRes.json();
+ const scholarshipsData = await scholarshipsRes.json();
+ 
+ if (programsData.success) {
+ setPrograms(programsData.data.programs || []);
+ }
+ if (scholarshipsData.success) {
+ setScholarships(scholarshipsData.data || []);
+ }
+ } catch (error) {
+ console.error('Error fetching filter options:', error);
+ }
+ };
+ 
+ fetchFilterOptions();
+ }, []);
 
  const handleDelete = async (id: number) => {
  if (!confirm('Are you sure you want to delete this student?')) return;
@@ -278,24 +328,34 @@ export default function StudentsPage() {
  </PageHeader>
 
  {/* Filters */}
- <Card className="mb-6 border-gray-200">
- <CardContent className="p-4">
- <div className="flex flex-col gap-4 sm:flex-row">
- <div className="relative flex-1">
+ <Card className="mb-4 border-gray-200">
+ <CardContent className="p-3">
+ <div className="flex flex-col gap-2">
+ {/* Search Bar */}
+ <div className="relative">
  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
  <Input
  placeholder="Search by name or program..."
  value={search}
  onChange={(e) => setSearch(e.target.value)}
- className="pl-10"
+ className="pl-10 h-9"
  />
  </div>
+ 
+ {/* Filter Section */}
+ <div className="flex items-center gap-2">
+ <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+ <Filter className="h-4 w-4" />
+ <span>Filters:</span>
+ </div>
+ 
+ <div className="flex flex-wrap items-center gap-2 flex-1">
  <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
- <SelectTrigger className="w-full sm:w-48">
- <SelectValue placeholder="All Grade Levels" />
+ <SelectTrigger className="h-8 w-[140px] text-xs">
+ <SelectValue placeholder="Grade Level" />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">All Grade Levels</SelectItem>
+ <SelectItem value="all">All Grades</SelectItem>
  {GRADE_LEVELS.map((level) => (
  <SelectItem key={level} value={level}>
  {GRADE_LEVEL_LABELS[level]}
@@ -303,12 +363,85 @@ export default function StudentsPage() {
  ))}
  </SelectContent>
  </Select>
+
+ <Select value={programFilter} onValueChange={setProgramFilter}>
+ <SelectTrigger className="h-8 w-[140px] text-xs">
+ <SelectValue placeholder="Program" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">All Programs</SelectItem>
+ {programs.map((program) => (
+ <SelectItem key={program} value={program}>
+ {program}
+ </SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+
+ <Select value={statusFilter} onValueChange={setStatusFilter}>
+ <SelectTrigger className="h-8 w-[120px] text-xs">
+ <SelectValue placeholder="Status" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">All Status</SelectItem>
+ <SelectItem value="Active">Active</SelectItem>
+ <SelectItem value="Inactive">Inactive</SelectItem>
+ <SelectItem value="Graduated">Graduated</SelectItem>
+ <SelectItem value="Withdrawn">Withdrawn</SelectItem>
+ </SelectContent>
+ </Select>
+
+ <Select value={scholarshipFilter} onValueChange={setScholarshipFilter}>
+ <SelectTrigger className="h-8 w-[160px] text-xs">
+ <SelectValue placeholder="Scholarship" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">All Scholarships</SelectItem>
+ <SelectItem value="none">No Scholarship</SelectItem>
+ {scholarships.map((scholarship) => (
+ <SelectItem key={scholarship.id} value={scholarship.id.toString()}>
+ {scholarship.scholarshipName}
+ </SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+
+ {/* Clear Filters Button */}
+ {(gradeLevelFilter !== 'all' || programFilter !== 'all' || statusFilter !== 'all' || scholarshipFilter !== 'all' || search) && (
+ <Button
+ variant="ghost"
+ size="sm"
+ onClick={() => {
+ setSearch('');
+ setGradeLevelFilter('all');
+ setProgramFilter('all');
+ setStatusFilter('all');
+ setScholarshipFilter('all');
+ }}
+ className="h-8 px-2 text-xs"
+ >
+ <X className="h-3 w-3 mr-1" />
+ Clear
+ </Button>
+ )}
+ </div>
+ </div>
  </div>
  </CardContent>
  </Card>
 
  {/* Students Table */}
  <Card className="border-gray-200">
+ <CardHeader>
+ <div className="flex items-center justify-between">
+ <div className="flex items-center gap-3">
+ <CardTitle className="text-foreground">All Students</CardTitle>
+ <Badge variant="outline" className="text-sm">
+ Total: {total}
+ </Badge>
+ </div>
+ </div>
+ </CardHeader>
  <CardContent className="p-0">
  {loading ? (
  <div className="flex h-48 items-center justify-center">
@@ -402,6 +535,35 @@ export default function StudentsPage() {
  ))}
  </TableBody>
  </Table>
+ )}
+
+ {/* Pagination Controls */}
+ {!loading && students.length > 0 && (
+ <div className="mt-4 flex items-center justify-between border-t pt-4 px-4 pb-4">
+ <div className="text-sm text-muted-foreground">
+ Page {page} of {totalPages} ({total} total)
+ </div>
+ <div className="flex items-center gap-2">
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => setPage(p => p - 1)}
+ disabled={page === 1}
+ >
+ <ChevronLeft className="h-4 w-4 mr-1" />
+ Previous
+ </Button>
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => setPage(p => p + 1)}
+ disabled={page === totalPages}
+ >
+ Next
+ <ChevronRight className="h-4 w-4 ml-1" />
+ </Button>
+ </div>
+ </div>
  )}
  </CardContent>
  </Card>
