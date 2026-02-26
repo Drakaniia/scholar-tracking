@@ -18,7 +18,7 @@ const variants = {
     visibility: 'visible',
     transition: {
       duration: 0.35,
-      ease: [0.25, 0.46, 0.45, 0.94],
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
     },
   },
   exit: {
@@ -26,10 +26,10 @@ const variants = {
     visibility: 'hidden',
     transition: {
       duration: 0.25,
-      ease: [0.55, 0.055, 0.675, 0.19],
+      ease: [0.55, 0.055, 0.675, 0.19] as const,
     },
   },
-};
+} as const;
 
 export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
