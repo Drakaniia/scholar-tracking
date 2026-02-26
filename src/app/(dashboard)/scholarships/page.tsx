@@ -179,6 +179,8 @@ export default function ScholarshipsPage() {
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
+ // Trigger dashboard refresh event
+ window.dispatchEvent(new Event('refreshDashboard'));
  fetchCounts();
  fetchScholarships();
  } else {
@@ -214,6 +216,8 @@ export default function ScholarshipsPage() {
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
+ // Trigger dashboard refresh event
+ window.dispatchEvent(new Event('refreshDashboard'));
  fetchCounts();
  fetchScholarships();
  } else {
@@ -247,6 +251,8 @@ export default function ScholarshipsPage() {
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
+ // Trigger dashboard refresh event
+ window.dispatchEvent(new Event('refreshDashboard'));
  fetchCounts();
  fetchScholarships();
  } else {

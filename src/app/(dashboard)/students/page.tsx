@@ -127,6 +127,9 @@ export default function StudentsPage() {
  const [total, setTotal] = useState(0);
  const [programs, setPrograms] = useState<string[]>([]);
  const [scholarships, setScholarships] = useState<Array<{ id: number; scholarshipName: string }>>([]);
+ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+ const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
+ const [submitting, setSubmitting] = useState(false);
 
  const fetchStudents = useCallback(async () => {
  try {
@@ -199,20 +202,35 @@ export default function StudentsPage() {
  fetchFilterOptions();
  }, []);
 
- const handleDelete = async (id: number) => {
- if (!confirm('Are you sure you want to delete this student?')) return;
+ const openDeleteDialog = (student: Student) => {
+ setDeletingStudent(student);
+ setDeleteDialogOpen(true);
+ };
 
+ const closeDeleteDialog = () => {
+ setDeleteDialogOpen(false);
+ setDeletingStudent(null);
+ };
+
+ const handleDelete = async () => {
+ if (!deletingStudent) return;
+
+ setSubmitting(true);
  try {
- const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
+ const res = await fetch(`/api/students/${deletingStudent.id}`, { method: 'DELETE' });
  const json = await res.json();
  if (json.success) {
  toast.success('Student deleted successfully');
+ setDeleteDialogOpen(false);
+ setDeletingStudent(null);
  // Invalidate cache
  clientCache.invalidatePattern('/api/students');
  clientCache.invalidatePattern('/api/dashboard');
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
+ // Trigger dashboard refresh event
+ window.dispatchEvent(new Event('refreshDashboard'));
  fetchStudents();
  } else {
  toast.error(json.error || 'Delete failed');
@@ -220,6 +238,8 @@ export default function StudentsPage() {
  } catch (error) {
  console.error('Error deleting student:', error);
  toast.error('Failed to delete student');
+ } finally {
+ setSubmitting(false);
  }
  };
 
@@ -256,6 +276,8 @@ export default function StudentsPage() {
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
+ // Trigger dashboard refresh event
+ window.dispatchEvent(new Event('refreshDashboard'));
  fetchStudents();
  } else {
  toast.error(json.error || 'Operation failed');
@@ -532,7 +554,7 @@ export default function StudentsPage() {
  <Button
  variant="ghost"
  size="icon"
- onClick={() => handleDelete(student.id)}
+ onClick={() => openDeleteDialog(student)}
  className="text-destructive hover:text-destructive"
  >
  <Trash2 className="h-4 w-4" />
@@ -576,6 +598,36 @@ export default function StudentsPage() {
  )}
  </CardContent>
  </Card>
+
+ {/* Delete Confirmation Dialog */}
+ <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+ <DialogContent>
+ <DialogHeader>
+ <DialogTitle>Delete Student</DialogTitle>
+ <DialogDescription>
+ Are you sure you want to delete &quot;{deletingStudent?.firstName} {deletingStudent?.lastName}&quot;?
+ {deletingStudent?.scholarships && deletingStudent.scholarships.length > 0 && (
+ <span className="block mt-2 text-destructive font-medium">
+ Warning: This student has {deletingStudent.scholarships.length} scholarship(s) assigned.
+ </span>
+ )}
+ </DialogDescription>
+ </DialogHeader>
+ <div className="flex justify-end gap-2 mt-4">
+ <Button variant="outline" onClick={closeDeleteDialog} disabled={submitting}>
+ Cancel
+ </Button>
+ <Button 
+ variant="destructive" 
+ onClick={handleDelete} 
+ disabled={submitting}
+ className="bg-red-600 hover:bg-red-700 text-white"
+ >
+ {submitting ? 'Deleting...' : 'Delete'}
+ </Button>
+ </div>
+ </DialogContent>
+ </Dialog>
 
  {/* Student Detail Dialog - Scholarships First */}
  <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>

@@ -118,23 +118,146 @@ export default function DashboardPage() {
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load data from sessionStorage (pre-fetched by loading page)
-  useEffect(() => {
+  // Function to fetch fresh data
+  const fetchFreshData = async () => {
     try {
-      const storedDashboard = sessionStorage.getItem('dashboardData');
-      const storedDetailed = sessionStorage.getItem('detailedStudents');
-      
-      if (storedDashboard) {
-        setData(JSON.parse(storedDashboard));
+      setIsLoading(true);
+      const [dashboardRes, detailedRes] = await Promise.all([
+        fetch('/api/dashboard'),
+        fetch('/api/dashboard/detailed'),
+      ]);
+
+      const dashboardJson = await dashboardRes.json();
+      const detailedJson = await detailedRes.json();
+
+      if (dashboardJson.success) {
+        setData(dashboardJson.data);
+        // Store with timestamp to detect stale data
+        sessionStorage.setItem('dashboardData', JSON.stringify({
+          ...dashboardJson.data,
+          __timestamp: Date.now(),
+        }));
       }
-      if (storedDetailed) {
-        setDetailedStudents(JSON.parse(storedDetailed));
+
+      if (detailedJson.success) {
+        setDetailedStudents(detailedJson.data);
+        // Store with timestamp to detect stale data
+        sessionStorage.setItem('detailedStudents', JSON.stringify({
+          data: detailedJson.data,
+          __timestamp: Date.now(),
+        }));
       }
     } catch (error) {
-      console.error('Error loading cached data:', error);
+      console.error('Error fetching fresh data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Load data from sessionStorage (pre-fetched by loading page)
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const storedDashboard = sessionStorage.getItem('dashboardData');
+        const storedDetailed = sessionStorage.getItem('detailedStudents');
+
+        // Check if data exists and is valid (not marked as stale)
+        if (storedDashboard && storedDetailed) {
+          try {
+            const parsedDashboard = JSON.parse(storedDashboard);
+            const parsedDetailed = JSON.parse(storedDetailed);
+            
+            // Check if data has timestamp and is not stale (less than 5 minutes old)
+            const now = Date.now();
+            const dashboardTimestamp = parsedDashboard.__timestamp || 0;
+            const detailedTimestamp = parsedDetailed.__timestamp || 0;
+            const isDashboardStale = (now - dashboardTimestamp) > 5 * 60 * 1000;
+            const isDetailedStale = (now - detailedTimestamp) > 5 * 60 * 1000;
+            
+            // If data is stale or missing, fetch fresh
+            if (isDashboardStale || isDetailedStale) {
+              await fetchFreshData();
+            } else {
+              // Use cached data (extract original data if it has timestamp wrapper)
+              const dashboardData = parsedDashboard.__timestamp 
+                ? { 
+                    stats: parsedDashboard.stats,
+                    recentStudents: parsedDashboard.recentStudents,
+                    charts: parsedDashboard.charts,
+                  }
+                : parsedDashboard;
+              
+              const detailedData = parsedDetailed.data || parsedDetailed;
+              
+              setData(dashboardData);
+              setDetailedStudents(detailedData);
+              setIsLoading(false);
+            }
+          } catch (parseError) {
+            // If parsing fails, fetch fresh data
+            console.error('Error parsing cached data:', parseError);
+            await fetchFreshData();
+          }
+        } else {
+          // No cache, fetch fresh data
+          await fetchFreshData();
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Listen for custom refresh event
+    const handleRefresh = () => {
+      console.log('Dashboard refresh triggered');
+      fetchFreshData();
+    };
+
+    window.addEventListener('refreshDashboard', handleRefresh);
+
+    return () => {
+      window.removeEventListener('refreshDashboard', handleRefresh);
+    };
+  }, []);
+
+  // Check sessionStorage on navigation (popstate event)
+  useEffect(() => {
+    const handlePopState = () => {
+      // When user navigates back to dashboard, check if sessionStorage was cleared
+      const storedDashboard = sessionStorage.getItem('dashboardData');
+      const storedDetailed = sessionStorage.getItem('detailedStudents');
+      
+      if (!storedDashboard || !storedDetailed) {
+        // sessionStorage was cleared, fetch fresh data
+        console.log('SessionStorage cleared, fetching fresh data');
+        fetchFreshData();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Also listen for visibility change (when user switches back to this tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const storedDashboard = sessionStorage.getItem('dashboardData');
+        const storedDetailed = sessionStorage.getItem('detailedStudents');
+        
+        if (!storedDashboard || !storedDetailed) {
+          console.log('Tab became visible and sessionStorage is empty, fetching fresh data');
+          fetchFreshData();
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Prefetch all pages in the background for instant navigation
@@ -159,16 +282,24 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <p className="text-slate-600">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // If no data, redirect to loading page
+  // If no data after loading, show error
   if (!data) {
-    router.push('/loading');
-    return null;
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600 mb-4">Failed to load dashboard data</p>
+          <Button onClick={() => router.push('/loading')} variant="gradient">
+            Reload Dashboard
+          </Button>
+        </div>
+      </div>
+    );
   }
 
  const stats = data?.stats || {
