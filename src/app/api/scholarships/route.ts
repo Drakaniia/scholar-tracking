@@ -4,10 +4,53 @@ import { CreateScholarshipInput } from '@/types';
 import { getSession } from '@/lib/auth';
 import { getPaginationParams, buildSearchWhere, queryOptimizer, generateQueryKey } from '@/lib/query-optimizer';
 
-// GET /api/scholarships - Get all scholarships
+// GET /api/scholarships - Get all scholarships or counts
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
+        const action = searchParams.get('action');
+        
+        // Handle counts action - returns total counts by source
+        if (action === 'counts') {
+            const cacheKey = generateQueryKey('scholarships-counts', {});
+            const cachedData = queryOptimizer.get<{ total: number; internal: number; external: number }>(cacheKey);
+
+            if (cachedData) {
+                return NextResponse.json({
+                    success: true,
+                    data: cachedData,
+                    cached: true,
+                }, {
+                    headers: {
+                        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+                        'CDN-Cache-Control': 'public, s-maxage=300',
+                        'X-Cache': 'HIT',
+                    },
+                });
+            }
+
+            const [total, internal, external] = await Promise.all([
+                prisma.scholarship.count(),
+                prisma.scholarship.count({ where: { source: 'INTERNAL' } }),
+                prisma.scholarship.count({ where: { source: 'EXTERNAL' } }),
+            ]);
+
+            const counts = { total, internal, external };
+            queryOptimizer.set(cacheKey, counts, 5 * 60 * 1000); // Cache for 5 minutes
+
+            return NextResponse.json({
+                success: true,
+                data: counts,
+                cached: false,
+            }, {
+                headers: {
+                    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+                    'CDN-Cache-Control': 'public, s-maxage=300',
+                    'X-Cache': 'MISS',
+                },
+            });
+        }
+
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
@@ -18,7 +61,7 @@ export async function GET(request: NextRequest) {
         // Use server-side cache for scholarship queries
         const cacheKey = generateQueryKey('scholarships-list', { page, limit, search, type, source, status });
         const cachedData = queryOptimizer.get<{ scholarships: unknown[]; total: number }>(cacheKey);
-        
+
         if (cachedData) {
             return NextResponse.json({
                 success: true,

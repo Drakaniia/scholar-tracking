@@ -118,8 +118,22 @@ export async function DELETE(
         const { id } = await params;
         const scholarshipId = parseInt(id);
 
-        await prisma.scholarship.delete({
-            where: { id: scholarshipId },
+        // Use transaction to delete related records first
+        await prisma.$transaction(async (tx) => {
+            // Delete related student scholarships
+            await tx.studentScholarship.deleteMany({
+                where: { scholarshipId },
+            });
+
+            // Delete related disbursements
+            await tx.disbursement.deleteMany({
+                where: { scholarshipId },
+            });
+
+            // Finally delete the scholarship
+            await tx.scholarship.delete({
+                where: { id: scholarshipId },
+            });
         });
 
         return NextResponse.json({

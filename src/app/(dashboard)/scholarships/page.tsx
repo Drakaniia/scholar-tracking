@@ -20,7 +20,7 @@ import {
  TableHeader,
  TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, GraduationCap } from 'lucide-react';
+import { Plus, Pencil, Trash2, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
@@ -51,6 +51,12 @@ interface Scholarship {
  };
 }
 
+interface ScholarshipCounts {
+ total: number;
+ internal: number;
+ external: number;
+}
+
 export default function ScholarshipsPage() {
  const { user } = useAuth();
  const isAdmin = user?.role === 'ADMIN';
@@ -62,23 +68,52 @@ export default function ScholarshipsPage() {
  const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
  const [deletingScholarship, setDeletingScholarship] = useState<Scholarship | null>(null);
  const [submitting, setSubmitting] = useState(false);
+ const [counts, setCounts] = useState<ScholarshipCounts>({ total: 0, internal: 0, external: 0 });
+ const [page, setPage] = useState(1);
+ const [totalPages, setTotalPages] = useState(1);
+ const [total, setTotal] = useState(0);
 
- const fetchScholarships = useCallback(async () => {
+ const fetchCounts = useCallback(async () => {
  try {
- const params = new URLSearchParams();
- if (sourceFilter && sourceFilter !== 'all') {
- params.append('source', sourceFilter);
- }
- 
- const url = `/api/scholarships?${params}`;
- const data = await fetchWithCache<{ success: boolean; data: Scholarship[] }>(
- url,
+ const data = await fetchWithCache<{ success: boolean; data: ScholarshipCounts }>(
+ '/api/scholarships?action=counts',
  undefined,
  5 * 60 * 1000 // 5 minutes cache
  );
- 
+
+ if (data.success) {
+ setCounts(data.data);
+ }
+ } catch (error) {
+ console.error('Error fetching scholarship counts:', error);
+ }
+ }, []);
+
+ const fetchScholarships = useCallback(async () => {
+ try {
+ // Fetch filtered scholarships for display
+ const params = new URLSearchParams();
+ params.append('limit', '10');
+ params.append('page', page.toString());
+ if (sourceFilter && sourceFilter !== 'all') {
+ params.append('source', sourceFilter);
+ }
+ const filteredUrl = `/api/scholarships?${params}`;
+ const data = await fetchWithCache<{ 
+ success: boolean; 
+ data: Scholarship[];
+ total: number;
+ totalPages: number;
+ }>(
+ filteredUrl,
+ undefined,
+ 5 * 60 * 1000 // 5 minutes cache
+ );
+
  if (data.success) {
  setScholarships(data.data);
+ setTotal(data.total);
+ setTotalPages(data.totalPages);
  }
  } catch (error) {
  console.error('Error fetching scholarships:', error);
@@ -86,11 +121,17 @@ export default function ScholarshipsPage() {
  } finally {
  setLoading(false);
  }
- }, [sourceFilter]);
+ }, [sourceFilter, page]);
 
  useEffect(() => {
+ fetchCounts();
  fetchScholarships();
- }, [fetchScholarships]);
+ }, [fetchScholarships, fetchCounts]);
+
+ useEffect(() => {
+ // Reset to page 1 when filter changes
+ setPage(1);
+ }, [sourceFilter]);
 
  const handleCreate = async (data: CreateScholarshipInput) => {
  setSubmitting(true);
@@ -108,6 +149,7 @@ export default function ScholarshipsPage() {
  // Invalidate cache
  clientCache.invalidatePattern('/api/scholarships');
  clientCache.invalidatePattern('/api/dashboard');
+ fetchCounts();
  fetchScholarships();
  } else {
  toast.error(result.error || 'Failed to create scholarship');
@@ -139,6 +181,7 @@ export default function ScholarshipsPage() {
  // Invalidate cache
  clientCache.invalidatePattern('/api/scholarships');
  clientCache.invalidatePattern('/api/dashboard');
+ fetchCounts();
  fetchScholarships();
  } else {
  toast.error(result.error || 'Failed to update scholarship');
@@ -168,6 +211,7 @@ export default function ScholarshipsPage() {
  // Invalidate cache
  clientCache.invalidatePattern('/api/scholarships');
  clientCache.invalidatePattern('/api/dashboard');
+ fetchCounts();
  fetchScholarships();
  } else {
  toast.error(result.error || 'Failed to delete scholarship');
@@ -233,19 +277,32 @@ export default function ScholarshipsPage() {
  <Card className="border-gray-200">
  <CardHeader>
  <div className="flex items-center justify-between">
- <CardTitle className="flex items-center gap-2 text-foreground">
- <GraduationCap className="h-5 w-5" />
- All Scholarships
- </CardTitle>
+ <div className="flex items-center gap-3">
+ <div className="flex items-center gap-2">
+ <GraduationCap className="h-5 w-5 text-primary" />
+ <CardTitle className="text-foreground">All Scholarships</CardTitle>
+ </div>
+ <div className="flex items-center gap-2">
+ <Badge variant="outline" className="text-sm">
+ Total: {counts.total}
+ </Badge>
+ <Badge variant="default" className="text-sm">
+ Internal: {counts.internal}
+ </Badge>
+ <Badge variant="secondary" className="text-sm">
+ External: {counts.external}
+ </Badge>
+ </div>
+ </div>
  <Select value={sourceFilter} onValueChange={setSourceFilter}>
  <SelectTrigger className="w-[220px]">
  <SelectValue placeholder="Filter by source" />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">All Sources</SelectItem>
+ <SelectItem value="all">All Sources ({counts.total})</SelectItem>
  {SCHOLARSHIP_SOURCES.map((source) => (
  <SelectItem key={source} value={source}>
- {SCHOLARSHIP_SOURCE_LABELS[source]}
+ {SCHOLARSHIP_SOURCE_LABELS[source]} {source === 'INTERNAL' ? `(${counts.internal})` : `(${counts.external})`}
  </SelectItem>
  ))}
  </SelectContent>
@@ -336,6 +393,35 @@ export default function ScholarshipsPage() {
  </Table>
  </div>
  )}
+
+ {/* Pagination Controls */}
+ {scholarships.length > 0 && (
+ <div className="mt-4 flex items-center justify-between border-t pt-4">
+ <div className="text-sm text-muted-foreground">
+ Page {page} of {totalPages} ({total} total)
+ </div>
+ <div className="flex items-center gap-2">
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => setPage(p => p - 1)}
+ disabled={page === 1}
+ >
+ <ChevronLeft className="h-4 w-4 mr-1" />
+ Previous
+ </Button>
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => setPage(p => p + 1)}
+ disabled={page === totalPages}
+ >
+ Next
+ <ChevronRight className="h-4 w-4 ml-1" />
+ </Button>
+ </div>
+ </div>
+ )}
  </CardContent>
  </Card>
 
@@ -388,7 +474,12 @@ export default function ScholarshipsPage() {
  <Button variant="outline" onClick={closeDeleteDialog} disabled={submitting}>
  Cancel
  </Button>
- <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
+ <Button 
+ variant="destructive" 
+ onClick={handleDelete} 
+ disabled={submitting}
+ className="bg-red-600 hover:bg-red-700 text-white"
+ >
  {submitting ? 'Deleting...' : 'Delete'}
  </Button>
  </div>
