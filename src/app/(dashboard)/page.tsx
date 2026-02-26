@@ -116,7 +116,6 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
-  const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load data from sessionStorage (pre-fetched by loading page)
@@ -136,11 +135,6 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  // Trigger fade-in animation after component mounts
-  useEffect(() => {
-    setIsVisible(true);
   }, []);
 
   // Prefetch all pages in the background for instant navigation
@@ -221,7 +215,7 @@ export default function DashboardPage() {
  return (
  <div className="space-y-6">
  {/* Page Header - Enhanced Style */}
- <div className={`flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] shadow-sm transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+ <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] shadow-sm">
  <div>
  <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
  <p className="text-gray-600">
@@ -253,7 +247,7 @@ export default function DashboardPage() {
  </div>
 
  {/* Stats Cards Grid - Enhanced with StatsCard component */}
- <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 transition-all duration-700 delay-150 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+ <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
  <StatsCard
  title="Total Scholarships"
  value={stats.totalScholarships}
@@ -289,7 +283,7 @@ export default function DashboardPage() {
  </div>
 
  {/* Charts Section - Enhanced with gradient charts */}
- <div className={`grid gap-4 lg:grid-cols-3 transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+ <div className="grid gap-4 lg:grid-cols-3">
  {/* Scholarship Trends Chart (Revenue Style) */}
  <ScholarshipChart
  title="Scholarship Trends"
@@ -317,7 +311,7 @@ export default function DashboardPage() {
  </div>
 
  {/* Secondary Charts Section - Recent Awards & Distribution */}
- <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3 transition-all duration-700 delay-[450ms] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+ <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
  {/* Pie Chart - Scholarships by Type */}
  <Card className="lg:col-span-1 border-gray-200">
  <CardHeader>
@@ -351,7 +345,7 @@ export default function DashboardPage() {
  </div>
 
  {/* Detailed Excel-like View */}
- <Card className={`border-gray-200 transition-all duration-700 delay-[600ms] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+ <Card className="border-gray-200">
  <CardHeader>
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, AnimatePresence, MotionConfig } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
 
@@ -11,22 +11,21 @@ interface PageTransitionProps {
 const variants = {
   hidden: {
     opacity: 0,
-    visibility: 'hidden',
+    y: 8,
   },
   visible: {
     opacity: 1,
-    visibility: 'visible',
+    y: 0,
     transition: {
-      duration: 0.35,
-      ease: [0.25, 0.46, 0.45, 0.94] as const,
+      duration: 0.4,
+      ease: [0.22, 1, 0.36, 1] as const,
     },
   },
   exit: {
     opacity: 0,
-    visibility: 'hidden',
     transition: {
-      duration: 0.25,
-      ease: [0.55, 0.055, 0.675, 0.19] as const,
+      duration: 0.15,
+      ease: [0.22, 1, 0.36, 1] as const,
     },
   },
 } as const;
@@ -35,20 +34,17 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
 
   return (
-    <MotionConfig transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={pathname}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          variants={variants}
-          className="w-full"
-          suppressHydrationWarning
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
-    </MotionConfig>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        variants={variants}
+        className="w-full relative"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }

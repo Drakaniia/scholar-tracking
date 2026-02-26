@@ -173,16 +173,10 @@ body.login-page-body {
   animation: animateIn 0.3s ease-out;
 }
 
-/* Prevent flash before fade transitions during hydration */
-motion-div,
-[motion-div] {
-  opacity: 0;
-}
-
-/* Smooth page transitions - prevent content flash */
+/* Smooth page transitions */
 [data-slot="page-transition"],
 .page-transition-container {
-  opacity: 0;
+  will-change: opacity;
 }
 
 /* Card hover effects */

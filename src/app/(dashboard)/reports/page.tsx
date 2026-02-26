@@ -12,6 +12,13 @@ import {
  TableHeader,
  TableRow,
 } from '@/components/ui/table';
+import {
+ Select,
+ SelectContent,
+ SelectItem,
+ SelectTrigger,
+ SelectValue,
+} from '@/components/ui/select';
 import { FileSpreadsheet } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/shared';
@@ -49,11 +56,13 @@ const GRADE_LEVEL_LABELS: Record<string, string> = {
 };
 
 const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
-const SCHOLARSHIP_TYPES = ['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'];
 
 export default function ReportsPage() {
  const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
  const [loading, setLoading] = useState(true);
+ const [scholarshipTypesByGrade, setScholarshipTypesByGrade] = useState<Record<string, string[]>>({});
+ const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
+ const [gradeLevelCounts, setGradeLevelCounts] = useState<Record<string, number>>({});
 
  useEffect(() => {
  fetchDetailedView();
@@ -70,6 +79,32 @@ export default function ReportsPage() {
  
  if (json.success) {
  setDetailedStudents(json.data);
+ 
+ // Extract unique scholarship types per grade level
+ const typesByGrade: Record<string, Set<string>> = {};
+ const counts: Record<string, number> = {};
+ 
+ json.data.forEach((student) => {
+ if (!typesByGrade[student.gradeLevel]) {
+ typesByGrade[student.gradeLevel] = new Set();
+ counts[student.gradeLevel] = 0;
+ }
+ counts[student.gradeLevel]++;
+ 
+ student.scholarships.forEach((ss) => {
+ if (ss.scholarship?.type) {
+ typesByGrade[student.gradeLevel].add(ss.scholarship.type);
+ }
+ });
+ });
+ 
+ // Convert Sets to sorted arrays
+ const sortedTypesByGrade: Record<string, string[]> = {};
+ Object.keys(typesByGrade).forEach((grade) => {
+ sortedTypesByGrade[grade] = Array.from(typesByGrade[grade]).sort();
+ });
+ setScholarshipTypesByGrade(sortedTypesByGrade);
+ setGradeLevelCounts(counts);
  }
  } catch (error) {
  console.error('Error fetching detailed view:', error);
@@ -109,20 +144,54 @@ export default function ReportsPage() {
 
  <Card className="border-gray-200">
  <CardHeader>
- <CardTitle className="flex items-center gap-2 text-foreground">
- <FileSpreadsheet className="h-5 w-5" />
- Detailed Student Scholarship Report
- </CardTitle>
+ <div className="flex items-center justify-between">
+ <div className="flex items-center gap-3">
+ <div className="flex items-center gap-2">
+ <FileSpreadsheet className="h-5 w-5 text-primary" />
+ <CardTitle className="text-foreground">Detailed Student Scholarship Report</CardTitle>
+ </div>
+ <div className="flex items-center gap-2">
+ <Badge variant="outline" className="text-sm">
+ Total: {detailedStudents.length}
+ </Badge>
+ {Object.entries(gradeLevelCounts).map(([level, count]) => (
+ <Badge key={level} variant="secondary" className="text-sm">
+ {GRADE_LEVEL_LABELS[level]}: {count}
+ </Badge>
+ ))}
+ </div>
+ </div>
+ <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
+ <SelectTrigger className="w-[220px]">
+ <SelectValue placeholder="Filter by grade level" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">All Grade Levels ({detailedStudents.length})</SelectItem>
+ {GRADE_LEVELS.map((level) => {
+ const count = gradeLevelCounts[level] || 0;
+ if (count === 0) return null;
+ return (
+ <SelectItem key={level} value={level}>
+ {GRADE_LEVEL_LABELS[level]} ({count})
+ </SelectItem>
+ );
+ })}
+ </SelectContent>
+ </Select>
+ </div>
  </CardHeader>
  <CardContent>
  <div className="space-y-8">
  {GRADE_LEVELS.map((gradeLevel) => {
- // Check if this grade level has any students with scholarships
- const hasStudents = SCHOLARSHIP_TYPES.some(type => 
- getStudentsByGradeLevelAndScholarship(gradeLevel, type).length > 0
- );
+ // Apply filter
+ if (gradeLevelFilter !== 'all' && gradeLevelFilter !== gradeLevel) {
+ return null;
+ }
+ 
+ // Get scholarship types for this grade level
+ const scholarshipTypes = scholarshipTypesByGrade[gradeLevel] || [];
 
- if (!hasStudents) return null;
+ if (scholarshipTypes.length === 0) return null;
 
  return (
  <div key={gradeLevel} className="space-y-4">
@@ -133,7 +202,7 @@ export default function ReportsPage() {
 
  {/* Subheaders - Scholarship Types */}
  <div className="space-y-6 pl-4">
- {SCHOLARSHIP_TYPES.map((scholarshipType) => {
+ {scholarshipTypes.map((scholarshipType) => {
  const students = getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType);
  
  if (students.length === 0) return null;

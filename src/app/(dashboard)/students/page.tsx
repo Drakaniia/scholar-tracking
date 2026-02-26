@@ -207,7 +207,12 @@ export default function StudentsPage() {
  const json = await res.json();
  if (json.success) {
  toast.success('Student deleted successfully');
+ // Invalidate cache
  clientCache.invalidatePattern('/api/students');
+ clientCache.invalidatePattern('/api/dashboard');
+ // Clear sessionStorage to force dashboard refresh
+ sessionStorage.removeItem('dashboardData');
+ sessionStorage.removeItem('detailedStudents');
  fetchStudents();
  } else {
  toast.error(json.error || 'Delete failed');
@@ -245,8 +250,12 @@ export default function StudentsPage() {
  );
  setDialogOpen(false);
  setEditingStudent(null);
+ // Invalidate cache
  clientCache.invalidatePattern('/api/students');
  clientCache.invalidatePattern('/api/dashboard');
+ // Clear sessionStorage to force dashboard refresh
+ sessionStorage.removeItem('dashboardData');
+ sessionStorage.removeItem('detailedStudents');
  fetchStudents();
  } else {
  toast.error(json.error || 'Operation failed');

@@ -25,6 +25,8 @@ export async function GET(
                                 middleInitial: true,
                                 gradeLevel: true,
                                 yearLevel: true,
+                                program: true,
+                                status: true,
                             },
                         },
                     },

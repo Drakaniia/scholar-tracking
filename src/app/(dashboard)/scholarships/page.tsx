@@ -20,14 +20,14 @@ import {
  TableHeader,
  TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, GraduationCap, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
 import { ExportButton } from '@/components/shared';
 import type { CreateScholarshipInput } from '@/types';
 import { useAuth } from '@/components/auth/auth-provider';
-import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVEL_LABELS } from '@/types';
 import {
  Select,
  SelectContent,
@@ -49,6 +49,27 @@ interface Scholarship {
  _count?: {
  students: number;
  };
+}
+
+interface ScholarshipDetail extends Scholarship {
+ students: Array<{
+ id: number;
+ studentId: number;
+ awardDate: string;
+ startTerm: string;
+ endTerm: string;
+ grantAmount: number;
+ scholarshipStatus: string;
+ student: {
+ firstName: string;
+ lastName: string;
+ middleInitial: string | null;
+ program: string;
+ gradeLevel: string;
+ yearLevel: string;
+ status: string;
+ };
+ }>;
 }
 
 interface ScholarshipCounts {
@@ -73,6 +94,9 @@ export default function ScholarshipsPage() {
  const [page, setPage] = useState(1);
  const [totalPages, setTotalPages] = useState(1);
  const [total, setTotal] = useState(0);
+ const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+ const [selectedScholarship, setSelectedScholarship] = useState<ScholarshipDetail | null>(null);
+ const [loadingDetail, setLoadingDetail] = useState(false);
 
  const fetchCounts = useCallback(async () => {
  try {
@@ -152,6 +176,9 @@ export default function ScholarshipsPage() {
  // Invalidate cache
  clientCache.invalidatePattern('/api/scholarships');
  clientCache.invalidatePattern('/api/dashboard');
+ // Clear sessionStorage to force dashboard refresh
+ sessionStorage.removeItem('dashboardData');
+ sessionStorage.removeItem('detailedStudents');
  fetchCounts();
  fetchScholarships();
  } else {
@@ -184,6 +211,9 @@ export default function ScholarshipsPage() {
  // Invalidate cache
  clientCache.invalidatePattern('/api/scholarships');
  clientCache.invalidatePattern('/api/dashboard');
+ // Clear sessionStorage to force dashboard refresh
+ sessionStorage.removeItem('dashboardData');
+ sessionStorage.removeItem('detailedStudents');
  fetchCounts();
  fetchScholarships();
  } else {
@@ -214,6 +244,9 @@ export default function ScholarshipsPage() {
  // Invalidate cache
  clientCache.invalidatePattern('/api/scholarships');
  clientCache.invalidatePattern('/api/dashboard');
+ // Clear sessionStorage to force dashboard refresh
+ sessionStorage.removeItem('dashboardData');
+ sessionStorage.removeItem('detailedStudents');
  fetchCounts();
  fetchScholarships();
  } else {
@@ -250,6 +283,25 @@ export default function ScholarshipsPage() {
  const closeDeleteDialog = () => {
  setDeleteDialogOpen(false);
  setDeletingScholarship(null);
+ };
+
+ const handleViewDetails = async (scholarshipId: number) => {
+ setLoadingDetail(true);
+ setDetailDialogOpen(true);
+ try {
+ const res = await fetch(`/api/scholarships/${scholarshipId}`);
+ const json = await res.json();
+ if (json.success) {
+ setSelectedScholarship(json.data);
+ } else {
+ toast.error('Failed to load scholarship details');
+ }
+ } catch (error) {
+ console.error('Error fetching scholarship details:', error);
+ toast.error('Failed to load scholarship details');
+ } finally {
+ setLoadingDetail(false);
+ }
  };
 
  if (loading) {
@@ -342,7 +394,11 @@ export default function ScholarshipsPage() {
  </TableHeader>
  <TableBody>
  {scholarships.map((scholarship) => (
- <TableRow key={scholarship.id}>
+ <TableRow 
+ key={scholarship.id}
+ className="cursor-pointer hover:bg-muted/50"
+ onClick={() => handleViewDetails(scholarship.id)}
+ >
  <TableCell className="font-medium">
  {scholarship.scholarshipName}
  </TableCell>
@@ -371,7 +427,7 @@ export default function ScholarshipsPage() {
  </Badge>
  </TableCell>
  {isAdmin && (
- <TableCell className="text-right">
+ <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
  <div className="flex justify-end gap-2">
  <Button 
  variant="ghost" 
@@ -486,6 +542,146 @@ export default function ScholarshipsPage() {
  {submitting ? 'Deleting...' : 'Delete'}
  </Button>
  </div>
+ </DialogContent>
+ </Dialog>
+
+ {/* Scholarship Detail Dialog */}
+ <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+ <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+ <DialogHeader>
+ <DialogTitle>
+ {selectedScholarship && selectedScholarship.scholarshipName}
+ </DialogTitle>
+ <DialogDescription>
+ Complete scholarship information and assigned students
+ </DialogDescription>
+ </DialogHeader>
+ {loadingDetail ? (
+ <div className="flex h-48 items-center justify-center">
+ <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+ </div>
+ ) : selectedScholarship ? (
+ <div className="space-y-6">
+ {/* Scholarship Information */}
+ <div>
+ <h3 className="text-lg font-semibold mb-4">Scholarship Details</h3>
+ <Card className="border-2">
+ <CardContent className="p-4">
+ <div className="grid grid-cols-2 gap-4">
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">Scholarship Name</p>
+ <p className="text-lg font-semibold">{selectedScholarship.scholarshipName}</p>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">Sponsor</p>
+ <p className="text-lg">{selectedScholarship.sponsor}</p>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">Type</p>
+ <Badge variant="outline">{selectedScholarship.type}</Badge>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">Source</p>
+ <Badge variant={selectedScholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
+ {selectedScholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+ </Badge>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">Amount</p>
+ <p className="text-2xl font-bold text-primary">{formatCurrency(selectedScholarship.amount)}</p>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">Status</p>
+ <Badge variant={selectedScholarship.status === 'Active' ? 'default' : 'secondary'}>
+ {selectedScholarship.status}
+ </Badge>
+ </div>
+ {selectedScholarship.requirements && (
+ <div className="col-span-2">
+ <p className="text-sm font-medium text-muted-foreground">Requirements</p>
+ <p className="text-sm mt-1 p-3 bg-muted/50 rounded-lg whitespace-pre-wrap">
+ {selectedScholarship.requirements}
+ </p>
+ </div>
+ )}
+ </div>
+ </CardContent>
+ </Card>
+ </div>
+
+ {/* Assigned Students Section */}
+ <div className="border-t border-gray-200 pt-4">
+ <div className="flex items-center justify-between mb-4">
+ <h3 className="text-lg font-semibold">Assigned Students</h3>
+ <Badge variant="outline" className="text-sm">
+ {selectedScholarship.students?.length || 0} students
+ </Badge>
+ </div>
+ {selectedScholarship.students && selectedScholarship.students.length > 0 ? (
+ <div className="space-y-3">
+ {selectedScholarship.students.map((ss) => (
+ <Card key={ss.id} className="border">
+ <CardContent className="p-4">
+ <div className="flex justify-between items-start mb-3">
+ <div className="flex items-center gap-2">
+ <User className="h-5 w-5 text-primary" />
+ <div>
+ <h4 className="text-lg font-semibold">
+ {ss.student.lastName}, {ss.student.firstName} {ss.student.middleInitial || ''}
+ </h4>
+ <p className="text-sm text-muted-foreground">{ss.student.program}</p>
+ </div>
+ </div>
+ <div className="flex gap-2">
+ <Badge variant="outline">
+ {GRADE_LEVEL_LABELS[ss.student.gradeLevel as keyof typeof GRADE_LEVEL_LABELS]}
+ </Badge>
+ <Badge variant={ss.student.status === 'Active' ? 'default' : 'secondary'}>
+ {ss.student.status}
+ </Badge>
+ </div>
+ </div>
+ <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+ <div>
+ <p className="text-muted-foreground">Grant Amount</p>
+ <p className="font-semibold">{formatCurrency(ss.grantAmount)}</p>
+ </div>
+ <div>
+ <p className="text-muted-foreground">Award Date</p>
+ <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
+ </div>
+ <div>
+ <p className="text-muted-foreground">Term Period</p>
+ <p>{ss.startTerm} - {ss.endTerm}</p>
+ </div>
+ <div>
+ <p className="text-muted-foreground">Status</p>
+ <Badge variant={ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'} className="text-xs">
+ {ss.scholarshipStatus}
+ </Badge>
+ </div>
+ </div>
+ </CardContent>
+ </Card>
+ ))}
+ <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+ <p className="text-sm font-medium text-muted-foreground">Total Grants Awarded</p>
+ <p className="text-2xl font-bold">
+ {formatCurrency(selectedScholarship.students.reduce((sum, ss) => sum + Number(ss.grantAmount), 0))}
+ </p>
+ </div>
+ </div>
+ ) : (
+ <div className="text-center py-8 text-muted-foreground">
+ <User className="mx-auto h-12 w-12 mb-2 opacity-50" />
+ <p>No students assigned to this scholarship yet</p>
+ </div>
+ )}
+ </div>
+ </div>
+ ) : (
+ <p className="text-center text-muted-foreground py-8">No data available</p>
+ )}
  </DialogContent>
  </Dialog>
  </div>
