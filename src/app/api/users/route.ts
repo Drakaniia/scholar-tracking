@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, hashPassword, logAudit } from '@/lib/auth';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 const createUserSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -14,7 +15,7 @@ const createUserSchema = z.object({
 });
 
 // GET /api/users - List all users (admin only)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
 
@@ -25,22 +26,69 @@ export async function GET() {
       );
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        status: true,
-        lastLogin: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const { searchParams } = new URL(request.url);
+    
+    // Pagination
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '25');
+    const skip = (page - 1) * limit;
 
-    return NextResponse.json({ success: true, data: users });
+    // Filters
+    const search = searchParams.get('search');
+    const role = searchParams.get('role');
+    const status = searchParams.get('status');
+
+    // Build where clause
+    const where: Prisma.UserWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role && role !== 'ALL') {
+      where.role = role;
+    }
+
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          status: true,
+          lastLogin: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(

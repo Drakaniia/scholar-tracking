@@ -46,6 +46,14 @@ export interface CreateStudentInput {
     endTerm?: string | null;
     grantAmount?: number | null;
     scholarshipStatus?: string | null;
+    scholarships?: Array<{
+        scholarshipId: number;
+        awardDate: Date;
+        startTerm: string;
+        endTerm: string;
+        grantAmount: number;
+        scholarshipStatus: string;
+    }>;
 }
 
 export type UpdateStudentInput = Partial<CreateStudentInput>;

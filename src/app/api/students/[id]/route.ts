@@ -68,9 +68,13 @@ export async function PUT(
         const studentId = parseInt(id);
         const body: UpdateStudentInput = await request.json();
 
+        // Extract scholarships and other non-student fields from body
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { scholarships, scholarshipId, awardDate, startTerm, endTerm, grantAmount, scholarshipStatus, ...studentData } = body;
+
         const student = await prisma.student.update({
             where: { id: studentId },
-            data: body,
+            data: studentData,
         });
 
         return NextResponse.json({
