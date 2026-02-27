@@ -120,6 +120,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
  <Link
  key={item.name}
  href={item.href}
+ prefetch={true} // Enable prefetching for instant navigation
  onClick={() => onMobileClose?.()}
  className={cn(
  'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
@@ -138,6 +139,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
  {isAdmin && (
  <Link
  href="/settings"
+ prefetch={true} // Enable prefetching for instant navigation
  onClick={() => onMobileClose?.()}
  className={cn(
  'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
@@ -198,7 +200,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
  <Link
  key={item.name}
  href={item.href}
-className={cn(
+ prefetch={true} // Enable prefetching for instant navigation
+ className={cn(
     'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out relative',
     isActive
     ? 'bg-white/20 text-white'
@@ -233,7 +236,7 @@ className={cn(
  <DropdownMenuSeparator />
  {isAdmin && (
  <DropdownMenuItem asChild>
- <Link href="/settings" className="cursor-pointer">
+ <Link href="/settings" prefetch={true} className="cursor-pointer">
  <Settings className="h-4 w-4 mr-2" />
  Settings
  </Link>

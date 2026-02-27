@@ -1,0 +1,503 @@
+/**
+ * TanStack Query Hooks for ScholarTrack
+ * 
+ * Usage:
+ * 1. Wrap your app with TanStackProvider (already done in providers.tsx)
+ * 2. Import and use hooks in your components
+ * 
+ * Example:
+ * ```tsx
+ * const { data: students, isLoading } = useStudents({ page: 1, limit: 10 });
+ * const { mutate: deleteStudent } = useDeleteStudent();
+ * ```
+ */
+
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  UseQueryOptions,
+} from '@tanstack/react-query';
+import { toast } from 'sonner';
+
+// ============================================
+// QUERY KEYS (Centralized for consistency)
+// ============================================
+
+export const queryKeys = {
+  // Dashboard
+  dashboard: {
+    all: ['dashboard'] as const,
+    stats: () => [...queryKeys.dashboard.all, 'stats'] as const,
+    detailed: () => [...queryKeys.dashboard.all, 'detailed'] as const,
+  },
+  
+  // Students
+  students: {
+    all: ['students'] as const,
+    lists: () => [...queryKeys.students.all, 'list'] as const,
+    list: (filters: StudentFilters) => [...queryKeys.students.lists(), filters] as const,
+    details: () => [...queryKeys.students.all, 'detail'] as const,
+    detail: (id: number) => [...queryKeys.students.details(), id] as const,
+    filterOptions: () => [...queryKeys.students.all, 'filter-options'] as const,
+  },
+  
+  // Scholarships
+  scholarships: {
+    all: ['scholarships'] as const,
+    lists: () => [...queryKeys.scholarships.all, 'list'] as const,
+    list: (filters: ScholarshipFilters) => [...queryKeys.scholarships.lists(), filters] as const,
+    details: () => [...queryKeys.scholarships.all, 'detail'] as const,
+    detail: (id: number) => [...queryKeys.scholarships.details(), id] as const,
+  },
+  
+  // Users
+  users: {
+    all: ['users'] as const,
+    lists: () => [...queryKeys.users.all, 'list'] as const,
+  },
+};
+
+// ============================================
+// TYPES
+// ============================================
+
+interface StudentFilters {
+  search?: string;
+  gradeLevel?: string;
+  program?: string;
+  status?: string;
+  scholarshipId?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface ScholarshipFilters {
+  search?: string;
+  type?: string;
+  source?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface DashboardStats {
+  stats: {
+    totalStudents: number;
+    studentsWithScholarships: number;
+    totalScholarships: number;
+    activeScholarships: number;
+    totalAmountAwarded: number;
+    totalDisbursed: number;
+  };
+  recentStudents: Array<{
+    id: number;
+    lastName: string;
+    firstName: string;
+    middleInitial: string | null;
+    gradeLevel: string;
+    yearLevel: string;
+    scholarships: Array<{
+      scholarshipStatus: string;
+      scholarship: {
+        scholarshipName: string;
+        type: string;
+      };
+    }>;
+    updatedAt: string;
+  }>;
+  charts: {
+    studentsByGradeLevel: Array<{
+      gradeLevel: string;
+      _count: { id: number };
+    }>;
+    scholarshipsByType: Array<{
+      type: string;
+      _count: { id: number };
+    }>;
+  };
+}
+
+interface Student {
+  id: number;
+  lastName: string;
+  firstName: string;
+  middleInitial: string | null;
+  program: string;
+  gradeLevel: string;
+  yearLevel: string;
+  status: string;
+  scholarships: Array<{
+    id: number;
+    scholarshipId: number;
+    awardDate: string;
+    startTerm: string;
+    endTerm: string;
+    grantAmount: number;
+    scholarshipStatus: string;
+    scholarship: {
+      scholarshipName: string;
+      type: string;
+      source: string;
+    };
+  }>;
+}
+
+interface StudentDetail extends Student {
+  disbursements: Array<{
+    id: number;
+    amount: number;
+    disbursementDate: string;
+    term: string;
+    method: string;
+    scholarship: {
+      scholarshipName: string;
+      type: string;
+      source: string;
+    };
+  }>;
+  fees: Array<{
+    tuitionFee: number;
+    otherFee: number;
+    miscellaneousFee: number;
+    laboratoryFee: number;
+    amountSubsidy: number;
+    percentSubsidy: number;
+    term: string;
+    academicYear: string;
+  }>;
+}
+
+interface Scholarship {
+  id: number;
+  scholarshipName: string;
+  sponsor: string;
+  type: string;
+  source: string;
+  amount: number;
+  requirements: string | null;
+  status: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+  total?: number;
+  totalPages?: number;
+}
+
+// ============================================
+// DASHBOARD HOOKS
+// ============================================
+
+export function useDashboardStats(options?: Partial<UseQueryOptions<ApiResponse<DashboardStats>, Error>>) {
+  return useQuery<ApiResponse<DashboardStats>, Error>({
+    queryKey: queryKeys.dashboard.stats(),
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard stats');
+      }
+      return response.json();
+    },
+    staleTime: 60 * 1000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
+  });
+}
+
+export function useDashboardDetailed(options?: Partial<UseQueryOptions<ApiResponse<StudentDetail[]>, Error>>) {
+  return useQuery<ApiResponse<StudentDetail[]>, Error>({
+    queryKey: queryKeys.dashboard.detailed(),
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard/detailed');
+      if (!response.ok) {
+        throw new Error('Failed to fetch detailed dashboard data');
+      }
+      return response.json();
+    },
+    staleTime: 60 * 1000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
+  });
+}
+
+// ============================================
+// STUDENT HOOKS
+// ============================================
+
+export function useStudents(
+  filters: StudentFilters = {},
+  options?: Partial<UseQueryOptions<ApiResponse<Student[]>, Error>>
+) {
+  return useQuery<ApiResponse<Student[]>, Error>({
+    queryKey: queryKeys.students.list(filters),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          params.append(key, String(value));
+        }
+      });
+      
+      const response = await fetch(`/api/students?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch students');
+      }
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    ...options,
+  });
+}
+
+export function useStudent(id: number, options?: Partial<UseQueryOptions<ApiResponse<StudentDetail>, Error>>) {
+  return useQuery<ApiResponse<StudentDetail>, Error>({
+    queryKey: queryKeys.students.detail(id),
+    queryFn: async () => {
+      const response = await fetch(`/api/students/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch student');
+      }
+      return response.json();
+    },
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    ...options,
+  });
+}
+
+export function useStudentFilterOptions(options?: Partial<UseQueryOptions<ApiResponse<{ programs: string[] }>, Error>>) {
+  return useQuery<ApiResponse<{ programs: string[] }>, Error>({
+    queryKey: queryKeys.students.filterOptions(),
+    queryFn: async () => {
+      const response = await fetch('/api/students/filter-options');
+      if (!response.ok) {
+        throw new Error('Failed to fetch filter options');
+      }
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    ...options,
+  });
+}
+
+export function useCreateStudent() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<{ id: number }>, Error, Partial<Student>>({
+    mutationFn: async (data) => {
+      const response = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to create student');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Student created successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to create student');
+    },
+  });
+}
+
+export function useUpdateStudent() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<unknown>, Error, { id: number; data: Partial<Student> }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await fetch(`/api/students/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to update student');
+      }
+      return json;
+    },
+    onSuccess: (_, { id }) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Student updated successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update student');
+    },
+  });
+}
+
+export function useDeleteStudent() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/students/${id}`, {
+        method: 'DELETE',
+      });
+      
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to delete student');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Student deleted successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete student');
+    },
+  });
+}
+
+// ============================================
+// SCHOLARSHIP HOOKS
+// ============================================
+
+export function useScholarships(
+  filters: ScholarshipFilters = {},
+  options?: Partial<UseQueryOptions<ApiResponse<Scholarship[]>, Error>>
+) {
+  return useQuery<ApiResponse<Scholarship[]>, Error>({
+    queryKey: queryKeys.scholarships.list(filters),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          params.append(key, String(value));
+        }
+      });
+      
+      const response = await fetch(`/api/scholarships?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch scholarships');
+      }
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    ...options,
+  });
+}
+
+export function useScholarship(id: number, options?: Partial<UseQueryOptions<ApiResponse<Scholarship>, Error>>) {
+  return useQuery<ApiResponse<Scholarship>, Error>({
+    queryKey: queryKeys.scholarships.detail(id),
+    queryFn: async () => {
+      const response = await fetch(`/api/scholarships/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch scholarship');
+      }
+      return response.json();
+    },
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    ...options,
+  });
+}
+
+export function useCreateScholarship() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<{ id: number }>, Error, Partial<Scholarship>>({
+    mutationFn: async (data) => {
+      const response = await fetch('/api/scholarships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to create scholarship');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Scholarship created successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to create scholarship');
+    },
+  });
+}
+
+export function useUpdateScholarship() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<unknown>, Error, { id: number; data: Partial<Scholarship> }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await fetch(`/api/scholarships/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to update scholarship');
+      }
+      return json;
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Scholarship updated successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update scholarship');
+    },
+  });
+}
+
+export function useDeleteScholarship() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/scholarships/${id}`, {
+        method: 'DELETE',
+      });
+      
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to delete scholarship');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Scholarship deleted successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete scholarship');
+    },
+  });
+}

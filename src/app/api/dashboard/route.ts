@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { batchQueries, queryOptimizer, generateQueryKey } from '@/lib/query-optimizer';
 
+// Force dynamic rendering but with caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 60; // Revalidate every 60 seconds
+
 // GET /api/dashboard - Get dashboard statistics
 export async function GET(request: NextRequest) {
     try {
@@ -10,7 +14,7 @@ export async function GET(request: NextRequest) {
 
         // Use server-side cache for expensive dashboard queries
         const cacheKey = generateQueryKey('dashboard-stats', { source: sourceFilter });
-        
+
         const cachedData = queryOptimizer.get(cacheKey);
         if (cachedData) {
             return NextResponse.json({
@@ -19,9 +23,9 @@ export async function GET(request: NextRequest) {
                 cached: true,
             }, {
                 headers: {
-                    'Cache-Control': 'public, s-maxage=90, stale-while-revalidate=180',
-                    'CDN-Cache-Control': 'public, s-maxage=90',
-                    'Vercel-CDN-Cache-Control': 'public, s-maxage=90',
+                    'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+                    'CDN-Cache-Control': 'public, s-maxage=60',
+                    'Vercel-CDN-Cache-Control': 'public, s-maxage=60',
                     'X-Cache': 'HIT',
                 },
             });
@@ -118,8 +122,8 @@ export async function GET(request: NextRequest) {
             },
         };
 
-        // Cache for 2 minutes (120 seconds)
-        queryOptimizer.set(cacheKey, responseData, 120 * 1000);
+        // Cache for 90 seconds (optimized for balance between freshness and performance)
+        queryOptimizer.set(cacheKey, responseData, 90 * 1000);
 
         return NextResponse.json({
             success: true,
@@ -127,9 +131,9 @@ export async function GET(request: NextRequest) {
             cached: false,
         }, {
             headers: {
-                'Cache-Control': 'public, s-maxage=90, stale-while-revalidate=180',
-                'CDN-Cache-Control': 'public, s-maxage=90',
-                'Vercel-CDN-Cache-Control': 'public, s-maxage=90',
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+                'CDN-Cache-Control': 'public, s-maxage=60',
+                'Vercel-CDN-Cache-Control': 'public, s-maxage=60',
                 'X-Cache': 'MISS',
             },
         });
