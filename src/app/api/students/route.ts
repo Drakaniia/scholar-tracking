@@ -169,8 +169,22 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // If scholarship is provided, create the relationship
-        if (body.scholarshipId) {
+        // Handle multiple scholarships if provided
+        if (body.scholarships && body.scholarships.length > 0) {
+            await prisma.studentScholarship.createMany({
+                data: body.scholarships.map(scholarship => ({
+                    studentId: student.id,
+                    scholarshipId: scholarship.scholarshipId,
+                    awardDate: scholarship.awardDate || new Date(),
+                    startTerm: scholarship.startTerm || '',
+                    endTerm: scholarship.endTerm || '',
+                    grantAmount: scholarship.grantAmount || 0,
+                    scholarshipStatus: scholarship.scholarshipStatus || 'Active',
+                })),
+            });
+        }
+        // Fallback to single scholarship for backward compatibility
+        else if (body.scholarshipId) {
             await prisma.studentScholarship.create({
                 data: {
                     studentId: student.id,
