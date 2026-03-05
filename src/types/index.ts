@@ -70,6 +70,7 @@ export interface Scholarship {
     sponsor: string;
     type: string; // Changed to string to allow custom types
     source: string; // INTERNAL or EXTERNAL
+    eligibleGradeLevels: string; // Comma-separated grade levels
     amount: number;
     requirements: string | null;
     status: string;
@@ -84,6 +85,7 @@ export interface CreateScholarshipInput {
     sponsor: string;
     type: string; // Changed to string to allow custom types
     source: string; // INTERNAL or EXTERNAL
+    eligibleGradeLevels: string; // Comma-separated grade levels
     amount: number;
     requirements?: string;
     status: string;

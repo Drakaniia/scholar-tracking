@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
     SelectContent,
@@ -14,7 +15,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, CreateScholarshipInput } from '@/types';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateScholarshipInput, GradeLevel } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
 
@@ -41,6 +42,9 @@ export function ScholarshipForm({
             ? defaultValues.type 
             : ''
     );
+    const [selectedGradeLevels, setSelectedGradeLevels] = useState<GradeLevel[]>(
+        defaultValues?.eligibleGradeLevels?.split(',').map(l => l.trim() as GradeLevel) || []
+    );
 
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
@@ -48,6 +52,7 @@ export function ScholarshipForm({
             sponsor: '',
             type: 'PAEB',
             source: 'INTERNAL',
+            eligibleGradeLevels: '',
             amount: 0,
             requirements: '',
             status: 'Active',
@@ -72,10 +77,19 @@ export function ScholarshipForm({
         form.setValue('type', value);
     };
 
+    const handleGradeLevelToggle = (level: GradeLevel) => {
+        const updated = selectedGradeLevels.includes(level)
+            ? selectedGradeLevels.filter(l => l !== level)
+            : [...selectedGradeLevels, level];
+        setSelectedGradeLevels(updated);
+        form.setValue('eligibleGradeLevels', updated.join(','));
+    };
+
     const handleFormSubmit = (data: CreateScholarshipInput) => {
         if (showCustomType && customType) {
             data.type = customType;
         }
+        data.eligibleGradeLevels = selectedGradeLevels.join(',');
         onSubmit(data);
     };
 
@@ -158,6 +172,24 @@ export function ScholarshipForm({
                 </div>
             </div>
 
+            <div className="space-y-2">
+                <Label>Eligible Grade Levels</Label>
+                <div className="grid grid-cols-2 gap-3 p-3 border rounded-md">
+                    {GRADE_LEVELS.map((level) => (
+                        <div key={level} className="flex items-center space-x-2">
+                            <Checkbox
+                                id={level}
+                                checked={selectedGradeLevels.includes(level)}
+                                onCheckedChange={() => handleGradeLevelToggle(level)}
+                            />
+                            <Label htmlFor={level} className="text-sm font-normal cursor-pointer">
+                                {GRADE_LEVEL_LABELS[level]}
+                            </Label>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="amount">Amount</Label>
@@ -207,7 +239,7 @@ export function ScholarshipForm({
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
                 </Button>
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading} className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white">
                     {loading ? 'Saving...' : isEditing ? 'Update' : 'Create'}
                 </Button>
             </DialogFooter>
