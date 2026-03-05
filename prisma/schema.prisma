@@ -168,6 +168,9 @@ model Scholarship {
   // Scholarship Source: INTERNAL (within school), EXTERNAL (outside campus)
   source           String  @default("INTERNAL")
   
+  // Eligible Grade Levels (comma-separated): GRADE_SCHOOL, JUNIOR_HIGH, SENIOR_HIGH, COLLEGE
+  eligibleGradeLevels String @map("eligible_grade_levels")
+  
   amount           Decimal @db.Decimal(10, 2)
   requirements     String?
   status           String
