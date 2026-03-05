@@ -35,7 +35,7 @@
     "dotenv": "^17.2.3",
     "gsap": "^3.14.2",
     "jose": "^5.10.0",
-    "jspdf": "^4.0.0",
+    "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.562.0",
     "motion": "^12.34.0",
