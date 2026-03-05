@@ -22,7 +22,6 @@ import {
 import { FileSpreadsheet } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/shared';
-import { fetchWithCache } from '@/lib/cache';
 
 interface DetailedStudent {
  id: number;
@@ -70,12 +69,8 @@ export default function ReportsPage() {
 
  const fetchDetailedView = async () => {
  try {
- const url = '/api/dashboard/detailed';
- const json = await fetchWithCache<{ success: boolean; data: DetailedStudent[] }>(
- url,
- undefined,
- 5 * 60 * 1000 // 5 minutes cache
- );
+ const res = await fetch('/api/dashboard/detailed');
+ const json = await res.json();
  
  if (json.success) {
  setDetailedStudents(json.data);
@@ -84,14 +79,14 @@ export default function ReportsPage() {
  const typesByGrade: Record<string, Set<string>> = {};
  const counts: Record<string, number> = {};
  
- json.data.forEach((student) => {
+ json.data.forEach((student: DetailedStudent) => {
  if (!typesByGrade[student.gradeLevel]) {
  typesByGrade[student.gradeLevel] = new Set();
  counts[student.gradeLevel] = 0;
  }
  counts[student.gradeLevel]++;
  
- student.scholarships.forEach((ss) => {
+ student.scholarships.forEach((ss: DetailedStudent['scholarships'][0]) => {
  if (ss.scholarship?.type) {
  typesByGrade[student.gradeLevel].add(ss.scholarship.type);
  }

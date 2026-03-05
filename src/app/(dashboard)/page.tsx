@@ -385,10 +385,12 @@ function DashboardContent() {
   
   // Use TanStack Query for data fetching
   const { data: statsData, isLoading: statsLoading } = useDashboardStats({
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: true,
   });
   const { data: detailedData, isLoading: detailedLoading } = useDashboardDetailed({
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: true,
   });
   
   const isLoading = statsLoading || detailedLoading;
