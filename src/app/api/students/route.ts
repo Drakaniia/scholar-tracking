@@ -159,9 +159,9 @@ export async function POST(request: NextRequest) {
 
         const student = await prisma.student.create({
             data: {
-                lastName: body.lastName,
-                firstName: body.firstName,
-                middleInitial: body.middleInitial || null,
+                lastName: body.lastName.toUpperCase(),
+                firstName: body.firstName.toUpperCase(),
+                middleInitial: body.middleInitial ? body.middleInitial.toUpperCase() : null,
                 program: body.program,
                 gradeLevel: body.gradeLevel,
                 yearLevel: body.yearLevel,

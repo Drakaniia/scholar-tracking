@@ -72,6 +72,11 @@ export async function PUT(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { scholarships, scholarshipId, awardDate, startTerm, endTerm, grantAmount, scholarshipStatus, ...studentData } = body;
 
+        // Convert names to uppercase
+        if (studentData.lastName) studentData.lastName = studentData.lastName.toUpperCase();
+        if (studentData.firstName) studentData.firstName = studentData.firstName.toUpperCase();
+        if (studentData.middleInitial) studentData.middleInitial = studentData.middleInitial.toUpperCase();
+
         const student = await prisma.student.update({
             where: { id: studentId },
             data: studentData,
