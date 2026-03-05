@@ -18,8 +18,46 @@ import { useState, useEffect } from 'react';
 import { Plus, X, Search, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
-const STUDENT_STATUSES = ['Active', 'Inactive', 'Graduated', 'On Leave'] as const;
 const SCHOLARSHIP_STATUSES = ['Active', 'Completed', 'Suspended'] as const;
+
+const COLLEGE_COURSES = [
+    'BS Computer Science',
+    'BS Information Technology',
+    'BS Business Administration',
+    'BS Accountancy',
+    'BS Education',
+    'BS Nursing',
+    'BS Engineering',
+    'Other'
+] as const;
+
+const COLLEGE_PROGRAMS = [
+    'None',
+    'Computer Science',
+    'Information Systems',
+    'Software Engineering',
+    'Data Science',
+    'Cybersecurity',
+    'Other'
+] as const;
+
+const SENIOR_HIGH_STRANDS = [
+    'STEM',
+    'ABM',
+    'HUMSS',
+    'GAS',
+    'TVL',
+    'Other'
+] as const;
+
+const GRADE_SCHOOL_LEVELS = [
+    'Grade 1',
+    'Grade 2',
+    'Grade 3',
+    'Grade 4',
+    'Grade 5',
+    'Grade 6'
+] as const;
 
 interface Scholarship {
     id: number;
@@ -27,6 +65,7 @@ interface Scholarship {
     type: string;
     source: string;
     amount: number;
+    eligibleGradeLevels?: string; // Comma-separated grade levels
 }
 
 interface SelectedScholarship {
@@ -54,9 +93,15 @@ export function StudentForm({
     isEditing = false,
     loading = false,
 }: StudentFormProps) {
-    const [selectedGradeLevel, setSelectedGradeLevel] = useState<GradeLevel>(
-        defaultValues?.gradeLevel || 'COLLEGE'
+    const [selectedGradeLevel, setSelectedGradeLevel] = useState<GradeLevel | ''>(
+        defaultValues?.gradeLevel || ''
     );
+    const [selectedCourse, setSelectedCourse] = useState<string>('');
+    const [selectedProgram, setSelectedProgram] = useState<string>('');
+    const [selectedStrand, setSelectedStrand] = useState<string>('');
+    const [customCourse, setCustomCourse] = useState('');
+    const [customProgram, setCustomProgram] = useState('');
+    const [customStrand, setCustomStrand] = useState('');
     const [scholarships, setScholarships] = useState<Scholarship[]>([]);
     const [loadingScholarships, setLoadingScholarships] = useState(false);
     const [selectedScholarships, setSelectedScholarships] = useState<SelectedScholarship[]>([]);
@@ -70,8 +115,8 @@ export function StudentForm({
             firstName: '',
             middleInitial: '',
             program: '',
-            gradeLevel: 'COLLEGE',
-            yearLevel: '1st Year',
+            gradeLevel: '' as GradeLevel,
+            yearLevel: '',
             status: 'Active',
             ...defaultValues,
         },
@@ -99,7 +144,14 @@ export function StudentForm({
     const handleGradeLevelChange = (value: GradeLevel) => {
         setSelectedGradeLevel(value);
         form.setValue('gradeLevel', value);
-        form.setValue('yearLevel', YEAR_LEVELS[value][0]);
+        form.setValue('yearLevel', '');
+        form.setValue('program', '');
+        setSelectedCourse('');
+        setSelectedProgram('');
+        setSelectedStrand('');
+        setCustomCourse('');
+        setCustomProgram('');
+        setCustomStrand('');
     };
 
     const addScholarship = (scholarship: Scholarship) => {
@@ -132,7 +184,12 @@ export function StudentForm({
         const matchesSearch = scholarship.scholarshipName.toLowerCase().includes(scholarshipSearch.toLowerCase());
         const matchesSource = scholarshipSourceFilter === 'all' || scholarship.source === scholarshipSourceFilter;
         const notSelected = !selectedScholarships.some(s => s.scholarshipId === scholarship.id);
-        return matchesSearch && matchesSource && notSelected;
+        
+        // Filter by student's grade level
+        const eligibleLevels = scholarship.eligibleGradeLevels ? scholarship.eligibleGradeLevels.split(',').map(l => l.trim()) : [];
+        const matchesGradeLevel = eligibleLevels.length === 0 || eligibleLevels.includes(selectedGradeLevel as string);
+        
+        return matchesSearch && matchesSource && notSelected && matchesGradeLevel;
     });
 
     const handleFormSubmit = (data: CreateStudentInput) => {
@@ -151,7 +208,11 @@ export function StudentForm({
                     <Input
                         id="lastName"
                         {...form.register('lastName', { required: true })}
-                        placeholder="Dela Cruz"
+                        placeholder="DELA CRUZ"
+                        onChange={(e) => {
+                            e.target.value = e.target.value.toUpperCase();
+                            form.setValue('lastName', e.target.value);
+                        }}
                     />
                 </div>
                 <div className="space-y-2 col-span-1">
@@ -159,7 +220,11 @@ export function StudentForm({
                     <Input
                         id="firstName"
                         {...form.register('firstName', { required: true })}
-                        placeholder="Juan"
+                        placeholder="JUAN"
+                        onChange={(e) => {
+                            e.target.value = e.target.value.toUpperCase();
+                            form.setValue('firstName', e.target.value);
+                        }}
                     />
                 </div>
                 <div className="space-y-2 col-span-1">
@@ -169,59 +234,257 @@ export function StudentForm({
                         {...form.register('middleInitial')}
                         placeholder="S"
                         maxLength={1}
+                        onChange={(e) => {
+                            e.target.value = e.target.value.toUpperCase();
+                            form.setValue('middleInitial', e.target.value);
+                        }}
                     />
                 </div>
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="program">Program</Label>
-                <Input
-                    id="program"
-                    {...form.register('program', { required: true })}
-                    placeholder="Bachelor of Science in Computer Science"
+                <Label htmlFor="gradeLevel">Grade Level</Label>
+                <Controller
+                    name="gradeLevel"
+                    control={form.control}
+                    render={({ field }) => (
+                        <Select 
+                            value={field.value} 
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                handleGradeLevelChange(value as GradeLevel);
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select grade level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {GRADE_LEVELS.map((level) => (
+                                    <SelectItem key={level} value={level}>
+                                        {GRADE_LEVEL_LABELS[level]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            {/* College Fields */}
+            {selectedGradeLevel === 'COLLEGE' && (
+                <>
+                    <div className="space-y-2">
+                        <Label htmlFor="course">Course</Label>
+                        <Select 
+                            value={selectedCourse} 
+                            onValueChange={(value) => {
+                                setSelectedCourse(value);
+                                if (value !== 'Other') {
+                                    form.setValue('program', value);
+                                    setCustomCourse('');
+                                }
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a course" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {COLLEGE_COURSES.map((course) => (
+                                    <SelectItem key={course} value={course}>
+                                        {course}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {selectedCourse === 'Other' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="customCourse">Enter Course Name</Label>
+                            <Input
+                                id="customCourse"
+                                value={customCourse}
+                                onChange={(e) => {
+                                    setCustomCourse(e.target.value);
+                                    form.setValue('program', e.target.value);
+                                }}
+                                placeholder="Enter course name"
+                            />
+                        </div>
+                    )}
+
+                    {selectedCourse && (
+                        <div className="space-y-2">
+                            <Label htmlFor="program">Major (Optional)</Label>
+                            <Select 
+                                value={selectedProgram} 
+                                onValueChange={(value) => {
+                                    setSelectedProgram(value);
+                                    if (value === 'None') {
+                                        const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
+                                        form.setValue('program', courseValue);
+                                        setCustomProgram('');
+                                    } else if (value !== 'Other') {
+                                        const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
+                                        form.setValue('program', `${courseValue} - ${value}`);
+                                        setCustomProgram('');
+                                    }
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a major" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {COLLEGE_PROGRAMS.map((program) => (
+                                        <SelectItem key={program} value={program}>
+                                            {program}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {selectedProgram === 'Other' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="customProgram">Enter Major Name</Label>
+                            <Input
+                                id="customProgram"
+                                value={customProgram}
+                                onChange={(e) => {
+                                    setCustomProgram(e.target.value);
+                                    const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
+                                    form.setValue('program', `${courseValue} - ${e.target.value}`);
+                                }}
+                                placeholder="Enter major name"
+                            />
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label htmlFor="yearLevel">Year Level</Label>
+                        <Controller
+                            name="yearLevel"
+                            control={form.control}
+                            render={({ field }) => (
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select year level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {YEAR_LEVELS.COLLEGE.map((level) => (
+                                            <SelectItem key={level} value={level}>
+                                                {level}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </div>
+                </>
+            )}
+
+            {/* Senior High Fields */}
+            {selectedGradeLevel === 'SENIOR_HIGH' && (
+                <>
+                    <div className="space-y-2">
+                        <Label htmlFor="strand">Strand</Label>
+                        <Select 
+                            value={selectedStrand} 
+                            onValueChange={(value) => {
+                                setSelectedStrand(value);
+                                if (value !== 'Other') {
+                                    form.setValue('program', value);
+                                    setCustomStrand('');
+                                }
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a strand" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SENIOR_HIGH_STRANDS.map((strand) => (
+                                    <SelectItem key={strand} value={strand}>
+                                        {strand}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {selectedStrand === 'Other' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="customStrand">Enter Strand Name</Label>
+                            <Input
+                                id="customStrand"
+                                value={customStrand}
+                                onChange={(e) => {
+                                    setCustomStrand(e.target.value);
+                                    form.setValue('program', e.target.value);
+                                }}
+                                placeholder="Enter strand name"
+                            />
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label htmlFor="specialization">Specialization (Optional)</Label>
+                        <Input
+                            id="specialization"
+                            placeholder="Enter specialization"
+                            onChange={(e) => {
+                                const strandValue = selectedStrand === 'Other' ? customStrand : selectedStrand;
+                                const programValue = e.target.value ? `${strandValue} - ${e.target.value}` : strandValue;
+                                form.setValue('program', programValue);
+                            }}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="yearLevel">Year Level</Label>
+                        <Controller
+                            name="yearLevel"
+                            control={form.control}
+                            render={({ field }) => (
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select year level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {YEAR_LEVELS.SENIOR_HIGH.map((level) => (
+                                            <SelectItem key={level} value={level}>
+                                                {level}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                    </div>
+                </>
+            )}
+
+            {/* Grade School Fields */}
+            {selectedGradeLevel === 'GRADE_SCHOOL' && (
                 <div className="space-y-2">
-                    <Label htmlFor="gradeLevel">Grade Level</Label>
+                    <Label htmlFor="yearLevel">Select Grade</Label>
                     <Controller
-                        name="gradeLevel"
+                        name="yearLevel"
                         control={form.control}
                         render={({ field }) => (
                             <Select 
                                 value={field.value} 
                                 onValueChange={(value) => {
                                     field.onChange(value);
-                                    handleGradeLevelChange(value as GradeLevel);
+                                    form.setValue('program', value);
                                 }}
                             >
                                 <SelectTrigger>
-                                    <SelectValue />
+                                    <SelectValue placeholder="Select grade level" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {GRADE_LEVELS.map((level) => (
-                                        <SelectItem key={level} value={level}>
-                                            {GRADE_LEVEL_LABELS[level]}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="yearLevel">Year Level</Label>
-                    <Controller
-                        name="yearLevel"
-                        control={form.control}
-                        render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {YEAR_LEVELS[selectedGradeLevel].map((level) => (
+                                    {GRADE_SCHOOL_LEVELS.map((level) => (
                                         <SelectItem key={level} value={level}>
                                             {level}
                                         </SelectItem>
@@ -231,20 +494,30 @@ export function StudentForm({
                         )}
                     />
                 </div>
+            )}
+
+            {/* Junior High Fields */}
+            {selectedGradeLevel === 'JUNIOR_HIGH' && (
                 <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
+                    <Label htmlFor="yearLevel">Year Level</Label>
                     <Controller
-                        name="status"
+                        name="yearLevel"
                         control={form.control}
                         render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
+                            <Select 
+                                value={field.value} 
+                                onValueChange={(value) => {
+                                    field.onChange(value);
+                                    form.setValue('program', value);
+                                }}
+                            >
                                 <SelectTrigger>
-                                    <SelectValue />
+                                    <SelectValue placeholder="Select year level" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {STUDENT_STATUSES.map((status) => (
-                                        <SelectItem key={status} value={status}>
-                                            {status}
+                                    {YEAR_LEVELS.JUNIOR_HIGH.map((level) => (
+                                        <SelectItem key={level} value={level}>
+                                            {level}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -252,12 +525,12 @@ export function StudentForm({
                         )}
                     />
                 </div>
-            </div>
+            )}
 
             {/* Scholarship Assignment Section */}
             <div className="border-t pt-4 space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm">Scholarship Assignment (Optional)</h3>
+                    <h3 className="font-semibold text-sm">Scholarship Assignment</h3>
                     <Button
                         type="button"
                         variant="outline"
