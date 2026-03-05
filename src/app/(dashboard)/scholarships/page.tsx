@@ -28,6 +28,7 @@ import { ExportButton } from '@/components/shared';
 import type { CreateScholarshipInput } from '@/types';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVEL_LABELS } from '@/types';
+import { clientCache } from '@/lib/cache';
 import {
  Select,
  SelectContent,
@@ -35,7 +36,6 @@ import {
  SelectTrigger,
  SelectValue,
 } from '@/components/ui/select';
-import { fetchWithCache, clientCache } from '@/lib/cache';
 
 interface Scholarship {
  id: number;
@@ -100,12 +100,8 @@ export default function ScholarshipsPage() {
 
  const fetchCounts = useCallback(async () => {
  try {
- const data = await fetchWithCache<{ success: boolean; data: ScholarshipCounts }>(
- '/api/scholarships?action=counts',
- undefined,
- 5 * 60 * 1000 // 5 minutes cache
- );
-
+ const res = await fetch('/api/scholarships?action=counts');
+ const data = await res.json();
  if (data.success) {
  setCounts(data.data);
  }
@@ -116,24 +112,14 @@ export default function ScholarshipsPage() {
 
  const fetchScholarships = useCallback(async () => {
  try {
- // Fetch filtered scholarships for display
  const params = new URLSearchParams();
  params.append('limit', '10');
  params.append('page', page.toString());
  if (sourceFilter && sourceFilter !== 'all') {
  params.append('source', sourceFilter);
  }
- const filteredUrl = `/api/scholarships?${params}`;
- const data = await fetchWithCache<{ 
- success: boolean; 
- data: Scholarship[];
- total: number;
- totalPages: number;
- }>(
- filteredUrl,
- undefined,
- 5 * 60 * 1000 // 5 minutes cache
- );
+ const res = await fetch(`/api/scholarships?${params}`);
+ const data = await res.json();
 
  if (data.success) {
  setScholarships(data.data);
@@ -145,7 +131,6 @@ export default function ScholarshipsPage() {
  toast.error('Failed to load scholarships');
  } finally {
  setLoading(false);
- // Trigger fade-in after content is loaded
  setTimeout(() => setIsVisible(true), 50);
  }
  }, [sourceFilter, page]);
