@@ -56,6 +56,8 @@ export function ScholarshipForm({
             amount: 0,
             requirements: '',
             status: 'Active',
+            startDate: null,
+            endDate: null,
             ...defaultValues,
         },
     });
@@ -94,7 +96,7 @@ export function ScholarshipForm({
     };
 
     return (
-        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
             <div className="space-y-2">
                 <Label htmlFor="scholarshipName">Scholarship Name</Label>
                 <Input
@@ -235,7 +237,26 @@ export function ScholarshipForm({
                 />
             </div>
 
-            <DialogFooter>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                        id="startDate"
+                        type="date"
+                        {...form.register('startDate', { valueAsDate: true })}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                        id="endDate"
+                        type="date"
+                        {...form.register('endDate', { valueAsDate: true })}
+                    />
+                </div>
+            </div>
+
+            <DialogFooter className="gap-2">
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
                 </Button>

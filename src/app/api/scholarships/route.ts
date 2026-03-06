@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
         
         // Handle counts action - returns total counts by source
         if (action === 'counts') {
+            const searchParams = request.nextUrl.searchParams;
+            const archivedParam = searchParams.get('archived');
+            const includeArchived = archivedParam === 'true';
+            
             const cacheKey = generateQueryKey('scholarships-counts', {});
             const cachedData = queryOptimizer.get<{ total: number; internal: number; external: number }>(cacheKey);
 
@@ -30,9 +34,9 @@ export async function GET(request: NextRequest) {
             }
 
             const [total, internal, external] = await Promise.all([
-                prisma.scholarship.count(),
-                prisma.scholarship.count({ where: { source: 'INTERNAL' } }),
-                prisma.scholarship.count({ where: { source: 'EXTERNAL' } }),
+                prisma.scholarship.count({ where: { isArchived: includeArchived ? true : false } }),
+                prisma.scholarship.count({ where: { source: 'INTERNAL', isArchived: includeArchived ? true : false } }),
+                prisma.scholarship.count({ where: { source: 'EXTERNAL', isArchived: includeArchived ? true : false } }),
             ]);
 
             const counts = { total, internal, external };
@@ -50,6 +54,69 @@ export async function GET(request: NextRequest) {
                 },
             });
         }
+        
+        // Handle durations action - returns scholarship duration statistics
+        if (action === 'durations') {
+            const cacheKey = generateQueryKey('scholarships-durations', {});
+            const cachedData = queryOptimizer.get<{
+                active: number;
+                expired: number;
+                upcoming: number;
+                total: number;
+            }>(cacheKey);
+
+            if (cachedData) {
+                return NextResponse.json({
+                    success: true,
+                    data: cachedData,
+                    cached: true,
+                }, {
+                    headers: {
+                        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+                        'CDN-Cache-Control': 'public, s-maxage=300',
+                        'X-Cache': 'HIT',
+                    },
+                });
+            }
+
+            const now = new Date();
+            const [active, expired, upcoming, total] = await Promise.all([
+                prisma.scholarship.count({
+                    where: {
+                        startDate: { lte: now },
+                        endDate: { gte: now },
+                        status: 'Active',
+                    },
+                }),
+                prisma.scholarship.count({
+                    where: {
+                        endDate: { lt: now },
+                        status: 'Active',
+                    },
+                }),
+                prisma.scholarship.count({
+                    where: {
+                        startDate: { gt: now },
+                        status: 'Active',
+                    },
+                }),
+                prisma.scholarship.count(),
+            ]);
+
+            const durationStats = { active, expired, upcoming, total };
+            queryOptimizer.set(cacheKey, durationStats, 5 * 60 * 1000); // Cache for 5 minutes
+
+            return NextResponse.json({
+                success: true,
+                data: durationStats,
+            }, {
+                headers: {
+                    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+                    'CDN-Cache-Control': 'public, s-maxage=300',
+                    'X-Cache': 'MISS',
+                },
+            });
+        }
 
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
@@ -57,6 +124,8 @@ export async function GET(request: NextRequest) {
         const type = searchParams.get('type') || '';
         const source = searchParams.get('source') || '';
         const status = searchParams.get('status') || '';
+        const archivedParam = searchParams.get('archived');
+        const includeArchived = archivedParam === 'true';
 
         // Use server-side cache for scholarship queries
         const cacheKey = generateQueryKey('scholarships-list', { page, limit, search, type, source, status });
@@ -90,7 +159,7 @@ export async function GET(request: NextRequest) {
         const where = buildSearchWhere(
             search,
             ['scholarshipName', 'sponsor'],
-            additionalFilters
+            { ...additionalFilters, isArchived: includeArchived ? true : false }
         );
 
         const [scholarships, total] = await Promise.all([
@@ -99,22 +168,23 @@ export async function GET(request: NextRequest) {
                 skip,
                 take,
                 orderBy: { createdAt: 'desc' },
-                select: {
-                    id: true,
-                    scholarshipName: true,
-                    sponsor: true,
-                    type: true,
-                    source: true,
-                    eligibleGradeLevels: true,
-                    amount: true,
-                    requirements: true,
-                    status: true,
-                    createdAt: true,
-                    updatedAt: true,
-                    _count: {
-                        select: { students: true },
-                    },
+            select: {
+                id: true,
+                scholarshipName: true,
+                sponsor: true,
+                type: true,
+                source: true,
+                eligibleGradeLevels: true,
+                amount: true,
+                requirements: true,
+                status: true,
+                isArchived: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: { students: true },
                 },
+            },
             }),
             prisma.scholarship.count({ where }),
         ]);
@@ -170,6 +240,8 @@ export async function POST(request: NextRequest) {
                 amount: body.amount,
                 requirements: body.requirements || null,
                 status: body.status,
+                startDate: body.startDate || null,
+                endDate: body.endDate || null,
             },
         });
 
