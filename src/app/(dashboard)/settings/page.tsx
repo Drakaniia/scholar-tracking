@@ -32,11 +32,12 @@ import {
  SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Shield, UserPlus, Pencil, Trash2, KeyRound, Search, Filter, Activity, Monitor, User as UserIcon, Lock, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Shield, UserPlus, Pencil, Trash2, KeyRound, Search, Filter, Activity, Monitor, User as UserIcon, Lock, FileText, ChevronLeft, ChevronRight, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/auth-provider';
-import { USER_ROLE_LABELS, USER_STATUS_LABELS } from '@/types';
+import { USER_ROLE_LABELS, USER_STATUS_LABELS, GRADE_LEVEL_LABELS } from '@/types';
 import { fetchWithCache, clientCache } from '@/lib/cache';
+import { formatCurrency } from '@/lib/utils';
 
 interface User {
  id: number;
@@ -101,21 +102,33 @@ interface ChangePasswordFormData {
 }
 
 interface AuditLog {
- id: number;
- userId: number | null;
- action: string;
- resourceType: string | null;
- resourceId: number | null;
- details: Record<string, unknown> | null;
- ipAddress: string | null;
- userAgent: string | null;
- createdAt: string;
- user: {
- id: number;
- username: string;
- firstName: string;
- lastName: string;
- } | null;
+  id: number;
+  userId: number | null;
+  action: string;
+  resourceType: string | null;
+  resourceId: number | null;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  user: {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  } | null;
+}
+
+interface Student {
+  id: number;
+  lastName: string;
+  firstName: string;
+  middleInitial: string | null;
+  program: string;
+  gradeLevel: string;
+  yearLevel: string;
+  status: string;
+  isArchived: boolean;
 }
 
 const initialFormData: CreateUserFormData = {
@@ -185,19 +198,43 @@ export default function SettingsPage() {
  const [changePasswordErrors, setChangePasswordErrors] = useState<Partial<Record<keyof ChangePasswordFormData, string>>>({});
  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
- // Audit logs state
- const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
- const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
- const [auditLogPage, setAuditLogPage] = useState(1);
- const [auditLogTotal, setAuditLogTotal] = useState(0);
- const [auditLogTotalPages, setAuditLogTotalPages] = useState(0);
- const [auditLogFilters, setAuditLogFilters] = useState({
- action: 'ALL',
- resourceType: 'ALL',
- startDate: '',
- endDate: '',
- });
- const [auditLogFilterOptions, setAuditLogFilterOptions] = useState<{ actions: string[]; resourceTypes: string[] }>({ actions: [], resourceTypes: [] });
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+  const [auditLogPage, setAuditLogPage] = useState(1);
+  const [auditLogTotal, setAuditLogTotal] = useState(0);
+  const [auditLogTotalPages, setAuditLogTotalPages] = useState(0);
+  const [auditLogFilters, setAuditLogFilters] = useState({
+  action: 'ALL',
+  resourceType: 'ALL',
+  startDate: '',
+  endDate: '',
+  });
+  const [auditLogFilterOptions, setAuditLogFilterOptions] = useState<{ actions: string[]; resourceTypes: string[] }>({ actions: [], resourceTypes: [] });
+  
+  // Archived items state
+  const [archivedStudents, setArchivedStudents] = useState<Student[]>([]);
+  const [archivedScholarships, setArchivedScholarships] = useState<Scholarship[]>([]);
+  const [loadingArchived, setLoadingArchived] = useState(false);
+  const [unarchivingItem, setUnarchivingItem] = useState<string | null>(null);
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentTotal, setStudentTotal] = useState(0);
+  const [studentTotalPages, setStudentTotalPages] = useState(0);
+  const [scholarshipPage, setScholarshipPage] = useState(1);
+  const [scholarshipTotal, setScholarshipTotal] = useState(0);
+  const [scholarshipTotalPages, setScholarshipTotalPages] = useState(0);
+  
+  interface Scholarship {
+  id: number;
+  scholarshipName: string;
+  sponsor: string;
+  type: string;
+  source: string;
+  amount: number;
+  requirements: string | null;
+  status: string;
+  isArchived: boolean;
+  }
 
  useEffect(() => {
  fetchUsers();
@@ -750,16 +787,128 @@ export default function SettingsPage() {
  fetchAuditLogs(1);
  };
 
- const clearAuditLogFilters = () => {
- setAuditLogFilters({
- action: 'ALL',
- resourceType: 'ALL',
- startDate: '',
- endDate: '',
- });
- setAuditLogPage(1);
- fetchAuditLogs(1);
- };
+  const clearAuditLogFilters = () => {
+  setAuditLogFilters({
+  action: 'ALL',
+  resourceType: 'ALL',
+  startDate: '',
+  endDate: '',
+  });
+  setAuditLogPage(1);
+  fetchAuditLogs(1);
+  };
+  
+  // Fetch archived students
+  const fetchArchivedStudents = async (page = 1) => {
+  setLoadingArchived(true);
+  try {
+  const params = new URLSearchParams({
+  page: page.toString(),
+  limit: '10',
+  archived: 'true',
+  });
+  
+  const response = await fetch(`/api/students?${params}`);
+  const result = await response.json();
+  
+  if (result.success) {
+  setArchivedStudents(result.data);
+  setStudentPage(result.page);
+  setStudentTotal(result.total);
+  setStudentTotalPages(result.totalPages);
+  } else {
+  toast.error('Failed to load archived students');
+  }
+  } catch (error) {
+  console.error('Error fetching archived students:', error);
+  toast.error('Failed to load archived students');
+  } finally {
+  setLoadingArchived(false);
+  }
+  };
+  
+  // Fetch archived scholarships
+  const fetchArchivedScholarships = async (page = 1) => {
+  setLoadingArchived(true);
+  try {
+  const params = new URLSearchParams({
+  page: page.toString(),
+  limit: '10',
+  archived: 'true',
+  });
+  
+  const response = await fetch(`/api/scholarships?${params}`);
+  const result = await response.json();
+  
+  if (result.success) {
+  setArchivedScholarships(result.data);
+  setScholarshipPage(result.page);
+  setScholarshipTotal(result.total);
+  setScholarshipTotalPages(result.totalPages);
+  } else {
+  toast.error('Failed to load archived scholarships');
+  }
+  } catch (error) {
+  console.error('Error fetching archived scholarships:', error);
+  toast.error('Failed to load archived scholarships');
+  } finally {
+  setLoadingArchived(false);
+  }
+  };
+  
+  // Handle unarchive student
+  const handleUnarchiveStudent = async (studentId: number) => {
+  setUnarchivingItem(`student-${studentId}`);
+  try {
+  const response = await fetch(`/api/students/${studentId}`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'unarchive' }),
+  });
+  
+  const result = await response.json();
+  
+  if (result.success) {
+  toast.success('Student unarchived successfully');
+  // Refresh the archived students list
+  fetchArchivedStudents(studentPage);
+  } else {
+  toast.error(result.error || 'Failed to unarchive student');
+  }
+  } catch (error) {
+  console.error('Error unarchiving student:', error);
+  toast.error('Failed to unarchive student');
+  } finally {
+  setUnarchivingItem(null);
+  }
+  };
+  
+  // Handle unarchive scholarship
+  const handleUnarchiveScholarship = async (scholarshipId: number) => {
+  setUnarchivingItem(`scholarship-${scholarshipId}`);
+  try {
+  const response = await fetch(`/api/scholarships/${scholarshipId}`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'unarchive' }),
+  });
+  
+  const result = await response.json();
+  
+  if (result.success) {
+  toast.success('Scholarship unarchived successfully');
+  // Refresh the archived scholarships list
+  fetchArchivedScholarships(scholarshipPage);
+  } else {
+  toast.error(result.error || 'Failed to unarchive scholarship');
+  }
+  } catch (error) {
+  console.error('Error unarchiving scholarship:', error);
+  toast.error('Failed to unarchive scholarship');
+  } finally {
+  setUnarchivingItem(null);
+  }
+  };
 
  if (loading) {
  return (
@@ -790,14 +939,18 @@ export default function SettingsPage() {
  <UserIcon className="h-4 w-4" />
  My Profile
  </TabsTrigger>
- <TabsTrigger value="audit-logs" className="gap-2" onClick={() => {
- fetchAuditLogFilterOptions();
- fetchAuditLogs(1);
- }}>
- <FileText className="h-4 w-4" />
- Audit Logs
- </TabsTrigger>
- </TabsList>
+  <TabsTrigger value="audit-logs" className="gap-2" onClick={() => {
+  fetchAuditLogFilterOptions();
+  fetchAuditLogs(1);
+  }}>
+  <FileText className="h-4 w-4" />
+  Audit Logs
+  </TabsTrigger>
+  <TabsTrigger value="archived" className="gap-2">
+  <Archive className="h-4 w-4" />
+  Archived Items
+  </TabsTrigger>
+  </TabsList>
 
  <TabsContent value="users">
  <Card className="border-gray-200">
@@ -1438,9 +1591,206 @@ export default function SettingsPage() {
  )}
  </Button>
  </DialogFooter>
- </DialogContent>
- </Dialog>
- </TabsContent>
+  </DialogContent>
+  </Dialog>
+  </TabsContent>
+  
+  <TabsContent value="archived">
+  <Card className="border-gray-200">
+  <CardHeader>
+  <CardTitle className="flex items-center gap-2 text-foreground">
+  <Archive className="h-5 w-5" />
+  Archived Items
+  </CardTitle>
+  </CardHeader>
+  <CardContent>
+  <div className="mb-4 flex gap-2">
+  <Button onClick={() => fetchArchivedStudents(1)} variant="outline">
+  View Archived Students
+  </Button>
+  <Button onClick={() => fetchArchivedScholarships(1)} variant="outline">
+  View Archived Scholarships
+  </Button>
+  </div>
+  
+  {archivedStudents.length > 0 && (
+  <div className="mb-8">
+  <h3 className="mb-4 text-lg font-semibold">Archived Students</h3>
+  <div className="overflow-x-auto">
+  <Table>
+  <TableHeader>
+  <TableRow>
+  <TableHead>Name</TableHead>
+  <TableHead>Program</TableHead>
+  <TableHead>Grade Level</TableHead>
+  <TableHead>Status</TableHead>
+  <TableHead className="text-right">Actions</TableHead>
+  </TableRow>
+  </TableHeader>
+  <TableBody>
+  {archivedStudents.map((student) => (
+  <TableRow key={student.id}>
+  <TableCell className="font-medium">
+  {student.lastName}, {student.firstName} {student.middleInitial || ''}
+  </TableCell>
+  <TableCell>{student.program}</TableCell>
+  <TableCell>
+  <Badge variant="outline">
+  {GRADE_LEVEL_LABELS[student.gradeLevel as keyof typeof GRADE_LEVEL_LABELS]}
+  </Badge>
+  </TableCell>
+  <TableCell>
+  <Badge variant={student.status === 'Active' ? 'default' : 'secondary'}>
+  {student.status}
+  </Badge>
+  </TableCell>
+  <TableCell className="text-right">
+  <Button
+  variant="outline"
+  size="sm"
+  onClick={() => handleUnarchiveStudent(student.id)}
+  disabled={unarchivingItem === `student-${student.id}`}
+  >
+  {unarchivingItem === `student-${student.id}` ? (
+  <>
+  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+  Unarchiving...
+  </>
+  ) : (
+  'Unarchive'
+  )}
+  </Button>
+  </TableCell>
+  </TableRow>
+  ))}
+  </TableBody>
+  </Table>
+  </div>
+  {studentTotalPages > 1 && (
+  <div className="flex items-center justify-between mt-4">
+  <div className="text-sm text-muted-foreground">
+  Page {studentPage} of {studentTotalPages} (Total: {studentTotal})
+  </div>
+  <div className="flex gap-2">
+  <Button
+  variant="outline"
+  size="sm"
+  onClick={() => fetchArchivedStudents(studentPage - 1)}
+  disabled={studentPage === 1 || loadingArchived}
+  >
+  <ChevronLeft className="h-4 w-4" />
+  Previous
+  </Button>
+  <Button
+  variant="outline"
+  size="sm"
+  onClick={() => fetchArchivedStudents(studentPage + 1)}
+  disabled={studentPage === studentTotalPages || loadingArchived}
+  >
+  Next
+  <ChevronRight className="h-4 w-4" />
+  </Button>
+  </div>
+  </div>
+  )}
+  </div>
+  )}
+  
+  {archivedScholarships.length > 0 && (
+  <div>
+  <h3 className="mb-4 text-lg font-semibold">Archived Scholarships</h3>
+  <div className="overflow-x-auto">
+  <Table>
+  <TableHeader>
+  <TableRow>
+  <TableHead>Scholarship Name</TableHead>
+  <TableHead>Sponsor</TableHead>
+  <TableHead>Type</TableHead>
+  <TableHead>Source</TableHead>
+  <TableHead className="text-right">Amount</TableHead>
+  <TableHead className="text-right">Actions</TableHead>
+  </TableRow>
+  </TableHeader>
+  <TableBody>
+  {archivedScholarships.map((scholarship) => (
+  <TableRow key={scholarship.id}>
+  <TableCell className="font-medium">
+  {scholarship.scholarshipName}
+  </TableCell>
+  <TableCell>{scholarship.sponsor}</TableCell>
+  <TableCell>
+  <Badge variant="outline">{scholarship.type}</Badge>
+  </TableCell>
+  <TableCell>
+  <Badge variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
+  {scholarship.source}
+  </Badge>
+  </TableCell>
+  <TableCell className="text-right font-semibold">
+  {formatCurrency(scholarship.amount)}
+  </TableCell>
+  <TableCell className="text-right">
+  <Button
+  variant="outline"
+  size="sm"
+  onClick={() => handleUnarchiveScholarship(scholarship.id)}
+  disabled={unarchivingItem === `scholarship-${scholarship.id}`}
+  >
+  {unarchivingItem === `scholarship-${scholarship.id}` ? (
+  <>
+  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+  Unarchiving...
+  </>
+  ) : (
+  'Unarchive'
+  )}
+  </Button>
+  </TableCell>
+  </TableRow>
+  ))}
+  </TableBody>
+  </Table>
+  </div>
+  {scholarshipTotalPages > 1 && (
+  <div className="flex items-center justify-between mt-4">
+  <div className="text-sm text-muted-foreground">
+  Page {scholarshipPage} of {scholarshipTotalPages} (Total: {scholarshipTotal})
+  </div>
+  <div className="flex gap-2">
+  <Button
+  variant="outline"
+  size="sm"
+  onClick={() => fetchArchivedScholarships(scholarshipPage - 1)}
+  disabled={scholarshipPage === 1 || loadingArchived}
+  >
+  <ChevronLeft className="h-4 w-4" />
+  Previous
+  </Button>
+  <Button
+  variant="outline"
+  size="sm"
+  onClick={() => fetchArchivedScholarships(scholarshipPage + 1)}
+  disabled={scholarshipPage === scholarshipTotalPages || loadingArchived}
+  >
+  Next
+  <ChevronRight className="h-4 w-4" />
+  </Button>
+  </div>
+  </div>
+  )}
+  </div>
+  )}
+  
+  {archivedStudents.length === 0 && archivedScholarships.length === 0 && !loadingArchived && (
+  <div className="text-center py-8 text-muted-foreground">
+  <Archive className="mx-auto h-12 w-12 mb-2 opacity-50" />
+  <p>No archived items found</p>
+  <p className="text-sm">Items you archive will appear here</p>
+  </div>
+  )}
+  </CardContent>
+  </Card>
+  </TabsContent>
 
  <TabsContent value="sessions">
  <Card className="border-gray-200">

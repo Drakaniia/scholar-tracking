@@ -29,7 +29,7 @@ import {
  DialogTitle,
  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { Plus, Search, Pencil, Archive, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
@@ -57,14 +57,32 @@ const getScholarshipColor = (scholarshipName: string): string => {
 };
 
 interface Student {
- id: number;
- lastName: string;
- firstName: string;
- middleInitial: string | null;
- program: string;
- gradeLevel: GradeLevel;
- yearLevel: string;
- status: string;
+    id: number;
+    lastName: string;
+    firstName: string;
+    middleInitial: string | null;
+    program: string;
+    gradeLevel: GradeLevel;
+    yearLevel: string;
+    status: string;
+    birthDate?: string | null; // Add birth date field
+    scholarships: Array<{
+        id: number;
+        scholarshipId: number;
+        awardDate: string;
+        startTerm: string;
+        endTerm: string;
+        grantAmount: number;
+        scholarshipStatus: string;
+        scholarship: {
+            scholarshipName: string;
+            type: string;
+            source: string;
+        };
+    }>;
+}
+
+interface StudentWithScholarships extends Student {
  scholarships: Array<{
  id: number;
  scholarshipId: number;
@@ -117,7 +135,7 @@ export default function StudentsPage() {
  const [statusFilter, setStatusFilter] = useState<string>('all');
  const [scholarshipFilter, setScholarshipFilter] = useState<string>('all');
  const [dialogOpen, setDialogOpen] = useState(false);
- const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+ const [editingStudent, setEditingStudent] = useState<StudentWithScholarships | null>(null);
  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
  const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null);
  const [loadingDetail, setLoadingDetail] = useState(false);
@@ -212,39 +230,43 @@ export default function StudentsPage() {
  setDeletingStudent(null);
  };
 
- const handleDelete = async () => {
- if (!deletingStudent) return;
+  const handleDelete = async () => {
+    if (!deletingStudent) return;
 
- setSubmitting(true);
- try {
- const res = await fetch(`/api/students/${deletingStudent.id}`, { method: 'DELETE' });
- const json = await res.json();
- if (json.success) {
- toast.success('Student deleted successfully');
- setDeleteDialogOpen(false);
- setDeletingStudent(null);
- // Invalidate cache
- clientCache.invalidatePattern('/api/students');
- clientCache.invalidatePattern('/api/dashboard');
- // Clear sessionStorage to force dashboard refresh
- sessionStorage.removeItem('dashboardData');
- sessionStorage.removeItem('detailedStudents');
- // Trigger dashboard refresh event
- window.dispatchEvent(new Event('refreshDashboard'));
- fetchStudents();
- } else {
- toast.error(json.error || 'Delete failed');
- }
- } catch (error) {
- console.error('Error deleting student:', error);
- toast.error('Failed to delete student');
- } finally {
- setSubmitting(false);
- }
- };
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/students/${deletingStudent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success('Student archived successfully');
+        setDeleteDialogOpen(false);
+        setDeletingStudent(null);
+        // Invalidate cache
+        clientCache.invalidatePattern('/api/students');
+        clientCache.invalidatePattern('/api/dashboard');
+        // Clear sessionStorage to force dashboard refresh
+        sessionStorage.removeItem('dashboardData');
+        sessionStorage.removeItem('detailedStudents');
+        // Trigger dashboard refresh event
+        window.dispatchEvent(new Event('refreshDashboard'));
+        fetchStudents();
+      } else {
+        toast.error(json.error || 'Archive failed');
+      }
+    } catch (error) {
+      console.error('Error archiving student:', error);
+      toast.error('Failed to archive student');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
- const handleEdit = (student: Student) => {
- setEditingStudent(student);
+ const handleEdit = async (student: Student) => {
+ setEditingStudent(student as StudentWithScholarships);
  setDialogOpen(true);
  };
 
@@ -327,7 +349,7 @@ export default function StudentsPage() {
  Add Student
  </Button>
  </DialogTrigger>
- <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
+  <DialogContent className="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-hidden">
  <DialogHeader>
  <DialogTitle>
  {editingStudent ? 'Edit Student' : 'Add New Student'}
@@ -339,15 +361,24 @@ export default function StudentsPage() {
  </DialogDescription>
  </DialogHeader>
  <StudentForm
- defaultValues={editingStudent ? {
- lastName: editingStudent.lastName,
- firstName: editingStudent.firstName,
- middleInitial: editingStudent.middleInitial || '',
- program: editingStudent.program,
- gradeLevel: editingStudent.gradeLevel,
- yearLevel: editingStudent.yearLevel,
- status: editingStudent.status,
- } : undefined}
+  defaultValues={editingStudent ? {
+  lastName: editingStudent.lastName,
+  firstName: editingStudent.firstName,
+  middleInitial: editingStudent.middleInitial || '',
+  program: editingStudent.program,
+  gradeLevel: editingStudent.gradeLevel,
+  yearLevel: editingStudent.yearLevel,
+  status: editingStudent.status,
+  birthDate: editingStudent.birthDate ? new Date(editingStudent.birthDate) : undefined,
+  scholarships: editingStudent.scholarships?.map(ss => ({
+  scholarshipId: ss.scholarshipId,
+  awardDate: new Date(ss.awardDate),
+  startTerm: ss.startTerm,
+  endTerm: ss.endTerm,
+  grantAmount: ss.grantAmount,
+  scholarshipStatus: ss.scholarshipStatus,
+  })) || [],
+  } : undefined}
  onSubmit={handleFormSubmit}
  onCancel={() => setDialogOpen(false)}
  isEditing={!!editingStudent}
@@ -551,14 +582,15 @@ export default function StudentsPage() {
  >
  <Pencil className="h-4 w-4" />
  </Button>
- <Button
- variant="ghost"
- size="icon"
- onClick={() => openDeleteDialog(student)}
- className="text-destructive hover:text-destructive"
- >
- <Trash2 className="h-4 w-4" />
- </Button>
+<Button
+  variant="ghost"
+  size="icon"
+  onClick={() => openDeleteDialog(student)}
+  className="text-destructive hover:text-destructive"
+  title="Archive student"
+  >
+  <Archive className="h-4 w-4" />
+  </Button>
  </div>
  </TableCell>
  )}
@@ -603,35 +635,35 @@ export default function StudentsPage() {
  <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
  <DialogContent>
  <DialogHeader>
- <DialogTitle>Delete Student</DialogTitle>
- <DialogDescription>
- Are you sure you want to delete &quot;{deletingStudent?.firstName} {deletingStudent?.lastName}&quot;?
- {deletingStudent?.scholarships && deletingStudent.scholarships.length > 0 && (
- <span className="block mt-2 text-destructive font-medium">
- Warning: This student has {deletingStudent.scholarships.length} scholarship(s) assigned.
- </span>
- )}
- </DialogDescription>
+ <DialogTitle>Archive Student</DialogTitle>
+<DialogDescription>
+  Are you sure you want to archive &quot;{deletingStudent?.firstName} {deletingStudent?.lastName}&quot;?
+  {deletingStudent?.scholarships && deletingStudent.scholarships.length > 0 && (
+  <span className="block mt-2 text-destructive font-medium">
+  Warning: This student has {deletingStudent.scholarships.length} scholarship(s) assigned.
+  </span>
+  )}
+  </DialogDescription>
  </DialogHeader>
  <div className="flex justify-end gap-2 mt-4">
  <Button variant="outline" onClick={closeDeleteDialog} disabled={submitting}>
  Cancel
  </Button>
- <Button 
- variant="destructive" 
- onClick={handleDelete} 
- disabled={submitting}
- className="bg-red-600 hover:bg-red-700 text-white"
- >
- {submitting ? 'Deleting...' : 'Delete'}
- </Button>
+<Button 
+  variant="destructive" 
+  onClick={handleDelete} 
+  disabled={submitting}
+  className="bg-red-600 hover:bg-red-700 text-white"
+  >
+  {submitting ? 'Archiving...' : 'Archive'}
+  </Button>
  </div>
  </DialogContent>
  </Dialog>
 
  {/* Student Detail Dialog - Scholarships First */}
  <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
- <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+  <DialogContent className="sm:max-w-5xl md:max-w-6xl lg:max-w-7xl max-h-[90vh] overflow-y-auto">
  <DialogHeader>
  <DialogTitle>
  {selectedStudent && `${selectedStudent.firstName} ${selectedStudent.lastName}'s Scholarships`}

@@ -49,6 +49,41 @@ export async function GET(request: NextRequest) {
             disbursements: () => prisma.disbursement.aggregate({
                 _sum: { amount: true },
             }),
+            monthlyTrends: () => prisma.$queryRaw`
+                WITH months AS (
+                    SELECT generate_series(
+                        DATE_TRUNC('month', NOW() - INTERVAL '5 months'),
+                        DATE_TRUNC('month', NOW()),
+                        '1 month'::interval
+                    ) AS month
+                ),
+                awarded_by_month AS (
+                    SELECT 
+                        DATE_TRUNC('month', ss.award_date) as month,
+                        COALESCE(SUM(ss.grant_amount), 0)::numeric as total_awarded
+                    FROM student_scholarships ss
+                    WHERE ss.award_date >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
+                        AND ss.award_date <= DATE_TRUNC('month', NOW())
+                    GROUP BY DATE_TRUNC('month', ss.award_date)
+                ),
+                disbursed_by_month AS (
+                    SELECT 
+                        DATE_TRUNC('month', d.disbursement_date) as month,
+                        COALESCE(SUM(d.amount), 0)::numeric as total_disbursed
+                    FROM disbursements d
+                    WHERE d.disbursement_date >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
+                        AND d.disbursement_date <= DATE_TRUNC('month', NOW())
+                    GROUP BY DATE_TRUNC('month', d.disbursement_date)
+                )
+                SELECT 
+                    TO_CHAR(m.month, 'Mon') as month,
+                    COALESCE(awarded_by_month.total_awarded, 0)::numeric as awarded,
+                    COALESCE(disbursed_by_month.total_disbursed, 0)::numeric as disbursed
+                FROM months m
+                LEFT JOIN awarded_by_month ON DATE_TRUNC('month', awarded_by_month.month) = m.month
+                LEFT JOIN disbursed_by_month ON DATE_TRUNC('month', disbursed_by_month.month) = m.month
+                ORDER BY m.month ASC
+            `,
             recentStudents: () => prisma.student.findMany({
                 take: 5,
                 orderBy: { updatedAt: 'desc' },
@@ -83,6 +118,17 @@ export async function GET(request: NextRequest) {
 
         const totalAmountAwarded = Number(results.studentsWithGrants._sum.grantAmount || 0);
         const totalDisbursed = Number(results.disbursements._sum.amount || 0);
+
+        const monthlyTrends = (results.monthlyTrends as Array<{
+            month: string;
+            awarded: number;
+            disbursed: number;
+        }>).map((row) => ({
+            name: row.month,
+            awarded: Number(row.awarded),
+            disbursed: Number(row.disbursed),
+            balance: Number(row.awarded) - Number(row.disbursed),
+        }));
 
         // Get scholarships by type - filter by source if provided
         let scholarshipsByType;
@@ -119,6 +165,7 @@ export async function GET(request: NextRequest) {
             charts: {
                 studentsByGradeLevel: results.studentsByGradeLevel,
                 scholarshipsByType,
+                monthlyTrends,
             },
         };
 

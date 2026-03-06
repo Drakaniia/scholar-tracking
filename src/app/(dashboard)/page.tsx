@@ -83,6 +83,12 @@ interface DashboardData {
       type: string;
       _count: { id: number };
     }>;
+    monthlyTrends: Array<{
+      name: string;
+      awarded: number;
+      disbursed: number;
+      balance: number;
+    }>;
   };
 }
 
@@ -173,14 +179,7 @@ function ChartsSection({ data }: { data: DashboardData }) {
       <ScholarshipChart
         title="Scholarship Trends"
         description="Monthly awarded, disbursed, and remaining balance"
-        data={[
-          { name: 'Aug', awarded: 115000, disbursed: 38000, balance: 77000 },
-          { name: 'Sep', awarded: 125000, disbursed: 42000, balance: 83000 },
-          { name: 'Oct', awarded: 138000, disbursed: 48000, balance: 90000 },
-          { name: 'Nov', awarded: 110000, disbursed: 35000, balance: 75000 },
-          { name: 'Dec', awarded: 135000, disbursed: 40000, balance: 95000 },
-          { name: 'Jan', awarded: 145000, disbursed: 35000, balance: 110000 },
-        ]}
+        data={data?.charts?.monthlyTrends || []}
       />
       <div className="lg:col-span-1">
         {studentsChartData.length > 0 && (
