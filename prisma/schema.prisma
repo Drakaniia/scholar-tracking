@@ -1,75 +1,46 @@
-// Prisma Schema for Scholarship Tracking System
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider   = "prisma-client-js"
   engineType = "js"
 }
-
-// ERD Generator - Only run locally with: npm run erd:generate
-// Disabled in production builds to avoid Puppeteer/Chrome dependencies
-// generator erd {
-//   provider = "prisma-erd-generator"
-//   output   = "../docs/ERD.svg"
-//   theme    = "forest"
-// }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USER MODEL (Authentication)
-// ============================================
 model User {
-  id                  Int       @id @default(autoincrement()) @map("user_id")
-  username            String    @unique
-  email               String    @unique
-  passwordHash        String    @map("password_hash")
-  firstName           String    @map("first_name")
-  lastName            String    @map("last_name")
-  role                String    @default("STAFF") // ADMIN, STAFF, VIEWER
-  status              String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
-  lastLogin           DateTime? @map("last_login")
-  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at")
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime? @map("locked_until")
-  
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  sessions   Session[]
-  auditLogs  AuditLog[]
+  id                  Int        @id @default(autoincrement()) @map("user_id")
+  username            String     @unique
+  email               String     @unique
+  passwordHash        String     @map("password_hash")
+  firstName           String     @map("first_name")
+  lastName            String     @map("last_name")
+  role                String     @default("STAFF")
+  status              String     @default("ACTIVE")
+  lastLogin           DateTime?  @map("last_login")
+  passwordChangedAt   DateTime   @default(now()) @map("password_changed_at")
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  auditLogs           AuditLog[]
+  sessions            Session[]
 
   @@map("users")
 }
 
-// ============================================
-// SESSION MODEL
-// ============================================
 model Session {
   id        String   @id @map("session_id")
   userId    Int      @map("user_id")
   expiresAt DateTime @map("expires_at")
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent")
-  
-  // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
 
-// ============================================
-// AUDIT LOG MODEL
-// ============================================
 model AuditLog {
   id           Int      @id @default(autoincrement()) @map("log_id")
   userId       Int?     @map("user_id")
@@ -79,74 +50,50 @@ model AuditLog {
   details      Json?
   ipAddress    String?  @map("ip_address")
   userAgent    String?  @map("user_agent")
-  
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User?    @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
 }
 
-// ============================================
-// STUDENT MODEL
-// ============================================
 model Student {
-  id           Int    @id @default(autoincrement()) @map("student_id")
-  
-  // Separated Name Fields
-  lastName     String @map("last_name")
-  firstName    String @map("first_name")
-  middleInitial String? @map("middle_initial")
-  
-  program      String
-  
-  // Grade Level: GRADE_SCHOOL, JUNIOR_HIGH, SENIOR_HIGH, COLLEGE
-  gradeLevel   String @map("grade_level")
-  yearLevel    String @map("year_level")
-  
-  status       String
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  fees          StudentFees[]
+  createdAt     DateTime             @default(now()) @map("created_at")
+  program       String
+  status        String
+  id            Int                  @id @default(autoincrement()) @map("student_id")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  yearLevel     String               @map("year_level")
+  firstName     String               @map("first_name")
+  gradeLevel    String               @map("grade_level")
+  lastName      String               @map("last_name")
+  middleInitial String?              @map("middle_initial")
+  isArchived    Boolean              @default(false) @map("is_archived")
+  birthDate     DateTime?            @map("birth_date")
   disbursements Disbursement[]
+  fees          StudentFees[]
   scholarships  StudentScholarship[]
 
-  // Indexes for search optimization
   @@index([lastName, firstName])
   @@index([gradeLevel, status])
   @@index([program])
+  @@index([isArchived])
   @@map("students")
 }
 
-// ============================================
-// STUDENT SCHOLARSHIP JUNCTION MODEL
-// Many-to-Many relationship between Students and Scholarships
-// ============================================
 model StudentScholarship {
-  id                Int       @id @default(autoincrement()) @map("student_scholarship_id")
-  studentId         Int       @map("student_id")
-  scholarshipId     Int       @map("scholarship_id")
-  awardDate         DateTime  @map("award_date")
-  startTerm         String    @map("start_term")
-  endTerm           String    @map("end_term")
-  grantAmount       Decimal   @map("grant_amount") @db.Decimal(10, 2)
-  scholarshipStatus String    @map("scholarship_status") // Active, Completed, Suspended
-  
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                Int         @id @default(autoincrement()) @map("student_scholarship_id")
+  studentId         Int         @map("student_id")
+  scholarshipId     Int         @map("scholarship_id")
+  awardDate         DateTime    @map("award_date")
+  startTerm         String      @map("start_term")
+  endTerm           String      @map("end_term")
+  grantAmount       Decimal     @map("grant_amount") @db.Decimal(10, 2)
+  scholarshipStatus String      @map("scholarship_status")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  scholarship       Scholarship @relation(fields: [scholarshipId], references: [id])
+  student           Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  // Relations
-  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Restrict)
-
-  // Indexes for faster lookups
   @@unique([studentId, scholarshipId])
   @@index([studentId])
   @@index([scholarshipId])
@@ -154,95 +101,64 @@ model StudentScholarship {
   @@map("student_scholarships")
 }
 
-// ============================================
-// SCHOLARSHIP MODEL
-// ============================================
 model Scholarship {
-  id               Int     @id @default(autoincrement()) @map("scholarship_id")
-  scholarshipName  String  @map("scholarship_name")
-  sponsor          String
-  
-  // Scholarship Type: PAED, CHED, LGU
-  type             String
-  
-  // Scholarship Source: INTERNAL (within school), EXTERNAL (outside campus)
-  source           String  @default("INTERNAL")
-  
-  // Eligible Grade Levels (comma-separated): GRADE_SCHOOL, JUNIOR_HIGH, SENIOR_HIGH, COLLEGE
-  eligibleGradeLevels String @map("eligible_grade_levels")
-  
-  amount           Decimal @db.Decimal(10, 2)
-  requirements     String?
-  status           String
+  type                String
+  amount              Decimal              @db.Decimal(10, 2)
+  createdAt           DateTime             @default(now()) @map("created_at")
+  requirements        String?
+  id                  Int                  @id @default(autoincrement()) @map("scholarship_id")
+  scholarshipName     String               @map("scholarship_name")
+  sponsor             String
+  status              String
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  source              String               @default("INTERNAL")
+  eligibleGradeLevels String               @map("eligible_grade_levels")
+  endDate             DateTime?            @map("end_date")
+  startDate           DateTime?            @map("start_date")
+  isArchived          Boolean              @default(false) @map("is_archived")
+  disbursements       Disbursement[]
+  students            StudentScholarship[]
 
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  students      StudentScholarship[]
-  disbursements Disbursement[]
-
-  // Indexes for faster lookups
   @@index([type])
   @@index([source])
   @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isArchived])
   @@map("scholarships")
 }
 
-// ============================================
-// DISBURSEMENT MODEL
-// Direct payment tracking for students
-// ============================================
 model Disbursement {
-  id               Int      @id @default(autoincrement()) @map("disbursement_id")
-  studentId        Int      @map("student_id")
-  scholarshipId    Int      @map("scholarship_id")
-  
-  disbursementDate DateTime @map("disbursement_date")
-  amount           Decimal  @db.Decimal(10, 2)
+  id               Int         @id @default(autoincrement()) @map("disbursement_id")
+  disbursementDate DateTime    @map("disbursement_date")
+  amount           Decimal     @db.Decimal(10, 2)
   term             String
   method           String
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
   remarks          String?
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  scholarship Scholarship @relation(fields: [scholarshipId], references: [id], onDelete: Restrict)
+  scholarshipId    Int         @map("scholarship_id")
+  studentId        Int         @map("student_id")
+  scholarship      Scholarship @relation(fields: [scholarshipId], references: [id])
+  student          Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("disbursements")
 }
 
-// ============================================
-// STUDENT FEES MODEL
-// ============================================
 model StudentFees {
-  id        Int     @id @default(autoincrement()) @map("fees_id")
-  studentId Int     @map("student_id")
-  
-  // Fee Breakdown
-  tuitionFee       Decimal @map("tuition_fee") @db.Decimal(10, 2)
-  otherFee         Decimal @map("other_fee") @db.Decimal(10, 2)
-  miscellaneousFee Decimal @map("miscellaneous_fee") @db.Decimal(10, 2)
-  laboratoryFee    Decimal @map("laboratory_fee") @db.Decimal(10, 2)
-  
-  // Subsidy Information
-  amountSubsidy    Decimal @map("amount_subsidy") @db.Decimal(10, 2)
-  percentSubsidy   Decimal @map("percent_subsidy") @db.Decimal(5, 2) // Calculated: (amountSubsidy / totalAmount) * 100
-  
-  // Academic Period
+  id               Int      @id @default(autoincrement()) @map("fees_id")
+  studentId        Int      @map("student_id")
+  tuitionFee       Decimal  @map("tuition_fee") @db.Decimal(10, 2)
+  otherFee         Decimal  @map("other_fee") @db.Decimal(10, 2)
+  miscellaneousFee Decimal  @map("miscellaneous_fee") @db.Decimal(10, 2)
+  laboratoryFee    Decimal  @map("laboratory_fee") @db.Decimal(10, 2)
+  amountSubsidy    Decimal  @map("amount_subsidy") @db.Decimal(10, 2)
+  percentSubsidy   Decimal  @map("percent_subsidy") @db.Decimal(5, 2)
   term             String
-  academicYear     String  @map("academic_year")
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear     String   @map("academic_year")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("student_fees")
 }
