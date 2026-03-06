@@ -10,6 +10,8 @@ export interface Student {
     gradeLevel: GradeLevel;
     yearLevel: string;
     status: string;
+    birthDate?: Date | null;
+    isArchived: boolean;
     createdAt: Date;
     updatedAt: Date;
     scholarships?: StudentScholarship[];
@@ -40,6 +42,7 @@ export interface CreateStudentInput {
     gradeLevel: GradeLevel;
     yearLevel: string;
     status: string;
+    birthDate?: Date | null;
     scholarshipId?: number | null;
     awardDate?: Date | null;
     startTerm?: string | null;
@@ -74,6 +77,9 @@ export interface Scholarship {
     amount: number;
     requirements: string | null;
     status: string;
+    isArchived: boolean;
+    startDate?: Date | null;
+    endDate?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     students?: StudentScholarship[];
@@ -89,6 +95,8 @@ export interface CreateScholarshipInput {
     amount: number;
     requirements?: string;
     status: string;
+    startDate?: Date | null;
+    endDate?: Date | null;
 }
 
 export type UpdateScholarshipInput = Partial<CreateScholarshipInput>;

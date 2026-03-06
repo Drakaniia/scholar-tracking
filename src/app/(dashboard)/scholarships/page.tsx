@@ -20,7 +20,7 @@ import {
  TableHeader,
  TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, GraduationCap, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Plus, Pencil, Archive, GraduationCap, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
@@ -216,40 +216,42 @@ export default function ScholarshipsPage() {
  }
  };
 
- const handleDelete = async () => {
- if (!deletingScholarship) return;
- 
- setSubmitting(true);
- try {
- const res = await fetch(`/api/scholarships/${deletingScholarship.id}`, {
- method: 'DELETE',
- });
- const result = await res.json();
- 
- if (result.success) {
- toast.success('Scholarship deleted successfully');
- setDeleteDialogOpen(false);
- setDeletingScholarship(null);
- // Invalidate cache
- clientCache.invalidatePattern('/api/scholarships');
- clientCache.invalidatePattern('/api/dashboard');
- // Clear sessionStorage to force dashboard refresh
- sessionStorage.removeItem('dashboardData');
- sessionStorage.removeItem('detailedStudents');
- // Trigger dashboard refresh event
- window.dispatchEvent(new Event('refreshDashboard'));
- fetchCounts();
- fetchScholarships();
- } else {
- toast.error(result.error || 'Failed to delete scholarship');
- }
- } catch (error) {
- console.error('Error deleting scholarship:', error);
- toast.error('Failed to delete scholarship');
- } finally {
- setSubmitting(false);
- }
- };
+  const handleDelete = async () => {
+    if (!deletingScholarship) return;
+    
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/scholarships/${deletingScholarship.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive' }),
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        toast.success('Scholarship archived successfully');
+        setDeleteDialogOpen(false);
+        setDeletingScholarship(null);
+        // Invalidate cache
+        clientCache.invalidatePattern('/api/scholarships');
+        clientCache.invalidatePattern('/api/dashboard');
+        // Clear sessionStorage to force dashboard refresh
+        sessionStorage.removeItem('dashboardData');
+        sessionStorage.removeItem('detailedStudents');
+        // Trigger dashboard refresh event
+        window.dispatchEvent(new Event('refreshDashboard'));
+        fetchCounts();
+        fetchScholarships();
+      } else {
+        toast.error(result.error || 'Failed to archive scholarship');
+      }
+    } catch (error) {
+      console.error('Error archiving scholarship:', error);
+      toast.error('Failed to archive scholarship');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
  const openCreateDialog = () => {
  setEditingScholarship(null);
@@ -427,13 +429,14 @@ export default function ScholarshipsPage() {
  >
  <Pencil className="h-4 w-4" />
  </Button>
- <Button 
- variant="ghost" 
- size="icon"
- onClick={() => openDeleteDialog(scholarship)}
- >
- <Trash2 className="h-4 w-4 text-destructive" />
- </Button>
+<Button 
+  variant="ghost" 
+  size="icon"
+  onClick={() => openDeleteDialog(scholarship)}
+  title="Archive scholarship"
+  >
+  <Archive className="h-4 w-4 text-destructive" />
+  </Button>
  </div>
  </TableCell>
  )}
@@ -510,28 +513,28 @@ export default function ScholarshipsPage() {
  <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
  <DialogContent>
  <DialogHeader>
- <DialogTitle>Delete Scholarship</DialogTitle>
- <DialogDescription>
- Are you sure you want to delete &quot;{deletingScholarship?.scholarshipName}&quot;?
- {deletingScholarship?._count?.students && deletingScholarship._count.students > 0 && (
- <span className="block mt-2 text-destructive font-medium">
- Warning: This scholarship has {deletingScholarship._count.students} student(s) assigned to it.
- </span>
- )}
- </DialogDescription>
+ <DialogTitle>Archive Scholarship</DialogTitle>
+<DialogDescription>
+  Are you sure you want to archive &quot;{deletingScholarship?.scholarshipName}&quot;?
+  {deletingScholarship?._count?.students && deletingScholarship._count.students > 0 && (
+  <span className="block mt-2 text-destructive font-medium">
+  Warning: This scholarship has {deletingScholarship._count.students} student(s) assigned to it.
+  </span>
+  )}
+  </DialogDescription>
  </DialogHeader>
  <div className="flex justify-end gap-2 mt-4">
  <Button variant="outline" onClick={closeDeleteDialog} disabled={submitting}>
  Cancel
  </Button>
- <Button 
- variant="destructive" 
- onClick={handleDelete} 
- disabled={submitting}
- className="bg-red-600 hover:bg-red-700 text-white"
- >
- {submitting ? 'Deleting...' : 'Delete'}
- </Button>
+<Button 
+  variant="destructive" 
+  onClick={handleDelete} 
+  disabled={submitting}
+  className="bg-red-600 hover:bg-red-700 text-white"
+  >
+  {submitting ? 'Archiving...' : 'Archive'}
+  </Button>
  </div>
  </DialogContent>
  </Dialog>

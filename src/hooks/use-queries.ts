@@ -115,6 +115,12 @@ interface DashboardStats {
       type: string;
       _count: { id: number };
     }>;
+    monthlyTrends: Array<{
+      name: string;
+      awarded: number;
+      disbursed: number;
+      balance: number;
+    }>;
   };
 }
 

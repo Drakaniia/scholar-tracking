@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
         const program = searchParams.get('program') || '';
         const status = searchParams.get('status') || '';
         const scholarshipId = searchParams.get('scholarshipId') || '';
+        const archivedParam = searchParams.get('archived');
+        const includeArchived = archivedParam === 'true';
 
         // Use server-side cache for student queries
         const cacheKey = generateQueryKey('students-list', { page, limit, search, gradeLevel, program, status, scholarshipId });
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
         const where = buildSearchWhere(
             search,
             ['lastName', 'firstName', 'program'],
-            additionalFilters
+            { ...additionalFilters, isArchived: includeArchived ? true : false }
         );
 
         // Add scholarship filter if specified
@@ -107,6 +109,8 @@ export async function GET(request: NextRequest) {
                                     type: true,
                                     source: true,
                                     status: true,
+                                    startDate: true,
+                                    endDate: true,
                                 },
                             },
                         },
@@ -166,6 +170,7 @@ export async function POST(request: NextRequest) {
                 gradeLevel: body.gradeLevel,
                 yearLevel: body.yearLevel,
                 status: body.status,
+                birthDate: body.birthDate || null,
             },
         });
 

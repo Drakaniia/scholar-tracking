@@ -56,7 +56,7 @@ export async function PUT(
 ) {
     try {
         const session = await getSession();
-        
+
         if (!session || session.role !== 'ADMIN') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -68,23 +68,55 @@ export async function PUT(
         const studentId = parseInt(id);
         const body: UpdateStudentInput = await request.json();
 
-        // Extract scholarships and other non-student fields from body
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { scholarships, scholarshipId, awardDate, startTerm, endTerm, grantAmount, scholarshipStatus, ...studentData } = body;
+        // Extract scholarships from body
+        const { scholarships } = body;
+        
+        // Use a transaction to update student and scholarships
+        const result = await prisma.$transaction(async (tx) => {
+            // Update student basic info
+            const student = await tx.student.update({
+                where: { id: studentId },
+                data: {
+                    lastName: body.lastName?.toUpperCase(),
+                    firstName: body.firstName?.toUpperCase(),
+                    middleInitial: body.middleInitial ? body.middleInitial.toUpperCase() : null,
+                    program: body.program,
+                    gradeLevel: body.gradeLevel,
+                    yearLevel: body.yearLevel,
+                    status: body.status,
+                    birthDate: body.birthDate || null,
+                },
+            });
 
-        // Convert names to uppercase
-        if (studentData.lastName) studentData.lastName = studentData.lastName.toUpperCase();
-        if (studentData.firstName) studentData.firstName = studentData.firstName.toUpperCase();
-        if (studentData.middleInitial) studentData.middleInitial = studentData.middleInitial.toUpperCase();
+            // Handle scholarships if provided
+            if (scholarships && Array.isArray(scholarships)) {
+                // Delete existing scholarships for this student
+                await tx.studentScholarship.deleteMany({
+                    where: { studentId },
+                });
 
-        const student = await prisma.student.update({
-            where: { id: studentId },
-            data: studentData,
+                // Create new scholarships
+                if (scholarships.length > 0) {
+                    await tx.studentScholarship.createMany({
+                        data: scholarships.map((scholarship) => ({
+                            studentId,
+                            scholarshipId: scholarship.scholarshipId,
+                            awardDate: scholarship.awardDate,
+                            startTerm: scholarship.startTerm,
+                            endTerm: scholarship.endTerm,
+                            grantAmount: scholarship.grantAmount,
+                            scholarshipStatus: scholarship.scholarshipStatus,
+                        })),
+                    });
+                }
+            }
+
+            return student;
         });
 
         return NextResponse.json({
             success: true,
-            data: student,
+            data: result,
             message: 'Student updated successfully',
         });
     } catch (error) {
@@ -96,11 +128,12 @@ export async function PUT(
     }
 }
 
-// DELETE /api/students/[id] - Delete student
-export async function DELETE(
+// PATCH /api/students/[id]/archive - Archive student
+export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    let action = 'unknown'; // Initialize with a default value
     try {
         const session = await getSession();
         
@@ -113,19 +146,30 @@ export async function DELETE(
 
         const { id } = await params;
         const studentId = parseInt(id);
+        const body = await request.json();
+        action = body.action; // 'archive' or 'unarchive'
 
-        await prisma.student.delete({
+        if (action !== 'archive' && action !== 'unarchive') {
+            return NextResponse.json(
+                { success: false, error: 'Invalid action. Use "archive" or "unarchive".' },
+                { status: 400 }
+            );
+        }
+
+        const updatedStudent = await prisma.student.update({
             where: { id: studentId },
+            data: { isArchived: action === 'archive' },
         });
 
         return NextResponse.json({
             success: true,
-            message: 'Student deleted successfully',
+            data: updatedStudent,
+            message: `Student ${action}d successfully`,
         });
     } catch (error) {
-        console.error('Error deleting student:', error);
+        console.error(`Error ${action === 'archive' ? 'archiving' : 'unarchiving'} student:`, error);
         return NextResponse.json(
-            { success: false, error: 'Failed to delete student' },
+            { success: false, error: `Failed to ${action} student` },
             { status: 500 }
         );
     }
