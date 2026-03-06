@@ -14,7 +14,20 @@ export async function GET(
 
         const scholarship = await prisma.scholarship.findUnique({
             where: { id: scholarshipId },
-            include: {
+            select: {
+                id: true,
+                scholarshipName: true,
+                sponsor: true,
+                type: true,
+                source: true,
+                eligibleGradeLevels: true,
+                amount: true,
+                requirements: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                createdAt: true,
+                updatedAt: true,
                 students: {
                     include: {
                         student: {
@@ -102,11 +115,12 @@ export async function PUT(
     }
 }
 
-// DELETE /api/scholarships/[id] - Delete scholarship
-export async function DELETE(
+// PATCH /api/scholarships/[id]/archive - Archive scholarship
+export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    let action = 'unknown'; // Initialize with a default value
     try {
         const session = await getSession();
         
@@ -119,33 +133,30 @@ export async function DELETE(
 
         const { id } = await params;
         const scholarshipId = parseInt(id);
+        const body = await request.json();
+        action = body.action; // 'archive' or 'unarchive'
 
-        // Use transaction to delete related records first
-        await prisma.$transaction(async (tx) => {
-            // Delete related student scholarships
-            await tx.studentScholarship.deleteMany({
-                where: { scholarshipId },
-            });
+        if (action !== 'archive' && action !== 'unarchive') {
+            return NextResponse.json(
+                { success: false, error: 'Invalid action. Use "archive" or "unarchive".' },
+                { status: 400 }
+            );
+        }
 
-            // Delete related disbursements
-            await tx.disbursement.deleteMany({
-                where: { scholarshipId },
-            });
-
-            // Finally delete the scholarship
-            await tx.scholarship.delete({
-                where: { id: scholarshipId },
-            });
+        const updatedScholarship = await prisma.scholarship.update({
+            where: { id: scholarshipId },
+            data: { isArchived: action === 'archive' },
         });
 
         return NextResponse.json({
             success: true,
-            message: 'Scholarship deleted successfully',
+            data: updatedScholarship,
+            message: `Scholarship ${action}d successfully`,
         });
     } catch (error) {
-        console.error('Error deleting scholarship:', error);
+        console.error(`Error ${action === 'archive' ? 'archiving' : 'unarchiving'} scholarship:`, error);
         return NextResponse.json(
-            { success: false, error: 'Failed to delete scholarship' },
+            { success: false, error: `Failed to ${action} scholarship` },
             { status: 500 }
         );
     }
