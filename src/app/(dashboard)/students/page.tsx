@@ -159,6 +159,7 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
  if (programFilter && programFilter !== 'all') params.append('program', programFilter);
  if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
  if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
+ params.append('archived', 'false');
  params.append('limit', '11');
  params.append('page', page.toString());
 
@@ -306,8 +307,15 @@ const handleViewDetails = async (studentId: number) => {
     if (!deletingStudent) return;
 
     setSubmitting(true);
+
+    // Optimistically remove student from list for instant UI update
+    const studentId = deletingStudent.id;
+    setStudents(prev => prev.filter(s => s.id !== studentId));
+    setDeleteDialogOpen(false);
+    setDeletingStudent(null);
+
     try {
-      const res = await fetch(`/api/students/${deletingStudent.id}`, {
+      const res = await fetch(`/api/students/${studentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'archive' }),
@@ -315,8 +323,7 @@ const handleViewDetails = async (studentId: number) => {
       const json = await res.json();
       if (json.success) {
         toast.success('Student archived successfully');
-        setDeleteDialogOpen(false);
-        setDeletingStudent(null);
+        // Invalidate caches
         clientCache.invalidatePattern('/api/students');
         clientCache.invalidatePattern('/api/dashboard');
         sessionStorage.removeItem('dashboardData');
@@ -325,10 +332,14 @@ const handleViewDetails = async (studentId: number) => {
         fetchStudents();
       } else {
         toast.error(json.error || 'Archive failed');
+        // Revert optimistic update on failure
+        fetchStudents();
       }
     } catch (error) {
       console.error('Error archiving student:', error);
       toast.error('Failed to archive student');
+      // Revert optimistic update on error
+      fetchStudents();
     } finally {
       setSubmitting(false);
     }
@@ -639,6 +650,7 @@ const handleViewDetails = async (studentId: number) => {
  variant="ghost"
  size="icon"
  onClick={() => handleEdit(student)}
+ className="cursor-pointer zoom-hover"
  >
  <Pencil className="h-4 w-4" />
  </Button>
@@ -646,7 +658,7 @@ const handleViewDetails = async (studentId: number) => {
   variant="ghost"
   size="icon"
   onClick={() => openDeleteDialog(student)}
-  className="text-destructive hover:text-destructive"
+  className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
   title="Archive student"
   >
   <Archive className="h-4 w-4" />
