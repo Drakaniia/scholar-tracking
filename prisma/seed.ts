@@ -17,34 +17,39 @@ async function main() {
     await prisma.scholarship.deleteMany();
     await prisma.user.deleteMany();
 
-    // Create Users
+    // Create Users with upsert to avoid duplicates
     const adminPassword = await bcrypt.hash('admin123', 12);
     const userPassword = await bcrypt.hash('user123', 12);
 
-    const users = await Promise.all([
-        prisma.user.create({
-            data: {
-                username: 'admin',
-                email: 'admin@scholartrack.com',
-                passwordHash: adminPassword,
-                firstName: 'ADMIN',
-                lastName: 'USER',
-                role: 'ADMIN',
-                status: 'ACTIVE',
-            },
-        }),
-        prisma.user.create({
-            data: {
-                username: 'user',
-                email: 'user@scholartrack.com',
-                passwordHash: userPassword,
-                firstName: 'REGULAR',
-                lastName: 'USER',
-                role: 'STAFF',
-                status: 'ACTIVE',
-            },
-        }),
-    ]);
+    const adminUser = await prisma.user.upsert({
+        where: { username: 'admin' },
+        update: {},
+        create: {
+            username: 'admin',
+            email: 'admin@scholartrack.com',
+            passwordHash: adminPassword,
+            firstName: 'ADMIN',
+            lastName: 'USER',
+            role: 'ADMIN',
+            status: 'ACTIVE',
+        },
+    });
+
+    const regularUser = await prisma.user.upsert({
+        where: { username: 'user' },
+        update: {},
+        create: {
+            username: 'user',
+            email: 'user@scholartrack.com',
+            passwordHash: userPassword,
+            firstName: 'REGULAR',
+            lastName: 'USER',
+            role: 'STAFF',
+            status: 'ACTIVE',
+        },
+    });
+
+    const users = [adminUser, regularUser];
 
     console.log(`✅ Created ${users.length} users (admin/admin123, user/user123)`);
 
@@ -111,7 +116,21 @@ async function main() {
         prisma.scholarship.create({ data: { scholarshipName: 'OLSSEF (HIED)', sponsor: 'OLSSEF Foundation', type: 'OLSSEF', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(12000), requirements: 'Financial need and academic merit', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),
         prisma.scholarship.create({ data: { scholarshipName: 'Alay ng Probinsya', sponsor: 'Provincial Government', type: 'ALAY_NG_PROBINSYA', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(12000), requirements: 'Provincial resident scholarship', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),
         prisma.scholarship.create({ data: { scholarshipName: 'TES', sponsor: 'Commission on Higher Education', type: 'TES', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(20000), requirements: 'Qualified TES applicant', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),
-        prisma.scholarship.create({ data: { scholarshipName: 'Acevedo Grant', sponsor: 'Acevedo Foundation', type: 'ACEVEDO_GRANT', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(18000), requirements: 'Academic excellence and financial need', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),
+        prisma.scholarship.create({ 
+            data: { 
+                scholarshipName: 'Acevedo Grant', 
+                sponsor: 'Acevedo Foundation', 
+                type: 'ACEVEDO_GRANT', 
+                source: 'EXTERNAL', 
+                eligibleGradeLevels: 'COLLEGE', 
+                eligiblePrograms: 'BS Education',
+                amount: new Prisma.Decimal(18000),
+                requirements: 'Academic excellence and financial need',
+                status: 'Active',
+                startDate: new Date('2025-06-01'),
+                endDate: new Date('2026-05-31')
+            }
+        }),
         prisma.scholarship.create({ data: { scholarshipName: 'StuFAPs', sponsor: 'Commission on Higher Education', type: 'STUFAPS', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(25000), requirements: 'CHED StuFAPs qualified', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),
         prisma.scholarship.create({ data: { scholarshipName: 'CMSP', sponsor: 'CMSP Foundation', type: 'CMSP', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(15000), requirements: 'Academic merit and leadership', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),
         prisma.scholarship.create({ data: { scholarshipName: 'INDIVIDUAL SPONSORSHIP (HIED)', sponsor: 'Private Sponsor', type: 'INDIVIDUAL_SPONSORSHIP', source: 'EXTERNAL', eligibleGradeLevels: 'COLLEGE', amount: new Prisma.Decimal(20000), requirements: 'Sponsored by individual donor', status: 'Active', startDate: new Date('2025-06-01'), endDate: new Date('2026-05-31') } }),

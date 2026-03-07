@@ -24,6 +24,7 @@ model User {
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
   auditLogs           AuditLog[]
+  backups             Backup[]
   sessions            Session[]
 
   @@map("users")
@@ -57,26 +58,29 @@ model AuditLog {
 }
 
 model Student {
-  createdAt     DateTime             @default(now()) @map("created_at")
-  program       String
-  status        String
-  id            Int                  @id @default(autoincrement()) @map("student_id")
-  updatedAt     DateTime             @updatedAt @map("updated_at")
-  yearLevel     String               @map("year_level")
-  firstName     String               @map("first_name")
-  gradeLevel    String               @map("grade_level")
-  lastName      String               @map("last_name")
-  middleInitial String?              @map("middle_initial")
-  isArchived    Boolean              @default(false) @map("is_archived")
-  birthDate     DateTime?            @map("birth_date")
-  disbursements Disbursement[]
-  fees          StudentFees[]
-  scholarships  StudentScholarship[]
+  createdAt        DateTime             @default(now()) @map("created_at")
+  program          String
+  status           String
+  id               Int                  @id @default(autoincrement()) @map("student_id")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  yearLevel        String               @map("year_level")
+  firstName        String               @map("first_name")
+  gradeLevel       String               @map("grade_level")
+  lastName         String               @map("last_name")
+  middleInitial    String?              @map("middle_initial")
+  birthDate        DateTime?            @map("birth_date")
+  graduatedAt      DateTime?            @map("graduated_at")
+  graduationStatus String?              @default("Active") @map("graduation_status")
+  isArchived       Boolean              @default(false) @map("is_archived")
+  disbursements    Disbursement[]
+  fees             StudentFees[]
+  scholarships     StudentScholarship[]
 
   @@index([lastName, firstName])
   @@index([gradeLevel, status])
   @@index([program])
   @@index([isArchived])
+  @@index([graduationStatus])
   @@map("students")
 }
 
@@ -114,8 +118,9 @@ model Scholarship {
   source              String               @default("INTERNAL")
   eligibleGradeLevels String               @map("eligible_grade_levels")
   endDate             DateTime?            @map("end_date")
-  startDate           DateTime?            @map("start_date")
   isArchived          Boolean              @default(false) @map("is_archived")
+  startDate           DateTime?            @map("start_date")
+  eligiblePrograms    String?              @map("eligible_programs")
   disbursements       Disbursement[]
   students            StudentScholarship[]
 
@@ -161,4 +166,21 @@ model StudentFees {
   student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("student_fees")
+}
+
+model Backup {
+  id               Int      @id @default(autoincrement()) @map("backup_id")
+  tableName        String   @map("table_name")
+  recordId         Int      @map("record_id")
+  operation        String   @map("operation")
+  oldValue         Json     @map("old_value")
+  createdAt        DateTime @default(now()) @map("created_at")
+  performedBy      Int?     @map("performed_by")
+  operationContext String   @map("operation_context")
+  user             User?    @relation(fields: [performedBy], references: [id])
+
+  @@index([tableName])
+  @@index([recordId])
+  @@index([createdAt])
+  @@map("backups")
 }
