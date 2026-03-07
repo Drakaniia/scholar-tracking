@@ -44,6 +44,8 @@ interface Scholarship {
  sponsor: string;
  type: string;
  source: string;
+ eligibleGradeLevels: string | null;
+ eligiblePrograms: string | null;
  amount: number;
  requirements: string | null;
  status: string;
@@ -610,6 +612,8 @@ export default function ScholarshipsPage() {
  sponsor: editingScholarship.sponsor,
  type: editingScholarship.type,
  source: editingScholarship.source,
+ eligibleGradeLevels: editingScholarship.eligibleGradeLevels || '',
+ eligiblePrograms: editingScholarship.eligiblePrograms || '',
  amount: editingScholarship.amount,
  requirements: editingScholarship.requirements || '',
  status: editingScholarship.status,

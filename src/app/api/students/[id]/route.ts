@@ -101,6 +101,7 @@ export async function PUT(
 
         // Use a transaction to update student and scholarships
         const result = await prisma.$transaction(async (tx) => {
+            let removedScholarships: Array<{ id: number; name: string }> = [];
             // Get the current student data to check for graduation
             const currentStudent = await tx.student.findUnique({
                 where: { id: studentId },
@@ -152,6 +153,52 @@ export async function PUT(
                 });
             }
 
+            // Check if grade level changed and validate/remove ineligible scholarships
+            if (body.gradeLevel !== undefined && body.gradeLevel !== currentStudent.gradeLevel) {
+                // Get all current scholarships for the student
+                const currentScholarships = await tx.studentScholarship.findMany({
+                    where: { studentId },
+                    include: {
+                        scholarship: true,
+                    },
+                });
+
+                // Filter scholarships that are still eligible with the new grade level
+                const { filterEligibleScholarships } = await import('@/lib/scholarship-validation');
+                const eligibleScholarshipIds = filterEligibleScholarships(
+                    {
+                        gradeLevel: body.gradeLevel,
+                        program: currentStudent.program,
+                    },
+                    currentScholarships.map(ss => ({
+                        id: ss.scholarshipId,
+                        eligibleGradeLevels: ss.scholarship.eligibleGradeLevels,
+                        eligiblePrograms: ss.scholarship.eligiblePrograms,
+                    }))
+                );
+
+                // Find scholarships that are no longer eligible
+                const ineligibleScholarships = currentScholarships.filter(
+                    ss => !eligibleScholarshipIds.includes(ss.scholarshipId)
+                );
+
+                // Track removed scholarships for the response
+                removedScholarships = ineligibleScholarships.map(ss => ({
+                    id: ss.scholarshipId,
+                    name: ss.scholarship.scholarshipName,
+                }));
+
+                // Remove ineligible scholarships
+                if (ineligibleScholarships.length > 0) {
+                    await tx.studentScholarship.deleteMany({
+                        where: {
+                            studentId,
+                            scholarshipId: { in: ineligibleScholarships.map(ss => ss.scholarshipId) },
+                        },
+                    });
+                }
+            }
+
             // Handle scholarships if provided
             if (scholarships !== undefined && Array.isArray(scholarships)) {
                 // Validate scholarship assignments before creating them
@@ -186,17 +233,31 @@ export async function PUT(
                 }
             }
 
-            return student;
+            return { student, removedScholarships };
         });
 
         // Invalidate cache
         queryOptimizer.invalidatePattern('students-list');
 
-        return NextResponse.json({
+        // Build response with scholarship removal information
+        const responseData: {
+            success: boolean;
+            data: unknown;
+            message: string;
+            warning?: string;
+            removedScholarships?: Array<{ id: number; name: string }>;
+        } = {
             success: true,
-            data: result,
+            data: result.student,
             message: 'Student updated successfully',
-        });
+        };
+
+        if (result.removedScholarships.length > 0) {
+            responseData.warning = `${result.removedScholarships.length} scholarship(s) were automatically removed due to grade level change: ${result.removedScholarships.map((s: { name: string }) => s.name).join(', ')}`;
+            responseData.removedScholarships = result.removedScholarships;
+        }
+
+        return NextResponse.json(responseData);
     } catch (error) {
         console.error('Error updating student:', error);
         

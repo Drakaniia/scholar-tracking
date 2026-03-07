@@ -29,9 +29,9 @@ export async function validateStudentScholarshipEligibility(studentId: number, s
   // Check if student grade level is eligible for the scholarship
   const studentGradeLevels = getGradeLevelForStudent(student.gradeLevel);
   const eligibleGradeLevels = scholarship.eligibleGradeLevels.split(',').map(level => level.trim().toUpperCase());
-  
+
   // Check if any of the student's possible grade level representations match the eligible levels
-  const isGradeLevelEligible = studentGradeLevels.some(level => 
+  const isGradeLevelEligible = studentGradeLevels.some(level =>
     eligibleGradeLevels.includes(level.toUpperCase())
   );
 
@@ -46,9 +46,9 @@ export async function validateStudentScholarshipEligibility(studentId: number, s
   if (scholarship.eligiblePrograms) {
     const eligiblePrograms = scholarship.eligiblePrograms.split(',').map(prog => prog.trim().toLowerCase());
     const studentProgram = student.program.toLowerCase();
-    
+
     const isProgramEligible = eligiblePrograms.includes(studentProgram);
-    
+
     if (!isProgramEligible) {
       throw new Error(
         `Student program '${student.program}' is not eligible for scholarship ` +
@@ -56,6 +56,49 @@ export async function validateStudentScholarshipEligibility(studentId: number, s
       );
     }
   }
+}
+
+/**
+ * Filters out scholarships that are not eligible for a student based on their grade level and program
+ * @param student The student object with gradeLevel and program
+ * @param scholarships Array of scholarships with their eligibility criteria
+ * @returns Array of scholarship IDs that are eligible
+ */
+export function filterEligibleScholarships(
+  student: { gradeLevel: string; program: string },
+  scholarships: Array<{ id: number; eligibleGradeLevels: string; eligiblePrograms: string | null }>
+): number[] {
+  const studentGradeLevels = getGradeLevelForStudent(student.gradeLevel);
+
+  return scholarships.filter(scholarship => {
+    // Check grade level eligibility
+    const eligibleGradeLevels = scholarship.eligibleGradeLevels
+      .split(',')
+      .map(level => level.trim().toUpperCase());
+
+    const isGradeLevelEligible = studentGradeLevels.some(level =>
+      eligibleGradeLevels.includes(level.toUpperCase())
+    );
+
+    if (!isGradeLevelEligible) {
+      return false;
+    }
+
+    // Check program eligibility if restricted
+    if (scholarship.eligiblePrograms) {
+      const eligiblePrograms = scholarship.eligiblePrograms
+        .split(',')
+        .map(prog => prog.trim().toLowerCase());
+
+      const isProgramEligible = eligiblePrograms.includes(student.program.toLowerCase());
+
+      if (!isProgramEligible) {
+        return false;
+      }
+    }
+
+    return true;
+  }).map(s => s.id);
 }
 
 /**
