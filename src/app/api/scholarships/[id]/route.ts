@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { UpdateScholarshipInput } from '@/types';
 import { getSession } from '@/lib/auth';
+import { queryOptimizer } from '@/lib/query-optimizer';
 
 // GET /api/scholarships/[id] - Get single scholarship
 export async function GET(
@@ -30,8 +31,6 @@ export async function GET(
                 coversTuition: true,
                 coversMiscellaneous: true,
                 coversLaboratory: true,
-                startDate: true,
-                endDate: true,
                 createdAt: true,
                 updatedAt: true,
                 students: {
@@ -90,7 +89,7 @@ export async function PUT(
 ) {
     try {
         const session = await getSession();
-        
+
         if (!session || session.role !== 'ADMIN') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -106,6 +105,10 @@ export async function PUT(
             where: { id: scholarshipId },
             data: body,
         });
+
+        // Invalidate cache
+        queryOptimizer.invalidatePattern('scholarships-list');
+        queryOptimizer.invalidate('scholarships-counts');
 
         return NextResponse.json({
             success: true,
@@ -129,7 +132,7 @@ export async function PATCH(
     let action = 'unknown'; // Initialize with a default value
     try {
         const session = await getSession();
-        
+
         if (!session || session.role !== 'ADMIN') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -153,6 +156,10 @@ export async function PATCH(
             where: { id: scholarshipId },
             data: { isArchived: action === 'archive' },
         });
+
+        // Invalidate cache
+        queryOptimizer.invalidatePattern('scholarships-list');
+        queryOptimizer.invalidate('scholarships-counts');
 
         return NextResponse.json({
             success: true,

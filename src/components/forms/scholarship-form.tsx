@@ -72,8 +72,6 @@ export function ScholarshipForm({
             amount: 0,
             requirements: '',
             status: 'Active',
-            startDate: null,
-            endDate: null,
             grantType: 'FULL',
             coversTuition: false,
             coversMiscellaneous: false,
@@ -360,25 +358,6 @@ export function ScholarshipForm({
                     placeholder="Minimum GWA of 1.5, enrolled in any degree program..."
                     rows={3}
                 />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="startDate">Start Date</Label>
-                    <Input
-                        id="startDate"
-                        type="date"
-                        {...form.register('startDate', { valueAsDate: true })}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="endDate">End Date</Label>
-                    <Input
-                        id="endDate"
-                        type="date"
-                        {...form.register('endDate', { valueAsDate: true })}
-                    />
-                </div>
             </div>
 
             <DialogFooter className="gap-2">

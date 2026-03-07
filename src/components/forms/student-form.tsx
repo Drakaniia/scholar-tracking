@@ -13,10 +13,20 @@ import {
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { YEAR_LEVELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, GradeLevel, GrantType } from '@/types';
+import { YEAR_LEVELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, GradeLevel, GrantType, TermType, TERM_TYPES, TERM_TYPE_LABELS, TERM_FORMATS } from '@/types';
 import { useState, useEffect } from 'react';
 import { Plus, X, Search, Filter, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Completed', 'Suspended'] as const;
 
@@ -65,8 +75,6 @@ interface Scholarship {
     type: string;
     source: string;
     amount: number;
-    startDate?: Date | null; // Start date of the scholarship
-    endDate?: Date | null;   // End date of the scholarship
     eligibleGradeLevels?: string; // Comma-separated grade levels
     grantType: string;
     coversTuition: boolean;
@@ -91,6 +99,7 @@ interface StudentFormProps {
     onCancel: () => void;
     isEditing?: boolean;
     loading?: boolean;
+    studentName?: string; // Name of student being edited for confirmation display
 }
 
 export function StudentForm({
@@ -99,10 +108,16 @@ export function StudentForm({
     onCancel,
     isEditing = false,
     loading = false,
+    studentName,
 }: StudentFormProps) {
     const [selectedGradeLevel, setSelectedGradeLevel] = useState<GradeLevel | ''>(
         defaultValues?.gradeLevel || ''
     );
+    const [selectedTermType, setSelectedTermType] = useState<TermType>(
+        defaultValues?.termType || 'SEMESTER'
+    );
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [pendingData, setPendingData] = useState<CreateStudentInput | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<string>('');
     const [selectedProgram, setSelectedProgram] = useState<string>('');
     const [selectedStrand, setSelectedStrand] = useState<string>('');
@@ -137,6 +152,7 @@ export function StudentForm({
             yearLevel: '',
             status: 'Active',
             birthDate: undefined,
+            termType: 'SEMESTER',
             ...defaultValues,
         },
     });
@@ -208,39 +224,25 @@ export function StudentForm({
         const alreadySelected = selectedScholarships.some(s => s.scholarshipId === scholarship.id);
         if (alreadySelected) return;
 
-        // Format dates for startTerm and endTerm if available
+        // Calculate startTerm and endTerm based on student's grade level and term type
         let startTerm = '';
         let endTerm = '';
-        
-        if (scholarship.startDate || scholarship.endDate) {
-            const startDate = scholarship.startDate ? new Date(scholarship.startDate).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-            }) : 'TBD';
-            
-            const endDate = scholarship.endDate ? new Date(scholarship.endDate).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-            }) : 'TBD';
-            
-            startTerm = startDate;
-            endTerm = endDate;
-        }
 
-        // If no scholarship-level dates are set, calculate based on student's grade level
-        if (!startTerm && !endTerm && selectedGradeLevel) {
+        // Calculate based on student's grade level
+        if (selectedGradeLevel) {
             const currentYear = new Date().getFullYear();
             const currentMonth = new Date().getMonth(); // 0-11
-            
+
             // Determine academic year based on current date (assuming academic year starts in June)
             const academicYearStart = currentMonth >= 5 ? currentYear : currentYear - 1; // June = 5 in 0-indexed
             const academicYearEnd = academicYearStart + 1;
-            
+
+            // Get term format based on selected term type
+            const termFormat = TERM_FORMATS[selectedTermType];
+
             // Calculate end year based on grade level
             let endYear = academicYearEnd;
-            
+
             if (selectedGradeLevel === 'GRADE_SCHOOL') {
                 // Grade school: assume until they complete grade school (Grade 6)
                 if (form.getValues('yearLevel')) {
@@ -279,25 +281,25 @@ export function StudentForm({
                     endYear = academicYearEnd + 2; // Default to 2 years for SHS
                 }
             } else if (selectedGradeLevel === 'COLLEGE') {
-                // College: assume 4-5 years depending on program
+                // College: assume 4-5 years for semester, 3-4 years for trimester
                 if (form.getValues('yearLevel')) {
                     const yearLevelValue = form.getValues('yearLevel');
                     const yearMatch = yearLevelValue.match(/(\d+)(st|nd|rd|th) Year/);
                     if (yearMatch) {
                         const currentYearNum = parseInt(yearMatch[1]);
-                        const totalYears = 4; // Most programs are 4 years
+                        const totalYears = selectedTermType === 'TRIMESTER' ? 3 : 4; // 3 years for trimester, 4 for semester
                         endYear = academicYearEnd + (totalYears - currentYearNum);
                     } else {
-                        endYear = academicYearEnd + 4; // Default to 4 years for college
+                        endYear = academicYearEnd + (selectedTermType === 'TRIMESTER' ? 3 : 4);
                     }
                 } else {
-                    endYear = academicYearEnd + 4; // Default to 4 years for college
+                    endYear = academicYearEnd + (selectedTermType === 'TRIMESTER' ? 3 : 4);
                 }
             }
-            
-            // Format as academic year terms
-            startTerm = `1st Semester ${academicYearStart}-${academicYearEnd}`;
-            endTerm = `2nd Semester ${endYear}-${endYear + 1}`;
+
+            // Format as academic year terms using term format
+            startTerm = `${termFormat.labels[0]} ${termFormat.prefix} ${academicYearStart}-${academicYearEnd}`;
+            endTerm = `${termFormat.labels[termFormat.labels.length - 1]} ${termFormat.prefix} ${endYear}-${endYear + 1}`;
         }
 
         const newScholarship: SelectedScholarship = {
@@ -345,7 +347,22 @@ export function StudentForm({
             ...data,
             scholarships: selectedScholarships.length > 0 ? selectedScholarships : undefined,
         };
-        onSubmit(submitData);
+        
+        // Show confirmation dialog when editing
+        if (isEditing) {
+            setPendingData(submitData);
+            setShowConfirmDialog(true);
+        } else {
+            onSubmit(submitData);
+        }
+    };
+
+    const handleConfirmSave = () => {
+        if (pendingData) {
+            onSubmit(pendingData);
+            setPendingData(null);
+            setShowConfirmDialog(false);
+        }
     };
 
     return (
@@ -399,8 +416,8 @@ export function StudentForm({
                     name="gradeLevel"
                     control={form.control}
                     render={({ field }) => (
-                        <Select 
-                            value={field.value} 
+                        <Select
+                            value={field.value}
                             onValueChange={(value) => {
                                 field.onChange(value);
                                 handleGradeLevelChange(value as GradeLevel);
@@ -420,6 +437,42 @@ export function StudentForm({
                     )}
                 />
             </div>
+
+            {/* Term Type Selector - Only for College */}
+            {selectedGradeLevel === 'COLLEGE' && (
+                <div className="space-y-3">
+                    <Label htmlFor="termType" className="text-sm font-medium">Academic Term System</Label>
+                    <Controller
+                        name="termType"
+                        control={form.control}
+                        render={({ field }) => (
+                            <Select
+                                value={field.value || selectedTermType}
+                                onValueChange={(value) => {
+                                    field.onChange(value);
+                                    setSelectedTermType(value as TermType);
+                                }}
+                            >
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="Select term system" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {TERM_TYPES.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            {TERM_TYPE_LABELS[type]}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        {selectedTermType === 'TRIMESTER' 
+                            ? '3 terms per year (typically 3-year programs)' 
+                            : '2 terms per year (typically 4-year programs)'}
+                    </p>
+                </div>
+            )}
 
             {/* College Fields */}
             {selectedGradeLevel === 'COLLEGE' && (
@@ -904,20 +957,6 @@ export function StudentForm({
                                         </p>
                                     ) : (
                                         filteredScholarships.map((scholarship) => {
-                                            // Format duration for display
-                                            let durationDisplay = '';
-                                            if (scholarship.startDate || scholarship.endDate) {
-                                                const startStr = scholarship.startDate 
-                                                    ? new Date(scholarship.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                                                    : 'No start';
-                                                const endStr = scholarship.endDate 
-                                                    ? new Date(scholarship.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                                                    : 'No end';
-                                                durationDisplay = `${startStr} - ${endStr}`;
-                                            } else {
-                                                durationDisplay = 'Duration not set';
-                                            }
-
                                             return (
                                                 <div
                                                     key={scholarship.id}
@@ -926,9 +965,6 @@ export function StudentForm({
                                                     <div>
                                                         <p className="font-medium text-base">{scholarship.scholarshipName}</p>
                                                         <p className="text-sm text-muted-foreground">{scholarship.type}</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {durationDisplay}
-                                                        </p>
                                                     </div>
                                                     <div className="flex items-center gap-4">
                                                         <div className="text-right">
@@ -956,22 +992,55 @@ export function StudentForm({
             </div>
 
             <DialogFooter className="gap-3 pt-4">
-                <Button 
-                    type="button" 
-                    variant="outline" 
+                <Button
+                    type="button"
+                    variant="outline"
                     onClick={onCancel}
                     className="h-10 px-4 py-2"
                 >
                     Cancel
                 </Button>
-                <Button 
-                    type="submit" 
+                <Button
+                    type="submit"
                     disabled={loading}
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white h-10 px-6 py-2"
                 >
                     {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Student'}
                 </Button>
             </DialogFooter>
+
+            {/* Confirmation Dialog for Editing */}
+            <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Save Changes</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {studentName ? (
+                                <>
+                                    You are about to save changes to <strong>{studentName}</strong>&apos;s record.
+                                </>
+                            ) : (
+                                'Are you sure you want to save these changes?'
+                            )}
+                            <br />
+                            <span className="text-sm mt-2">
+                                Please review all information carefully before confirming.
+                            </span>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingData(null)}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmSave}
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                        >
+                            Confirm Save
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </form>
     );
 }

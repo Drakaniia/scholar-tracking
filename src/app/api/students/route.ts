@@ -111,8 +111,6 @@ export async function GET(request: NextRequest) {
                                     type: true,
                                     source: true,
                                     status: true,
-                                    startDate: true,
-                                    endDate: true,
                                     grantType: true,
                                 },
                             },

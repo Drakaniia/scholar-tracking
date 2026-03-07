@@ -136,7 +136,7 @@ export default function ScholarshipsPage() {
  toast.error('Failed to load scholarships');
  } finally {
  setLoading(false);
- setTimeout(() => setIsVisible(true), 50);
+ setIsVisible(true);
  }
  }, [sourceFilter, page]);
 
