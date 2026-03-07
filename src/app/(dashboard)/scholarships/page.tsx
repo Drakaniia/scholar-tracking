@@ -25,7 +25,7 @@ import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
 import { ExportButton } from '@/components/shared';
-import type { CreateScholarshipInput } from '@/types';
+import type { CreateScholarshipInput, GrantType } from '@/types';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVEL_LABELS } from '@/types';
 import { clientCache } from '@/lib/cache';
@@ -46,6 +46,10 @@ interface Scholarship {
  amount: number;
  requirements: string | null;
  status: string;
+ grantType: string;
+ coversTuition: boolean;
+ coversMiscellaneous: boolean;
+ coversLaboratory: boolean;
  _count?: {
  students: number;
  };
@@ -59,6 +63,7 @@ interface ScholarshipDetail extends Scholarship {
  startTerm: string;
  endTerm: string;
  grantAmount: number;
+ grantType: string;
  scholarshipStatus: string;
  student: {
  firstName: string;
@@ -378,6 +383,7 @@ export default function ScholarshipsPage() {
  <TableHead>Scholarship Name</TableHead>
  <TableHead>Sponsor</TableHead>
  <TableHead>Type</TableHead>
+ <TableHead>Grant Type</TableHead>
  <TableHead>Source</TableHead>
  <TableHead className="text-right">Amount</TableHead>
  <TableHead>Students</TableHead>
@@ -400,12 +406,24 @@ export default function ScholarshipsPage() {
  <Badge variant="outline">{scholarship.type}</Badge>
  </TableCell>
  <TableCell>
+ <Badge variant={scholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'}>
+ {scholarship.grantType === 'TUITION_ONLY' ? 'Free Tuition' : 
+  scholarship.grantType === 'FULL' ? 'Full Grant' :
+  scholarship.grantType === 'NONE' ? 'None' :
+  scholarship.grantType.replace('_', ' ')}
+ </Badge>
+ </TableCell>
+ <TableCell>
  <Badge variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
  {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
  </Badge>
  </TableCell>
  <TableCell className="text-right font-semibold">
- {formatCurrency(scholarship.amount)}
+ {scholarship.grantType === 'TUITION_ONLY' || scholarship.grantType === 'NONE' ? (
+ <span className="text-muted-foreground">Free Tuition</span>
+ ) : (
+ formatCurrency(scholarship.amount)
+ )}
  </TableCell>
  <TableCell>
  {scholarship._count?.students || 0} students
@@ -500,6 +518,10 @@ export default function ScholarshipsPage() {
  amount: editingScholarship.amount,
  requirements: editingScholarship.requirements || '',
  status: editingScholarship.status,
+ grantType: editingScholarship.grantType as GrantType,
+ coversTuition: editingScholarship.coversTuition,
+ coversMiscellaneous: editingScholarship.coversMiscellaneous,
+ coversLaboratory: editingScholarship.coversLaboratory,
  } : undefined}
  onSubmit={editingScholarship ? handleUpdate : handleCreate}
  onCancel={closeDialog}
@@ -581,8 +603,23 @@ export default function ScholarshipsPage() {
  </Badge>
  </div>
  <div>
+ <p className="text-sm font-medium text-muted-foreground">Grant Type</p>
+ <Badge variant={selectedScholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'}>
+ {selectedScholarship.grantType === 'TUITION_ONLY' ? 'Free Tuition' : 
+  selectedScholarship.grantType === 'FULL' ? 'Full Grant' :
+  selectedScholarship.grantType === 'NONE' ? 'None' :
+  selectedScholarship.grantType.replace('_', ' ')}
+ </Badge>
+ </div>
+ <div>
  <p className="text-sm font-medium text-muted-foreground">Amount</p>
- <p className="text-2xl font-bold text-primary">{formatCurrency(selectedScholarship.amount)}</p>
+ <p className="text-2xl font-bold text-primary">
+ {selectedScholarship.grantType === 'TUITION_ONLY' || selectedScholarship.grantType === 'NONE' ? (
+ <span className="text-lg">Free Tuition</span>
+ ) : (
+ formatCurrency(selectedScholarship.amount)
+ )}
+ </p>
  </div>
  <div>
  <p className="text-sm font-medium text-muted-foreground">Status</p>
@@ -590,6 +627,25 @@ export default function ScholarshipsPage() {
  {selectedScholarship.status}
  </Badge>
  </div>
+ {(selectedScholarship.grantType === 'TUITION_ONLY' || selectedScholarship.grantType === 'MISC_ONLY' || selectedScholarship.grantType === 'LAB_ONLY') && (
+ <div className="col-span-2">
+ <p className="text-sm font-medium text-muted-foreground mb-2">Covers</p>
+ <div className="flex gap-2">
+ {selectedScholarship.coversTuition && (
+ <Badge variant="default">Tuition</Badge>
+ )}
+ {selectedScholarship.coversMiscellaneous && (
+ <Badge variant="secondary">Miscellaneous</Badge>
+ )}
+ {selectedScholarship.coversLaboratory && (
+ <Badge variant="outline">Laboratory</Badge>
+ )}
+ {!selectedScholarship.coversTuition && !selectedScholarship.coversMiscellaneous && !selectedScholarship.coversLaboratory && (
+ <span className="text-sm text-muted-foreground">No specific fees selected</span>
+ )}
+ </div>
+ </div>
+ )}
  {selectedScholarship.requirements && (
  <div className="col-span-2">
  <p className="text-sm font-medium text-muted-foreground">Requirements</p>

@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
                             startTerm: true,
                             endTerm: true,
                             grantAmount: true,
+                            grantType: true,
                             scholarshipStatus: true,
                             scholarship: {
                                 select: {
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
                                     status: true,
                                     startDate: true,
                                     endDate: true,
+                                    grantType: true,
                                 },
                             },
                         },
@@ -189,6 +191,7 @@ export async function POST(request: NextRequest) {
                     startTerm: scholarship.startTerm || '',
                     endTerm: scholarship.endTerm || '',
                     grantAmount: scholarship.grantAmount || 0,
+                    grantType: scholarship.grantType || 'FULL',
                     scholarshipStatus: scholarship.scholarshipStatus || 'Active',
                 })),
             });

@@ -15,7 +15,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateScholarshipInput, GradeLevel } from '@/types';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateScholarshipInput, GradeLevel, GRANT_TYPES, GRANT_TYPE_LABELS, GrantType } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
 
@@ -39,7 +39,7 @@ export function ScholarshipForm({
     );
     const [customType, setCustomType] = useState(
         defaultValues?.type && !['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'].includes(defaultValues.type)
-            ? defaultValues.type 
+            ? defaultValues.type
             : ''
     );
     const [selectedGradeLevels, setSelectedGradeLevels] = useState<GradeLevel[]>(
@@ -47,6 +47,18 @@ export function ScholarshipForm({
     );
     const [selectedPrograms, setSelectedPrograms] = useState<string[]>(
         defaultValues?.eligiblePrograms?.split(',').map(p => p.trim()) || []
+    );
+    const [selectedGrantType, setSelectedGrantType] = useState<GrantType>(
+        defaultValues?.grantType || 'FULL'
+    );
+    const [coversTuition, setCoversTuition] = useState(
+        defaultValues?.coversTuition || false
+    );
+    const [coversMiscellaneous, setCoversMiscellaneous] = useState(
+        defaultValues?.coversMiscellaneous || false
+    );
+    const [coversLaboratory, setCoversLaboratory] = useState(
+        defaultValues?.coversLaboratory || false
     );
 
     const form = useForm<CreateScholarshipInput>({
@@ -62,6 +74,10 @@ export function ScholarshipForm({
             status: 'Active',
             startDate: null,
             endDate: null,
+            grantType: 'FULL',
+            coversTuition: false,
+            coversMiscellaneous: false,
+            coversLaboratory: false,
             ...defaultValues,
         },
     });
@@ -105,6 +121,10 @@ export function ScholarshipForm({
         }
         data.eligibleGradeLevels = selectedGradeLevels.join(',');
         data.eligiblePrograms = selectedPrograms.length > 0 ? selectedPrograms.join(',') : null;
+        data.grantType = selectedGrantType;
+        data.coversTuition = coversTuition;
+        data.coversMiscellaneous = coversMiscellaneous;
+        data.coversLaboratory = coversLaboratory;
         onSubmit(data);
     };
 
@@ -226,6 +246,77 @@ export function ScholarshipForm({
                 </div>
             )}
 
+            <div className="space-y-2">
+                <Label htmlFor="grantType">Grant Type</Label>
+                <Controller
+                    name="grantType"
+                    control={form.control}
+                    render={({ field }) => (
+                        <Select value={field.value} onValueChange={(value) => {
+                            field.onChange(value);
+                            setSelectedGrantType(value as GrantType);
+                        }}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {GRANT_TYPES.map((grantType) => (
+                                    <SelectItem key={grantType} value={grantType}>
+                                        {GRANT_TYPE_LABELS[grantType]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                    {selectedGrantType === 'TUITION_ONLY' && 'Student gets free tuition but no cash grant.'}
+                    {selectedGrantType === 'MISC_ONLY' && 'Student gets miscellaneous fees covered only.'}
+                    {selectedGrantType === 'LAB_ONLY' && 'Student gets laboratory fees covered only.'}
+                    {selectedGrantType === 'NONE' && 'Honorific scholarship with no financial benefits.'}
+                    {selectedGrantType === 'FULL' && 'Student receives full cash grant and tuition coverage.'}
+                </p>
+            </div>
+
+            {/* Show fee coverage options for non-FULL grant types */}
+            {selectedGrantType !== 'FULL' && selectedGrantType !== 'NONE' && (
+                <div className="space-y-2">
+                    <Label>Covers</Label>
+                    <div className="grid grid-cols-3 gap-3 p-3 border rounded-md">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="coversTuition"
+                                checked={coversTuition}
+                                onCheckedChange={(checked) => setCoversTuition(checked as boolean)}
+                            />
+                            <Label htmlFor="coversTuition" className="text-sm font-normal cursor-pointer">
+                                Tuition
+                            </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="coversMiscellaneous"
+                                checked={coversMiscellaneous}
+                                onCheckedChange={(checked) => setCoversMiscellaneous(checked as boolean)}
+                            />
+                            <Label htmlFor="coversMiscellaneous" className="text-sm font-normal cursor-pointer">
+                                Miscellaneous
+                            </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="coversLaboratory"
+                                checked={coversLaboratory}
+                                onCheckedChange={(checked) => setCoversLaboratory(checked as boolean)}
+                            />
+                            <Label htmlFor="coversLaboratory" className="text-sm font-normal cursor-pointer">
+                                Laboratory
+                            </Label>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="amount">Amount</Label>
@@ -235,7 +326,7 @@ export function ScholarshipForm({
                         min="0"
                         step="0.01"
                         {...form.register('amount', { valueAsNumber: true })}
-                        placeholder="10000"
+                        placeholder={selectedGrantType === 'TUITION_ONLY' ? '0' : '10000'}
                     />
                 </div>
                 <div className="space-y-2">

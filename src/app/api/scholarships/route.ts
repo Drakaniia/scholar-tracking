@@ -180,6 +180,10 @@ export async function GET(request: NextRequest) {
                       requirements: true,
                       status: true,
                       isArchived: true,
+                      grantType: true,
+                      coversTuition: true,
+                      coversMiscellaneous: true,
+                      coversLaboratory: true,
                       createdAt: true,
                       updatedAt: true,
                       _count: {
@@ -244,6 +248,10 @@ export async function POST(request: NextRequest) {
                 status: body.status,
                 startDate: body.startDate || null,
                 endDate: body.endDate || null,
+                grantType: body.grantType || 'FULL',
+                coversTuition: body.coversTuition || false,
+                coversMiscellaneous: body.coversMiscellaneous || false,
+                coversLaboratory: body.coversLaboratory || false,
             },
         });
 
