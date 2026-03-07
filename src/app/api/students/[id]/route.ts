@@ -68,11 +68,36 @@ export async function PUT(
 
         const { id } = await params;
         const studentId = parseInt(id);
-        const body: UpdateStudentInput = await request.json();
+        
+        if (isNaN(studentId)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid student ID' },
+                { status: 400 }
+            );
+        }
+
+        let body: UpdateStudentInput;
+        try {
+            body = await request.json();
+        } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
+            return NextResponse.json(
+                { success: false, error: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
 
         // Extract scholarships from body
         const { scholarships } = body;
-        
+
+        // Validate scholarships array if provided
+        if (scholarships !== undefined && !Array.isArray(scholarships)) {
+            return NextResponse.json(
+                { success: false, error: 'Scholarships must be an array' },
+                { status: 400 }
+            );
+        }
+
         // Use a transaction to update student and scholarships
         const result = await prisma.$transaction(async (tx) => {
             // Get the current student data to check for graduation
@@ -84,24 +109,26 @@ export async function PUT(
                 throw new Error(`Student with ID ${studentId} not found`);
             }
 
+            // Build update data object
+            const updateData: Record<string, unknown> = {};
+            if (body.lastName !== undefined) updateData.lastName = body.lastName.toUpperCase();
+            if (body.firstName !== undefined) updateData.firstName = body.firstName.toUpperCase();
+            if (body.middleInitial !== undefined) updateData.middleInitial = body.middleInitial ? body.middleInitial.toUpperCase() : null;
+            if (body.program !== undefined) updateData.program = body.program;
+            if (body.gradeLevel !== undefined) updateData.gradeLevel = body.gradeLevel;
+            if (body.yearLevel !== undefined) updateData.yearLevel = body.yearLevel;
+            if (body.status !== undefined) updateData.status = body.status;
+            if (body.birthDate !== undefined) updateData.birthDate = body.birthDate || null;
+
             // Update student basic info
             const student = await tx.student.update({
                 where: { id: studentId },
-                data: {
-                    lastName: body.lastName?.toUpperCase(),
-                    firstName: body.firstName?.toUpperCase(),
-                    middleInitial: body.middleInitial ? body.middleInitial.toUpperCase() : null,
-                    program: body.program,
-                    gradeLevel: body.gradeLevel,
-                    yearLevel: body.yearLevel,
-                    status: body.status,
-                    birthDate: body.birthDate || null,
-                },
+                data: updateData,
             });
 
             // Check if the student has graduated after the update
-            const updatedStudent = { 
-                ...currentStudent, 
+            const updatedStudent = {
+                ...currentStudent,
                 gradeLevel: body.gradeLevel || currentStudent.gradeLevel,
                 yearLevel: body.yearLevel || currentStudent.yearLevel,
             };
@@ -125,11 +152,18 @@ export async function PUT(
             }
 
             // Handle scholarships if provided
-            if (scholarships && Array.isArray(scholarships)) {
+            if (scholarships !== undefined && Array.isArray(scholarships)) {
                 // Validate scholarship assignments before creating them
                 const scholarshipIds = scholarships.map(s => s.scholarshipId);
-                await validateMultipleStudentScholarshipEligibility(studentId, scholarshipIds);
-                
+                try {
+                    await validateMultipleStudentScholarshipEligibility(studentId, scholarshipIds);
+                } catch (validationError) {
+                    if (validationError instanceof Error) {
+                        throw new Error(`Scholarship validation failed: ${validationError.message}`);
+                    }
+                    throw validationError;
+                }
+
                 // Delete existing scholarships for this student
                 await tx.studentScholarship.deleteMany({
                     where: { studentId },
@@ -141,11 +175,11 @@ export async function PUT(
                         data: scholarships.map((scholarship) => ({
                             studentId,
                             scholarshipId: scholarship.scholarshipId,
-                            awardDate: scholarship.awardDate,
-                            startTerm: scholarship.startTerm,
-                            endTerm: scholarship.endTerm,
-                            grantAmount: scholarship.grantAmount,
-                            scholarshipStatus: scholarship.scholarshipStatus,
+                            awardDate: scholarship.awardDate || new Date(),
+                            startTerm: scholarship.startTerm || '',
+                            endTerm: scholarship.endTerm || '',
+                            grantAmount: scholarship.grantAmount || 0,
+                            scholarshipStatus: scholarship.scholarshipStatus || 'Active',
                         })),
                     });
                 }
@@ -161,6 +195,29 @@ export async function PUT(
         });
     } catch (error) {
         console.error('Error updating student:', error);
+        
+        // Handle specific error types
+        if (error instanceof Error) {
+            if (error.message.includes('not found')) {
+                return NextResponse.json(
+                    { success: false, error: error.message },
+                    { status: 404 }
+                );
+            }
+            if (error.message.includes('Scholarship validation failed')) {
+                return NextResponse.json(
+                    { success: false, error: error.message },
+                    { status: 400 }
+                );
+            }
+            if (error.message.includes('Prisma')) {
+                return NextResponse.json(
+                    { success: false, error: 'Database error occurred' },
+                    { status: 500 }
+                );
+            }
+        }
+        
         return NextResponse.json(
             { success: false, error: 'Failed to update student' },
             { status: 500 }
