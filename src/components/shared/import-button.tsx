@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -10,23 +11,52 @@ import {
 import { FileUp, FileSpreadsheet, Sheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRef } from 'react';
+import { ImportPreviewDialog } from './import-preview-dialog';
 
 interface ImportButtonProps {
     onImportComplete?: () => void;
 }
 
+interface PreviewData {
+    total: number;
+    valid: number;
+    invalid: number;
+    validStudents: ImportRow[];
+    errors: ImportError[];
+}
+
+interface ImportRow {
+    firstName: string;
+    lastName: string;
+    middleInitial?: string;
+    program: string;
+    gradeLevel: string;
+    yearLevel: string;
+    status: string;
+    birthDate?: string;
+}
+
+interface ImportError {
+    row: number;
+    data: ImportRow;
+    errors: string[];
+}
+
 export function ImportButton({ onImportComplete }: ImportButtonProps) {
     const csvInputRef = useRef<HTMLInputElement>(null);
     const xlsxInputRef = useRef<HTMLInputElement>(null);
+    const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
 
-    const handleImport = async (file: File) => {
+    const handlePreview = async (file: File) => {
         const formData = new FormData();
         formData.append('file', file);
 
         try {
-            toast.loading('Importing students...');
+            toast.loading('Parsing file...');
             
-            const res = await fetch('/api/students/import', {
+            const res = await fetch('/api/students/import/preview', {
                 method: 'POST',
                 body: formData,
             });
@@ -35,16 +65,47 @@ export function ImportButton({ onImportComplete }: ImportButtonProps) {
             toast.dismiss();
 
             if (json.success) {
-                const { imported, failed, total } = json.data;
+                setPreviewData(json.data);
+                setIsPreviewOpen(true);
+            } else {
+                toast.error(json.error || 'Failed to parse file');
+            }
+        } catch (error) {
+            console.error('Preview error:', error);
+            toast.dismiss();
+            toast.error('Failed to parse file');
+        }
+    };
+
+    const handleConfirmImport = async () => {
+        if (!previewData) return;
+
+        try {
+            setIsImporting(true);
+            toast.loading('Importing students...');
+            
+            const res = await fetch('/api/students/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    validStudents: previewData.validStudents,
+                }),
+            });
+
+            const json = await res.json();
+            toast.dismiss();
+
+            if (json.success) {
+                const { imported } = json.data;
                 toast.success(
-                    `Import complete: ${imported} imported, ${failed} failed out of ${total} total`,
+                    `Import complete: ${imported} students imported successfully`,
                     { duration: 5000 }
                 );
                 
-                if (json.data.errors && json.data.errors.length > 0) {
-                    console.log('Import errors:', json.data.errors);
-                }
-                
+                setIsPreviewOpen(false);
+                setPreviewData(null);
                 onImportComplete?.();
             } else {
                 toast.error(json.error || 'Import failed');
@@ -53,6 +114,8 @@ export function ImportButton({ onImportComplete }: ImportButtonProps) {
             console.error('Import error:', error);
             toast.dismiss();
             toast.error('Failed to import students');
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -66,7 +129,7 @@ export function ImportButton({ onImportComplete }: ImportButtonProps) {
             return;
         }
 
-        handleImport(file);
+        handlePreview(file);
         
         // Reset input
         e.target.value = '';
@@ -107,6 +170,19 @@ export function ImportButton({ onImportComplete }: ImportButtonProps) {
                 onChange={handleFileChange}
                 className="hidden"
             />
+
+            {previewData && (
+                <ImportPreviewDialog
+                    isOpen={isPreviewOpen}
+                    onClose={() => {
+                        setIsPreviewOpen(false);
+                        setPreviewData(null);
+                    }}
+                    onConfirm={handleConfirmImport}
+                    data={previewData}
+                    isLoading={isImporting}
+                />
+            )}
         </>
     );
 }
