@@ -265,15 +265,33 @@ const closeDeleteDialog = () => {
  );
  setDialogOpen(false);
  setEditingStudent(null);
- // Invalidate cache
- clientCache.invalidatePattern('/api/students');
- clientCache.invalidatePattern('/api/dashboard');
+ // Clear all cache completely
+ clientCache.clear();
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
  // Trigger dashboard refresh event
  window.dispatchEvent(new Event('refreshDashboard'));
- fetchStudents();
+ // Refetch with fresh data - add cache-busting parameter
+ const cacheBuster = Date.now();
+ const params = new URLSearchParams();
+ if (search) params.append('search', search);
+ if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
+ if (programFilter && programFilter !== 'all') params.append('program', programFilter);
+ if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+ if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
+ params.append('archived', 'false');
+ params.append('limit', '11');
+ params.append('page', page.toString());
+ params.append('_t', cacheBuster.toString());
+ 
+ const url = `/api/students?${params}`;
+ const freshData = await fetch(url).then(r => r.json());
+ if (freshData.success) {
+ setStudents(freshData.data);
+ setTotal(freshData.total);
+ setTotalPages(freshData.totalPages);
+ }
  } else {
  toast.error(json.error || 'Operation failed');
  }
@@ -308,14 +326,8 @@ const handleViewDetails = async (studentId: number) => {
 
     setSubmitting(true);
 
-    // Optimistically remove student from list for instant UI update
-    const studentId = deletingStudent.id;
-    setStudents(prev => prev.filter(s => s.id !== studentId));
-    setDeleteDialogOpen(false);
-    setDeletingStudent(null);
-
     try {
-      const res = await fetch(`/api/students/${studentId}`, {
+      const res = await fetch(`/api/students/${deletingStudent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'archive' }),
@@ -323,23 +335,40 @@ const handleViewDetails = async (studentId: number) => {
       const json = await res.json();
       if (json.success) {
         toast.success('Student archived successfully');
-        // Invalidate caches
-        clientCache.invalidatePattern('/api/students');
-        clientCache.invalidatePattern('/api/dashboard');
+        setDeleteDialogOpen(false);
+        setDeletingStudent(null);
+        // Clear all cache to ensure fresh data
+        clientCache.clear();
+        // Clear sessionStorage
         sessionStorage.removeItem('dashboardData');
         sessionStorage.removeItem('detailedStudents');
         window.dispatchEvent(new Event('refreshDashboard'));
-        fetchStudents();
+        
+        // Directly fetch fresh data to ensure immediate update
+        const params = new URLSearchParams();
+        if (search) params.append('search', search);
+        if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
+        if (programFilter && programFilter !== 'all') params.append('program', programFilter);
+        if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+        if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
+        params.append('archived', 'false');
+        params.append('limit', '11');
+        params.append('page', page.toString());
+        params.append('_t', Date.now().toString()); // Cache buster
+        
+        const url = `/api/students?${params}`;
+        const freshData = await fetch(url).then(r => r.json());
+        if (freshData.success) {
+          setStudents(freshData.data);
+          setTotal(freshData.total);
+          setTotalPages(freshData.totalPages);
+        }
       } else {
         toast.error(json.error || 'Archive failed');
-        // Revert optimistic update on failure
-        fetchStudents();
       }
     } catch (error) {
       console.error('Error archiving student:', error);
       toast.error('Failed to archive student');
-      // Revert optimistic update on error
-      fetchStudents();
     } finally {
       setSubmitting(false);
     }
