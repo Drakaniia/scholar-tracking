@@ -404,7 +404,6 @@ function DashboardContent() {
         '/api/dashboard/detailed',
         '/api/users',
       ]);
-      console.log('✓ All pages prefetched for instant navigation');
     };
 
     const timer = setTimeout(prefetchAllPages, 500);

@@ -74,6 +74,7 @@ export interface Scholarship {
     type: string; // Changed to string to allow custom types
     source: string; // INTERNAL or EXTERNAL
     eligibleGradeLevels: string; // Comma-separated grade levels
+    eligiblePrograms?: string | null; // Comma-separated programs (optional)
     amount: number;
     requirements: string | null;
     status: string;
@@ -92,6 +93,7 @@ export interface CreateScholarshipInput {
     type: string; // Changed to string to allow custom types
     source: string; // INTERNAL or EXTERNAL
     eligibleGradeLevels: string; // Comma-separated grade levels
+    eligiblePrograms?: string | null; // Comma-separated programs (optional)
     amount: number;
     requirements?: string;
     status: string;

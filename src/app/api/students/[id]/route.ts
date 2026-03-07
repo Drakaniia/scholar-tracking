@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { UpdateStudentInput } from '@/types';
 import { getSession } from '@/lib/auth';
+import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
+import { hasStudentGraduated } from '@/lib/graduation-service';
 
 // GET /api/students/[id] - Get single student
 export async function GET(
@@ -73,6 +75,15 @@ export async function PUT(
         
         // Use a transaction to update student and scholarships
         const result = await prisma.$transaction(async (tx) => {
+            // Get the current student data to check for graduation
+            const currentStudent = await tx.student.findUnique({
+                where: { id: studentId },
+            });
+
+            if (!currentStudent) {
+                throw new Error(`Student with ID ${studentId} not found`);
+            }
+
             // Update student basic info
             const student = await tx.student.update({
                 where: { id: studentId },
@@ -88,8 +99,37 @@ export async function PUT(
                 },
             });
 
+            // Check if the student has graduated after the update
+            const updatedStudent = { 
+                ...currentStudent, 
+                gradeLevel: body.gradeLevel || currentStudent.gradeLevel,
+                yearLevel: body.yearLevel || currentStudent.yearLevel,
+            };
+            if (hasStudentGraduated(updatedStudent as { gradeLevel: string; yearLevel: string })) {
+                // Update graduation status - using direct Prisma query
+                await tx.student.update({
+                    where: { id: studentId },
+                    data: {
+                        graduationStatus: 'Graduated',
+                        graduatedAt: new Date(),
+                    },
+                });
+
+                // Remove active scholarships for graduated student
+                await tx.studentScholarship.deleteMany({
+                    where: {
+                        studentId,
+                        scholarshipStatus: 'Active',
+                    },
+                });
+            }
+
             // Handle scholarships if provided
             if (scholarships && Array.isArray(scholarships)) {
+                // Validate scholarship assignments before creating them
+                const scholarshipIds = scholarships.map(s => s.scholarshipId);
+                await validateMultipleStudentScholarshipEligibility(studentId, scholarshipIds);
+                
                 // Delete existing scholarships for this student
                 await tx.studentScholarship.deleteMany({
                     where: { studentId },

@@ -58,3 +58,19 @@ export function isValidPhoneNumber(phone: string): boolean {
     const phoneRegex = /^(09|\+639)\d{9}$/;
     return phoneRegex.test(phone.replace(/\s/g, ''));
 }
+
+export function getGradeLevelForStudent(studentGradeLevel: string): string[] {
+    // Map the student grade level to the corresponding valid levels
+    switch (studentGradeLevel.toUpperCase()) {
+        case 'GRADE_SCHOOL':
+            return ['GRADE_SCHOOL', 'ELEMENTARY'];
+        case 'JUNIOR_HIGH':
+            return ['JUNIOR_HIGH', 'JUNIOR HIGH SCHOOL', 'GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10'];
+        case 'SENIOR_HIGH':
+            return ['SENIOR_HIGH', 'SENIOR HIGH SCHOOL', 'GRADE 11', 'GRADE 12', 'SHS'];
+        case 'COLLEGE':
+            return ['COLLEGE', 'UNIVERSITY', 'TERTIARY'];
+        default:
+            return [studentGradeLevel.toUpperCase()];
+    }
+}

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { CreateStudentInput } from '@/types';
 import { getSession } from '@/lib/auth';
 import { getPaginationParams, buildSearchWhere, queryOptimizer, generateQueryKey } from '@/lib/query-optimizer';
+import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
 
 // GET /api/students - Get all students
 export async function GET(request: NextRequest) {
@@ -176,6 +177,10 @@ export async function POST(request: NextRequest) {
 
         // Handle multiple scholarships if provided
         if (body.scholarships && body.scholarships.length > 0) {
+            // Validate scholarship assignments before creating them
+            const scholarshipIds = body.scholarships.map(s => s.scholarshipId);
+            await validateMultipleStudentScholarshipEligibility(student.id, scholarshipIds);
+            
             await prisma.studentScholarship.createMany({
                 data: body.scholarships.map(scholarship => ({
                     studentId: student.id,
@@ -190,6 +195,9 @@ export async function POST(request: NextRequest) {
         }
         // Fallback to single scholarship for backward compatibility
         else if (body.scholarshipId) {
+            // Validate scholarship assignment before creating it
+            await validateMultipleStudentScholarshipEligibility(student.id, [body.scholarshipId]);
+            
             await prisma.studentScholarship.create({
                 data: {
                     studentId: student.id,
