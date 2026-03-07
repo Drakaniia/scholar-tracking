@@ -188,3 +188,12 @@ body.login-page-body {
 .recharts-tooltip-wrapper {
   z-index: 50;
 }
+
+/* Zoom hover effect for edit and archive buttons */
+.zoom-hover {
+  transition: transform 0.15s ease-in-out;
+}
+
+.zoom-hover:hover {
+  transform: scale(1.15);
+}

@@ -4,6 +4,7 @@ import { UpdateStudentInput } from '@/types';
 import { getSession } from '@/lib/auth';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
 import { hasStudentGraduated } from '@/lib/graduation-service';
+import { queryOptimizer } from '@/lib/query-optimizer';
 
 // GET /api/students/[id] - Get single student
 export async function GET(
@@ -188,6 +189,9 @@ export async function PUT(
             return student;
         });
 
+        // Invalidate cache
+        queryOptimizer.invalidatePattern('students-list');
+
         return NextResponse.json({
             success: true,
             data: result,
@@ -225,15 +229,15 @@ export async function PUT(
     }
 }
 
-// PATCH /api/students/[id]/archive - Archive student
+// PATCH /api/students/[id] - Archive/unarchive student or other actions
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    let action = 'unknown'; // Initialize with a default value
+    let action = 'unknown';
     try {
         const session = await getSession();
-        
+
         if (!session || session.role !== 'ADMIN') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -243,8 +247,17 @@ export async function PATCH(
 
         const { id } = await params;
         const studentId = parseInt(id);
+        
+        // Parse request body
         const body = await request.json();
-        action = body.action; // 'archive' or 'unarchive'
+        action = body.action;
+
+        if (!action) {
+            return NextResponse.json(
+                { success: false, error: 'Action is required' },
+                { status: 400 }
+            );
+        }
 
         if (action !== 'archive' && action !== 'unarchive') {
             return NextResponse.json(
@@ -257,6 +270,9 @@ export async function PATCH(
             where: { id: studentId },
             data: { isArchived: action === 'archive' },
         });
+
+        // Invalidate cache
+        queryOptimizer.invalidatePattern('students-list');
 
         return NextResponse.json({
             success: true,
