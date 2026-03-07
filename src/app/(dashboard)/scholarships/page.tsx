@@ -163,18 +163,30 @@ export default function ScholarshipsPage() {
  if (result.success) {
  toast.success('Scholarship created successfully');
  setDialogOpen(false);
- // Add the new scholarship to the list instantly
- setScholarships(prev => [result.data, ...prev]);
- // Invalidate cache
- clientCache.invalidatePattern('/api/scholarships');
- clientCache.invalidatePattern('/api/dashboard');
+ // Clear all cache to ensure fresh data
+ clientCache.clear();
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
  // Trigger dashboard refresh event
  window.dispatchEvent(new Event('refreshDashboard'));
+ // Refetch with fresh data - add cache-busting parameter
+ const cacheBuster = Date.now();
+ const params = new URLSearchParams();
+ params.append('limit', '10');
+ params.append('page', page.toString());
+ if (sourceFilter && sourceFilter !== 'all') {
+ params.append('source', sourceFilter);
+ }
+ params.append('_t', cacheBuster.toString());
+ const freshUrl = `/api/scholarships?${params}`;
+ const freshData = await fetch(freshUrl).then(r => r.json());
+ if (freshData.success) {
+ setScholarships(freshData.data);
+ setTotal(freshData.total);
+ setTotalPages(freshData.totalPages);
+ }
  fetchCounts();
- // Don't refetch - optimistic update already applied
  } else {
  toast.error(result.error || 'Failed to create scholarship');
  }
@@ -191,12 +203,6 @@ export default function ScholarshipsPage() {
 
  setSubmitting(true);
 
- // Optimistically update the list for instant UI feedback
- const updatedScholarship = { ...editingScholarship, ...data };
- setScholarships(prev => prev.map(s => s.id === editingScholarship.id ? updatedScholarship : s));
- setDialogOpen(false);
- setEditingScholarship(null);
-
  try {
  const res = await fetch(`/api/scholarships/${editingScholarship.id}`, {
  method: 'PUT',
@@ -207,28 +213,38 @@ export default function ScholarshipsPage() {
 
  if (result.success) {
  toast.success('Scholarship updated successfully');
- // Update with the server response to ensure consistency
- setScholarships(prev => prev.map(s => s.id === editingScholarship.id ? result.data : s));
- // Invalidate cache
- clientCache.invalidatePattern('/api/scholarships');
- clientCache.invalidatePattern('/api/dashboard');
+ setDialogOpen(false);
+ setEditingScholarship(null);
+ // Clear all cache to ensure fresh data
+ clientCache.clear();
  // Clear sessionStorage to force dashboard refresh
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
  // Trigger dashboard refresh event
  window.dispatchEvent(new Event('refreshDashboard'));
+ // Refetch with fresh data - add cache-busting parameter
+ const cacheBuster = Date.now();
+ const params = new URLSearchParams();
+ params.append('limit', '10');
+ params.append('page', page.toString());
+ if (sourceFilter && sourceFilter !== 'all') {
+ params.append('source', sourceFilter);
+ }
+ params.append('_t', cacheBuster.toString());
+ const freshUrl = `/api/scholarships?${params}`;
+ const freshData = await fetch(freshUrl).then(r => r.json());
+ if (freshData.success) {
+ setScholarships(freshData.data);
+ setTotal(freshData.total);
+ setTotalPages(freshData.totalPages);
+ }
  fetchCounts();
- // Don't refetch scholarships to avoid stale cache - optimistic update is already applied
  } else {
  toast.error(result.error || 'Failed to update scholarship');
- // Revert optimistic update on failure
- fetchScholarships();
  }
  } catch (error) {
  console.error('Error updating scholarship:', error);
  toast.error('Failed to update scholarship');
- // Revert optimistic update on error
- fetchScholarships();
  } finally {
  setSubmitting(false);
  }
@@ -239,14 +255,8 @@ export default function ScholarshipsPage() {
 
     setSubmitting(true);
 
-    // Optimistically remove scholarship from list for instant UI update
-    const scholarshipId = deletingScholarship.id;
-    setScholarships(prev => prev.filter(s => s.id !== scholarshipId));
-    setDeleteDialogOpen(false);
-    setDeletingScholarship(null);
-
     try {
-      const res = await fetch(`/api/scholarships/${scholarshipId}`, {
+      const res = await fetch(`/api/scholarships/${deletingScholarship.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'archive' }),
@@ -255,26 +265,38 @@ export default function ScholarshipsPage() {
 
       if (result.success) {
         toast.success('Scholarship archived successfully');
-        // Invalidate cache
-        clientCache.invalidatePattern('/api/scholarships');
-        clientCache.invalidatePattern('/api/dashboard');
+        setDeleteDialogOpen(false);
+        setDeletingScholarship(null);
+        // Clear all cache to ensure fresh data
+        clientCache.clear();
         // Clear sessionStorage to force dashboard refresh
         sessionStorage.removeItem('dashboardData');
         sessionStorage.removeItem('detailedStudents');
         // Trigger dashboard refresh event
         window.dispatchEvent(new Event('refreshDashboard'));
+        // Refetch with fresh data - add cache-busting parameter
+        const cacheBuster = Date.now();
+        const params = new URLSearchParams();
+        params.append('limit', '10');
+        params.append('page', page.toString());
+        if (sourceFilter && sourceFilter !== 'all') {
+          params.append('source', sourceFilter);
+        }
+        params.append('_t', cacheBuster.toString());
+        const freshUrl = `/api/scholarships?${params}`;
+        const freshData = await fetch(freshUrl).then(r => r.json());
+        if (freshData.success) {
+          setScholarships(freshData.data);
+          setTotal(freshData.total);
+          setTotalPages(freshData.totalPages);
+        }
         fetchCounts();
-        // Don't refetch - optimistic update already applied
       } else {
         toast.error(result.error || 'Failed to archive scholarship');
-        // Revert optimistic update on failure
-        fetchScholarships();
       }
     } catch (error) {
       console.error('Error archiving scholarship:', error);
       toast.error('Failed to archive scholarship');
-      // Revert optimistic update on error
-      fetchScholarships();
     } finally {
       setSubmitting(false);
     }
