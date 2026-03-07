@@ -45,6 +45,9 @@ export function ScholarshipForm({
     const [selectedGradeLevels, setSelectedGradeLevels] = useState<GradeLevel[]>(
         defaultValues?.eligibleGradeLevels?.split(',').map(l => l.trim() as GradeLevel) || []
     );
+    const [selectedPrograms, setSelectedPrograms] = useState<string[]>(
+        defaultValues?.eligiblePrograms?.split(',').map(p => p.trim()) || []
+    );
 
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
@@ -53,6 +56,7 @@ export function ScholarshipForm({
             type: 'PAEB',
             source: 'INTERNAL',
             eligibleGradeLevels: '',
+            eligiblePrograms: '',
             amount: 0,
             requirements: '',
             status: 'Active',
@@ -87,11 +91,20 @@ export function ScholarshipForm({
         form.setValue('eligibleGradeLevels', updated.join(','));
     };
 
+    const handleProgramToggle = (program: string) => {
+        const updated = selectedPrograms.includes(program)
+            ? selectedPrograms.filter(p => p !== program)
+            : [...selectedPrograms, program];
+        setSelectedPrograms(updated);
+        form.setValue('eligiblePrograms', updated.join(','));
+    };
+
     const handleFormSubmit = (data: CreateScholarshipInput) => {
         if (showCustomType && customType) {
             data.type = customType;
         }
         data.eligibleGradeLevels = selectedGradeLevels.join(',');
+        data.eligiblePrograms = selectedPrograms.length > 0 ? selectedPrograms.join(',') : null;
         onSubmit(data);
     };
 
@@ -191,6 +204,27 @@ export function ScholarshipForm({
                     ))}
                 </div>
             </div>
+
+            {/* Show program selection only if college is selected */}
+            {selectedGradeLevels.includes('COLLEGE') && (
+                <div className="space-y-2">
+                    <Label>Eligible Programs (Leave empty for all programs)</Label>
+                    <div className="grid grid-cols-2 gap-3 p-3 border rounded-md">
+                        {['BS Education', 'BA Education', 'BS Computer Science', 'BS Information Technology', 'BS Nursing', 'BS Accountancy'].map((program) => (
+                            <div key={program} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`program-${program}`}
+                                    checked={selectedPrograms.includes(program)}
+                                    onCheckedChange={() => handleProgramToggle(program)}
+                                />
+                                <Label htmlFor={`program-${program}`} className="text-sm font-normal cursor-pointer">
+                                    {program}
+                                </Label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

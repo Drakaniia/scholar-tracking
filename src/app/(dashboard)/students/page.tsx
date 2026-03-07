@@ -34,6 +34,7 @@ import { toast } from 'sonner';
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
 import { ExportButton } from '@/components/shared';
+import { ImportButton } from '@/components/shared/import-button';
 import { useAuth } from '@/components/auth/auth-provider';
 import { fetchWithCache, clientCache } from '@/lib/cache';
 
@@ -335,6 +336,16 @@ export default function StudentsPage() {
  <PageHeader title="Students" description="Manage student records">
  <div className="flex gap-2">
  <ExportButton endpoint="/api/export/students" filename="detailed-student-scholarship-report" />
+ {isAdmin && (
+ <ImportButton onImportComplete={() => {
+ clientCache.invalidatePattern('/api/students');
+ clientCache.invalidatePattern('/api/dashboard');
+ sessionStorage.removeItem('dashboardData');
+ sessionStorage.removeItem('detailedStudents');
+ window.dispatchEvent(new Event('refreshDashboard'));
+ fetchStudents();
+ }} />
+ )}
  {isAdmin && (
  <Dialog
  open={dialogOpen}
