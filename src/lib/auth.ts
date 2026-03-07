@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 import type { User } from '@prisma/client';
+import type { NextRequest } from 'next/server';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback-secret-key'
@@ -15,6 +16,11 @@ export interface SessionUser {
   firstName: string;
   lastName: string;
   role: string;
+}
+
+export interface AuthResult {
+  valid: boolean;
+  payload?: SessionUser;
 }
 
 // Password utilities
@@ -85,12 +91,33 @@ export async function getSession(): Promise<SessionUser | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
-    
+
     if (!token) return null;
-    
+
     return await verifyToken(token);
   } catch {
     return null;
+  }
+}
+
+// API Route authentication helper
+export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
+  try {
+    const token = request.cookies.get('auth-token')?.value;
+
+    if (!token) {
+      return { valid: false };
+    }
+
+    const user = await verifyToken(token);
+
+    if (!user) {
+      return { valid: false };
+    }
+
+    return { valid: true, payload: user };
+  } catch {
+    return { valid: false };
   }
 }
 
