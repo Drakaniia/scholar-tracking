@@ -99,11 +99,38 @@ export async function PUT(
 
         const { id } = await params;
         const scholarshipId = parseInt(id);
-        const body: UpdateScholarshipInput = await request.json();
+        
+        // Parse request body
+        const body = await request.json();
+        
+        // Validate action if provided (for backward compatibility)
+        if (body.action && body.action !== 'update') {
+            return NextResponse.json(
+                { success: false, error: 'Invalid action. Use "update" or omit for direct update.' },
+                { status: 400 }
+            );
+        }
+
+        const updateData: UpdateScholarshipInput = body.data || body;
+
+        // Build update data object with only allowed fields
+        const allowedFields: (keyof UpdateScholarshipInput)[] = [
+            'scholarshipName', 'sponsor', 'type', 'source', 
+            'eligibleGradeLevels', 'eligiblePrograms', 'amount', 
+            'requirements', 'status', 'grantType', 
+            'coversTuition', 'coversMiscellaneous', 'coversLaboratory'
+        ];
+        
+        const prismaData: Record<string, unknown> = {};
+        for (const field of allowedFields) {
+            if (updateData[field] !== undefined) {
+                prismaData[field] = updateData[field]!;
+            }
+        }
 
         const scholarship = await prisma.scholarship.update({
             where: { id: scholarshipId },
-            data: body,
+            data: prismaData,
         });
 
         // Invalidate cache
@@ -124,12 +151,12 @@ export async function PUT(
     }
 }
 
-// PATCH /api/scholarships/[id]/archive - Archive scholarship
+// PATCH /api/scholarships/[id] - Archive/unarchive scholarship or other actions
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    let action = 'unknown'; // Initialize with a default value
+    let action = 'unknown';
     try {
         const session = await getSession();
 
@@ -142,8 +169,17 @@ export async function PATCH(
 
         const { id } = await params;
         const scholarshipId = parseInt(id);
+        
+        // Parse request body
         const body = await request.json();
-        action = body.action; // 'archive' or 'unarchive'
+        action = body.action;
+
+        if (!action) {
+            return NextResponse.json(
+                { success: false, error: 'Action is required' },
+                { status: 400 }
+            );
+        }
 
         if (action !== 'archive' && action !== 'unarchive') {
             return NextResponse.json(
