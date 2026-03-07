@@ -31,34 +31,38 @@ export const STATUS_COLORS = {
 // Education Level Descriptions
 export const EDUCATION_LEVEL_INFO = {
  'Grade School': {
- description: 'Elementary education (Grades 1-6)',
- yearLevels: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
+  description: 'Elementary education (Grades 1-6)',
+  yearLevels: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
+  termType: 'SEMESTER' as const,
  },
  'Junior High': {
- description: 'Junior High School (Grades 7-10)',
- yearLevels: ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
+  description: 'Junior High School (Grades 7-10)',
+  yearLevels: ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
+  termType: 'SEMESTER' as const,
  },
  'Senior High': {
- description: 'Senior High School (Grades 11-12)',
- yearLevels: ['Grade 11', 'Grade 12'],
+  description: 'Senior High School (Grades 11-12)',
+  yearLevels: ['Grade 11', 'Grade 12'],
+  termType: 'SEMESTER' as const,
  },
  College: {
- description: 'Tertiary/Higher Education',
- yearLevels: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'],
+  description: 'Tertiary/Higher Education',
+  yearLevels: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'],
+  termType: 'SEMESTER' as const, // Can be changed to TRIMESTER for specific programs
  },
 } as const;
 
 // Scholarship Type Descriptions
 export const SCHOLARSHIP_TYPE_INFO = {
  Internal: {
- description: 'School-based scholarships (Cash Assistance)',
- color: 'text-blue-600',
- bgColor: 'bg-blue-100',
+  description: 'School-based scholarships (Cash Assistance)',
+  color: 'text-blue-600',
+  bgColor: 'bg-blue-100',
  },
  External: {
- description: 'Government or other external scholarships',
- color: 'text-purple-600',
- bgColor: 'bg-purple-100',
+  description: 'Government or other external scholarships',
+  color: 'text-purple-600',
+  bgColor: 'bg-purple-100',
  },
 } as const;
 

@@ -12,6 +12,7 @@ export interface Student {
     status: string;
     birthDate?: Date | null;
     isArchived: boolean;
+    termType: TermType;
     createdAt: Date;
     updatedAt: Date;
     scholarships?: StudentScholarship[];
@@ -44,6 +45,7 @@ export interface CreateStudentInput {
     yearLevel: string;
     status: string;
     birthDate?: Date | null;
+    termType?: TermType;
     scholarshipId?: number | null;
     awardDate?: Date | null;
     startTerm?: string | null;
@@ -93,8 +95,6 @@ export interface Scholarship {
     requirements: string | null;
     status: string;
     isArchived: boolean;
-    startDate?: Date | null;
-    endDate?: Date | null;
     grantType: GrantType;
     coversTuition: boolean;
     coversMiscellaneous: boolean;
@@ -113,8 +113,6 @@ export interface CreateScholarshipInput {
     amount: number;
     requirements?: string;
     status: string;
-    startDate?: Date | null;
-    endDate?: Date | null;
     grantType?: GrantType;
     coversTuition?: boolean;
     coversMiscellaneous?: boolean;
@@ -210,6 +208,29 @@ export const YEAR_LEVELS: Record<GradeLevel, string[]> = {
     SENIOR_HIGH: ['Grade 11', 'Grade 12'],
     COLLEGE: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'],
 };
+
+// Term Type for academic calendar
+export type TermType = 'SEMESTER' | 'TRIMESTER';
+
+export const TERM_TYPES: TermType[] = ['SEMESTER', 'TRIMESTER'] as const;
+
+export const TERM_TYPE_LABELS: Record<TermType, string> = {
+    SEMESTER: 'Semester (2 terms/year)',
+    TRIMESTER: 'Trimester (3 terms/year)',
+};
+
+export const TERM_FORMATS = {
+    SEMESTER: {
+        prefix: 'Semester',
+        termsPerYear: 2,
+        labels: ['1st', '2nd'] as const,
+    },
+    TRIMESTER: {
+        prefix: 'Trimester',
+        termsPerYear: 3,
+        labels: ['1st', '2nd', '3rd'] as const,
+    },
+} as const;
 
 export const SCHOLARSHIP_TYPES: ScholarshipType[] = ['PAED', 'CHED', 'LGU'] as const;
 
