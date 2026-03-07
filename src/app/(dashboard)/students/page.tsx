@@ -396,6 +396,7 @@ const handleViewDetails = async (studentId: number) => {
  onSubmit={handleFormSubmit}
  onCancel={() => setDialogOpen(false)}
  isEditing={!!editingStudent}
+ studentName={editingStudent ? `${editingStudent.firstName} ${editingStudent.lastName}` : undefined}
  />
  </DialogContent>
  </Dialog>

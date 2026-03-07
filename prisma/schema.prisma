@@ -72,6 +72,7 @@ model Student {
   graduatedAt      DateTime?            @map("graduated_at")
   graduationStatus String?              @default("Active") @map("graduation_status")
   isArchived       Boolean              @default(false) @map("is_archived")
+  termType         String               @default("SEMESTER") @map("term_type")
   disbursements    Disbursement[]
   fees             StudentFees[]
   scholarships     StudentScholarship[]
@@ -119,9 +120,7 @@ model Scholarship {
   updatedAt           DateTime             @updatedAt @map("updated_at")
   source              String               @default("INTERNAL")
   eligibleGradeLevels String               @map("eligible_grade_levels")
-  endDate             DateTime?            @map("end_date")
   isArchived          Boolean              @default(false) @map("is_archived")
-  startDate           DateTime?            @map("start_date")
   eligiblePrograms    String?              @map("eligible_programs")
   grantType           String               @default("FULL") @map("grant_type") // FULL, TUITION_ONLY, MISC_ONLY, LAB_ONLY, NONE
   coversTuition       Boolean              @default(false) @map("covers_tuition")
@@ -133,8 +132,6 @@ model Scholarship {
   @@index([type])
   @@index([source])
   @@index([status])
-  @@index([startDate])
-  @@index([endDate])
   @@index([isArchived])
   @@index([grantType])
   @@map("scholarships")
