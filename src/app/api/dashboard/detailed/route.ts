@@ -1,13 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 // GET /api/dashboard/detailed - Get detailed student report
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const searchParams = request.nextUrl.searchParams;
+        const sourceFilter = searchParams.get('source') || '';
+
         const students = await prisma.student.findMany({
             where: {
                 scholarships: {
-                    some: {},
+                    some: sourceFilter ? {
+                        scholarship: {
+                            source: sourceFilter,
+                        },
+                    } : {},
                 },
             },
             orderBy: [
@@ -16,6 +23,11 @@ export async function GET() {
             ],
             include: {
                 scholarships: {
+                    where: sourceFilter ? {
+                        scholarship: {
+                            source: sourceFilter,
+                        },
+                    } : undefined,
                     include: {
                         scholarship: {
                             select: {

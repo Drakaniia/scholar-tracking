@@ -2,8 +2,10 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import backgroundImage from '@/assets/images/background2.jpg';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -383,14 +385,20 @@ function DashboardContent() {
   );
   
   // Use TanStack Query for data fetching
-  const { data: statsData, isLoading: statsLoading } = useDashboardStats({
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: true,
-  });
-  const { data: detailedData, isLoading: detailedLoading } = useDashboardDetailed({
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: true,
-  });
+  const { data: statsData, isLoading: statsLoading } = useDashboardStats(
+    scholarshipSourceFilter,
+    {
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+      refetchOnWindowFocus: true,
+    }
+  );
+  const { data: detailedData, isLoading: detailedLoading } = useDashboardDetailed(
+    scholarshipSourceFilter,
+    {
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+      refetchOnWindowFocus: true,
+    }
+  );
   
   const isLoading = statsLoading || detailedLoading;
   const data = statsData?.data;
@@ -445,14 +453,29 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] shadow-sm">
-        <div>
+      <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] shadow-sm overflow-hidden">
+        {/* Background image positioned on the right, mirrored */}
+        <div className="absolute inset-y-0 right-0 w-1/2">
+          <Image
+            src={backgroundImage}
+            alt="Background"
+            fill
+            className="object-cover -scale-x-100 opacity-60"
+            priority
+          />
+        </div>
+
+        {/* Smooth gradient fade from image to white on the left */}
+        <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-transparent via-white/20 to-white" />
+
+        {/* Content with relative positioning to stay above background */}
+        <div className="relative z-10">
           <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
           <p className="text-gray-600">
             Welcome back! Here&apos;s an overview of your scholarship programs.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative z-10 flex items-center gap-2">
           <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
             <SelectTrigger className="w-[180px]">
               <Filter className="mr-2 h-4 w-4" />

@@ -104,8 +104,8 @@ export async function GET(request: NextRequest) {
                 where,
                 skip,
                 take,
-                 orderBy: { createdAt: 'desc' },
-                  select: {
+                orderBy: { scholarshipName: 'asc' },
+                select: {
                       id: true,
                       scholarshipName: true,
                       sponsor: true,

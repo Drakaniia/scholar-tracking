@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
  Dialog,
@@ -20,7 +21,7 @@ import {
  TableHeader,
  TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Archive, GraduationCap, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Plus, Pencil, Archive, GraduationCap, ChevronLeft, ChevronRight, User, Search, Filter, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
@@ -89,6 +90,7 @@ export default function ScholarshipsPage() {
  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
  const [loading, setLoading] = useState(true);
  const [isVisible, setIsVisible] = useState(false);
+ const [search, setSearch] = useState('');
  const [sourceFilter, setSourceFilter] = useState<string>('all');
  const [dialogOpen, setDialogOpen] = useState(false);
  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -120,6 +122,7 @@ export default function ScholarshipsPage() {
  const params = new URLSearchParams();
  params.append('limit', '10');
  params.append('page', page.toString());
+ if (search) params.append('search', search);
  if (sourceFilter && sourceFilter !== 'all') {
  params.append('source', sourceFilter);
  }
@@ -138,7 +141,7 @@ export default function ScholarshipsPage() {
  setLoading(false);
  setIsVisible(true);
  }
- }, [sourceFilter, page]);
+ }, [sourceFilter, page, search]);
 
  useEffect(() => {
  fetchCounts();
@@ -148,7 +151,7 @@ export default function ScholarshipsPage() {
  useEffect(() => {
  // Reset to page 1 when filter changes
  setPage(1);
- }, [sourceFilter]);
+ }, [sourceFilter, search]);
 
  const handleCreate = async (data: CreateScholarshipInput) => {
  setSubmitting(true);
@@ -175,6 +178,7 @@ export default function ScholarshipsPage() {
  const params = new URLSearchParams();
  params.append('limit', '10');
  params.append('page', page.toString());
+ if (search) params.append('search', search);
  if (sourceFilter && sourceFilter !== 'all') {
  params.append('source', sourceFilter);
  }
@@ -371,6 +375,64 @@ export default function ScholarshipsPage() {
  </div>
  </PageHeader>
 
+ {/* Filters */}
+ <Card className="mb-4 border-gray-200">
+ <CardContent className="p-3">
+ <div className="flex flex-col gap-2">
+ {/* Search Bar */}
+ <div className="relative">
+ <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+ <Input
+ placeholder="Search by name or sponsor..."
+ value={search}
+ onChange={(e) => setSearch(e.target.value)}
+ className="pl-10 h-9"
+ />
+ </div>
+
+ {/* Filter Section */}
+ <div className="flex items-center gap-2">
+ <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+ <Filter className="h-4 w-4" />
+ <span>Filters:</span>
+ </div>
+
+ <div className="flex flex-wrap items-center gap-2 flex-1">
+ <Select value={sourceFilter} onValueChange={setSourceFilter}>
+ <SelectTrigger className="h-8 w-[220px] text-xs">
+ <SelectValue placeholder="Filter by source" />
+ </SelectTrigger>
+ <SelectContent>
+ <SelectItem value="all">All Sources ({counts.total})</SelectItem>
+ {SCHOLARSHIP_SOURCES.map((source) => (
+ <SelectItem key={source} value={source}>
+ {SCHOLARSHIP_SOURCE_LABELS[source]} {source === 'INTERNAL' ? `(${counts.internal})` : `(${counts.external})`}
+ </SelectItem>
+ ))}
+ </SelectContent>
+ </Select>
+
+ {/* Clear Filters Button */}
+ {(sourceFilter !== 'all' || search) && (
+ <Button
+ variant="ghost"
+ size="sm"
+ onClick={() => {
+ setSearch('');
+ setSourceFilter('all');
+ }}
+ className="h-8 px-2 text-xs"
+ >
+ <X className="h-3 w-3 mr-1" />
+ Clear
+ </Button>
+ )}
+ </div>
+ </div>
+ </div>
+ </CardContent>
+ </Card>
+
  <Card className="border-gray-200">
  <CardHeader>
  <div className="flex items-center justify-between">
@@ -391,19 +453,6 @@ export default function ScholarshipsPage() {
  </Badge>
  </div>
  </div>
- <Select value={sourceFilter} onValueChange={setSourceFilter}>
- <SelectTrigger className="w-[220px]">
- <SelectValue placeholder="Filter by source" />
- </SelectTrigger>
- <SelectContent>
- <SelectItem value="all">All Sources ({counts.total})</SelectItem>
- {SCHOLARSHIP_SOURCES.map((source) => (
- <SelectItem key={source} value={source}>
- {SCHOLARSHIP_SOURCE_LABELS[source]} {source === 'INTERNAL' ? `(${counts.internal})` : `(${counts.external})`}
- </SelectItem>
- ))}
- </SelectContent>
- </Select>
  </div>
  </CardHeader>
  <CardContent>

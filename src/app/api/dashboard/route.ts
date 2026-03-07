@@ -36,13 +36,33 @@ export async function GET(request: NextRequest) {
             totalStudents: () => prisma.student.count(),
             studentsWithScholarships: () => prisma.studentScholarship.groupBy({
                 by: ['studentId'],
+                where: sourceFilter ? {
+                    scholarship: {
+                        source: sourceFilter,
+                    },
+                } : undefined,
                 _count: { studentId: true },
             }).then(result => result.length),
-            totalScholarships: () => prisma.scholarship.count(),
-            activeScholarships: () => prisma.scholarship.count({ where: { status: 'Active' } }),
+            totalScholarships: () => prisma.scholarship.count({
+                where: sourceFilter ? {
+                    source: sourceFilter,
+                    status: 'Active',
+                } : undefined,
+            }),
+            activeScholarships: () => prisma.scholarship.count({ 
+                where: { 
+                    status: 'Active',
+                    ...(sourceFilter && { source: sourceFilter }),
+                } 
+            }),
             studentsWithGrants: () => prisma.studentScholarship.aggregate({
                 where: { 
                     scholarshipStatus: 'Active',
+                    ...(sourceFilter && {
+                        scholarship: {
+                            source: sourceFilter,
+                        },
+                    }),
                 },
                 _sum: { grantAmount: true },
             }),

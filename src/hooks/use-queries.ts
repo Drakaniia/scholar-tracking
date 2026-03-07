@@ -28,8 +28,8 @@ export const queryKeys = {
   // Dashboard
   dashboard: {
     all: ['dashboard'] as const,
-    stats: () => [...queryKeys.dashboard.all, 'stats'] as const,
-    detailed: () => [...queryKeys.dashboard.all, 'detailed'] as const,
+    stats: (source?: string) => [...queryKeys.dashboard.all, 'stats', source] as const,
+    detailed: (source?: string) => [...queryKeys.dashboard.all, 'detailed', source] as const,
   },
   
   // Students
@@ -197,11 +197,19 @@ interface ApiResponse<T> {
 // DASHBOARD HOOKS
 // ============================================
 
-export function useDashboardStats(options?: Partial<UseQueryOptions<ApiResponse<DashboardStats>, Error>>) {
+export function useDashboardStats(
+  source?: string,
+  options?: Partial<UseQueryOptions<ApiResponse<DashboardStats>, Error>>
+) {
   return useQuery<ApiResponse<DashboardStats>, Error>({
-    queryKey: queryKeys.dashboard.stats(),
+    queryKey: queryKeys.dashboard.stats(source),
     queryFn: async () => {
-      const response = await fetch('/api/dashboard');
+      const params = new URLSearchParams();
+      if (source && source !== 'all') {
+        params.append('source', source);
+      }
+      const url = `/api/dashboard${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard stats');
       }
@@ -213,11 +221,19 @@ export function useDashboardStats(options?: Partial<UseQueryOptions<ApiResponse<
   });
 }
 
-export function useDashboardDetailed(options?: Partial<UseQueryOptions<ApiResponse<StudentDetail[]>, Error>>) {
+export function useDashboardDetailed(
+  source?: string,
+  options?: Partial<UseQueryOptions<ApiResponse<StudentDetail[]>, Error>>
+) {
   return useQuery<ApiResponse<StudentDetail[]>, Error>({
-    queryKey: queryKeys.dashboard.detailed(),
+    queryKey: queryKeys.dashboard.detailed(source),
     queryFn: async () => {
-      const response = await fetch('/api/dashboard/detailed');
+      const params = new URLSearchParams();
+      if (source && source !== 'all') {
+        params.append('source', source);
+      }
+      const url = `/api/dashboard/detailed${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch detailed dashboard data');
       }
