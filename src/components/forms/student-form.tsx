@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { YEAR_LEVELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, GradeLevel } from '@/types';
+import { YEAR_LEVELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, GradeLevel, GrantType } from '@/types';
 import { useState, useEffect } from 'react';
 import { Plus, X, Search, Filter, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -68,6 +68,10 @@ interface Scholarship {
     startDate?: Date | null; // Start date of the scholarship
     endDate?: Date | null;   // End date of the scholarship
     eligibleGradeLevels?: string; // Comma-separated grade levels
+    grantType: string;
+    coversTuition: boolean;
+    coversMiscellaneous: boolean;
+    coversLaboratory: boolean;
 }
 
 interface SelectedScholarship {
@@ -77,6 +81,7 @@ interface SelectedScholarship {
     startTerm: string;
     endTerm: string;
     grantAmount: number;
+    grantType: GrantType;
     scholarshipStatus: string;
 }
 
@@ -114,6 +119,7 @@ export function StudentForm({
             startTerm: s.startTerm,
             endTerm: s.endTerm,
             grantAmount: s.grantAmount,
+            grantType: s.grantType || 'FULL',
             scholarshipStatus: s.scholarshipStatus,
         })) || []
     );
@@ -300,7 +306,8 @@ export function StudentForm({
             awardDate: new Date(),
             startTerm: startTerm,
             endTerm: endTerm,
-            grantAmount: scholarship.amount,
+            grantAmount: scholarship.grantType === 'TUITION_ONLY' || scholarship.grantType === 'NONE' ? 0 : scholarship.amount,
+            grantType: scholarship.grantType as GrantType,
             scholarshipStatus: 'Active',
         };
         setSelectedScholarships([...selectedScholarships, newScholarship]);
@@ -745,7 +752,15 @@ export function StudentForm({
                                     <div className="flex items-start justify-between mb-3">
                                         <div>
                                             <h4 className="font-semibold text-base">{scholarship.scholarshipName}</h4>
-                                            <p className="text-xs text-muted-foreground">{type}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-xs text-muted-foreground">{type}</p>
+                                                {scholarship.grantType === 'TUITION_ONLY' && (
+                                                    <Badge variant="outline" className="text-xs">Free Tuition</Badge>
+                                                )}
+                                                {scholarship.grantType === 'NONE' && (
+                                                    <Badge variant="secondary" className="text-xs">Honorific</Badge>
+                                                )}
+                                            </div>
                                         </div>
                                         <Button
                                             type="button"
@@ -777,16 +792,26 @@ export function StudentForm({
                                                 className="h-9 text-sm"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs text-muted-foreground">Grant Amount</Label>
-                                            <Input
-                                                type="number"
-                                                placeholder="10000"
-                                                value={scholarship.grantAmount}
-                                                onChange={(e) => updateScholarship(scholarship.scholarshipId, 'grantAmount', parseFloat(e.target.value))}
-                                                className="h-9 text-sm"
-                                            />
-                                        </div>
+                                        {scholarship.grantType !== 'TUITION_ONLY' && scholarship.grantType !== 'NONE' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Grant Amount</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="10000"
+                                                    value={scholarship.grantAmount}
+                                                    onChange={(e) => updateScholarship(scholarship.scholarshipId, 'grantAmount', parseFloat(e.target.value))}
+                                                    className="h-9 text-sm"
+                                                />
+                                            </div>
+                                        )}
+                                        {scholarship.grantType === 'TUITION_ONLY' || scholarship.grantType === 'NONE' ? (
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Grant Type</Label>
+                                                <div className="h-9 flex items-center text-sm text-muted-foreground px-2">
+                                                    Free Tuition
+                                                </div>
+                                            </div>
+                                        ) : null}
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">Status</Label>
                                             <Select

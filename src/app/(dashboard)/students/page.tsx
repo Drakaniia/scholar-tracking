@@ -29,6 +29,7 @@ import {
  DialogTitle,
  DialogTrigger,
 } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Plus, Search, Pencil, Archive, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
@@ -146,11 +147,11 @@ export default function StudentsPage() {
  const [total, setTotal] = useState(0);
  const [programs, setPrograms] = useState<string[]>([]);
  const [scholarships, setScholarships] = useState<Array<{ id: number; scholarshipName: string }>>([]);
- const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
- const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
- const [submitting, setSubmitting] = useState(false);
-
- const fetchStudents = useCallback(async () => {
+const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [hoveredScholarshipId, setHoveredScholarshipId] = useState<number | null>(null);
+  const fetchStudents = useCallback(async () => {
  try {
  const params = new URLSearchParams();
  if (search) params.append('search', search);
@@ -226,47 +227,17 @@ export default function StudentsPage() {
  setDeleteDialogOpen(true);
  };
 
- const closeDeleteDialog = () => {
- setDeleteDialogOpen(false);
- setDeletingStudent(null);
- };
-
-  const handleDelete = async () => {
-    if (!deletingStudent) return;
-
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/students/${deletingStudent.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive' }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success('Student archived successfully');
-        setDeleteDialogOpen(false);
-        setDeletingStudent(null);
-        // Invalidate cache
-        clientCache.invalidatePattern('/api/students');
-        clientCache.invalidatePattern('/api/dashboard');
-        // Clear sessionStorage to force dashboard refresh
-        sessionStorage.removeItem('dashboardData');
-        sessionStorage.removeItem('detailedStudents');
-        // Trigger dashboard refresh event
-        window.dispatchEvent(new Event('refreshDashboard'));
-        fetchStudents();
-      } else {
-        toast.error(json.error || 'Archive failed');
-      }
-    } catch (error) {
-      console.error('Error archiving student:', error);
-      toast.error('Failed to archive student');
-    } finally {
-      setSubmitting(false);
-    }
+const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setDeletingStudent(null);
   };
 
- const handleEdit = async (student: Student) => {
+  // Optimized hover handler with immediate response
+  const handleScholarshipHover = useCallback((scholarshipId: number | null) => {
+    setHoveredScholarshipId(scholarshipId);
+  }, []);
+
+  const handleEdit = async (student: Student) => {
  setEditingStudent(student as StudentWithScholarships);
  setDialogOpen(true);
  };
@@ -311,27 +282,59 @@ export default function StudentsPage() {
  }
  };
 
- const handleViewDetails = async (studentId: number) => {
- setLoadingDetail(true);
- setDetailDialogOpen(true);
- setShowFullDetails(false);
- try {
- const res = await fetch(`/api/students/${studentId}`);
- const json = await res.json();
- if (json.success) {
- setSelectedStudent(json.data);
- } else {
- toast.error('Failed to load student details');
- }
- } catch (error) {
- console.error('Error fetching student details:', error);
- toast.error('Failed to load student details');
- } finally {
- setLoadingDetail(false);
- }
- };
+const handleViewDetails = async (studentId: number) => {
+  setLoadingDetail(true);
+  setDetailDialogOpen(true);
+  setShowFullDetails(false);
+  try {
+  const res = await fetch(`/api/students/${studentId}`);
+  const json = await res.json();
+  if (json.success) {
+  setSelectedStudent(json.data);
+  } else {
+  toast.error('Failed to load student details');
+  }
+  } catch (error) {
+  console.error('Error fetching student details:', error);
+  toast.error('Failed to load student details');
+  } finally {
+  setLoadingDetail(false);
+  }
+  };
 
- return (
+  const handleDelete = async () => {
+    if (!deletingStudent) return;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/students/${deletingStudent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success('Student archived successfully');
+        setDeleteDialogOpen(false);
+        setDeletingStudent(null);
+        clientCache.invalidatePattern('/api/students');
+        clientCache.invalidatePattern('/api/dashboard');
+        sessionStorage.removeItem('dashboardData');
+        sessionStorage.removeItem('detailedStudents');
+        window.dispatchEvent(new Event('refreshDashboard'));
+        fetchStudents();
+      } else {
+        toast.error(json.error || 'Archive failed');
+      }
+    } catch (error) {
+      console.error('Error archiving student:', error);
+      toast.error('Failed to archive student');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
  <div>
  <PageHeader title="Students" description="Manage student records">
  <div className="flex gap-2">
@@ -562,27 +565,72 @@ export default function StudentsPage() {
  {student.status}
  </Badge>
  </TableCell>
- <TableCell>
- <div className="flex flex-wrap gap-1">
- {student.scholarships && student.scholarships.length > 0 ? (
- student.scholarships.map((ss) => (
- <Badge 
- key={ss.id}
- variant="outline"
- style={{
- backgroundColor: getScholarshipColor(ss.scholarship.scholarshipName),
- color: '#374151',
- borderColor: getScholarshipColor(ss.scholarship.scholarshipName),
- }}
- >
- {ss.scholarship.scholarshipName}
- </Badge>
- ))
- ) : (
- <span className="text-muted-foreground">None</span>
- )}
- </div>
- </TableCell>
+<TableCell>
+  <div className="flex flex-wrap gap-1">
+  {student.scholarships && student.scholarships.length > 0 ? (
+  student.scholarships.map((ss) => (
+  <Popover key={ss.id} open={ss.id === hoveredScholarshipId} onOpenChange={(open) => handleScholarshipHover(open ? ss.id : null)}>
+  <PopoverTrigger asChild>
+  <Badge
+  variant="outline"
+  style={{
+  backgroundColor: getScholarshipColor(ss.scholarship.scholarshipName),
+  color: '#374151',
+  borderColor: getScholarshipColor(ss.scholarship.scholarshipName),
+  }}
+  className="cursor-default"
+  onMouseEnter={() => handleScholarshipHover(ss.id)}
+  onMouseLeave={() => handleScholarshipHover(null)}
+  >
+  {ss.scholarship.scholarshipName}
+  </Badge>
+  </PopoverTrigger>
+  <PopoverContent 
+  className="w-64 p-3" 
+  align="start"
+  sideOffset={4}
+  avoidCollisions
+  hideWhenDetached={false}
+  onMouseEnter={() => handleScholarshipHover(ss.id)}
+  onMouseLeave={() => handleScholarshipHover(null)}
+  >
+  <div className="space-y-2">
+  <h4 className="font-semibold text-sm">{ss.scholarship.scholarshipName}</h4>
+  <div className="flex justify-between items-center">
+  <Badge variant={ss.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="text-xs">
+  {ss.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+  </Badge>
+  <Badge variant={ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'} className="text-xs">
+  {ss.scholarshipStatus}
+  </Badge>
+  </div>
+  <div className="grid grid-cols-2 gap-1 text-xs">
+  <div>
+  <p className="text-muted-foreground">Type</p>
+  <p>{ss.scholarship.type}</p>
+  </div>
+  <div>
+  <p className="text-muted-foreground">Amount</p>
+  <p>₱{ss.grantAmount.toLocaleString()}</p>
+  </div>
+  <div>
+  <p className="text-muted-foreground">Award Date</p>
+  <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
+  </div>
+  <div>
+  <p className="text-muted-foreground">Term</p>
+  <p>{ss.startTerm} - {ss.endTerm}</p>
+  </div>
+  </div>
+  </div>
+  </PopoverContent>
+  </Popover>
+  ))
+  ) : (
+  <span className="text-muted-foreground">None</span>
+  )}
+  </div>
+  </TableCell>
  {isAdmin && (
  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
  <div className="flex justify-end gap-2">
@@ -873,3 +921,5 @@ export default function StudentsPage() {
  </div>
  );
 }
+
+

@@ -2,109 +2,41 @@
 
 ## Project Overview
 
-**ScholarTrack** is a comprehensive web-based scholarship management system built with Next.js 16, designed to streamline scholarship-related activities for educational institutions. The system provides complete CRUD operations for student records, scholarship programs, application tracking, and detailed reporting with export capabilities.
+**ScholarTrack** is a comprehensive web-based scholarship tracking system built with **Next.js 16**, **PostgreSQL**, and **Prisma ORM**. The system manages student records, scholarship programs, application tracking, disbursements, and generates detailed reports for educational institutions.
 
 ### Core Features
 
-- **Dashboard**: Statistics overview, recent applications, deadline tracking, and distribution charts
-- **Student Management**: Full CRUD with education levels (Grade School through College)
-- **Scholarship Management**: Internal (PAED) and External (CHED, TESDA, TDP, LGU) scholarships
-- **Application Tracking**: Student-scholarship assignments with approval workflow
-- **Fee & Disbursement Tracking**: Detailed tuition breakdown and subsidy calculations
-- **Reports & Analytics**: Comprehensive reports organized by grade level and scholarship type
-- **Data Export**: PDF, Excel (XLSX), and CSV export functionality
-- **Role-Based Access Control**: ADMIN, STAFF, and VIEWER roles with audit logging
-- **Authentication**: JWT-based auth with HTTP-only cookies, account lockout protection
-
-### Tech Stack
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Next.js** | 16.1.6 | React framework with App Router |
-| **TypeScript** | 5.x | Type-safe JavaScript |
-| **PostgreSQL** | 14+ | Relational database |
-| **Prisma ORM** | 6.19.2 | Database toolkit & migrations |
-| **Tailwind CSS** | 4.1.18 | Utility-first styling |
-| **shadcn/ui** | - | Accessible UI components |
-| **React Hook Form** | 7.70.0 | Form management |
-| **Zod** | 3.24.1 | Schema validation |
-| **jose** | 5.10.0 | JWT authentication |
-| **bcryptjs** | 2.4.3 | Password hashing |
-| **Recharts** | 3.7.0 | Data visualization |
-| **jsPDF** | 4.0.0 | PDF generation |
-| **xlsx** | 0.18.5 | Excel/CSV export |
+- **Student Management**: Full CRUD operations with grade levels (Grade School, Junior High, Senior High, College)
+- **Scholarship Management**: Multiple scholarship types (Internal/External) including CHED, TESDA, TDP, LGU, PAED
+- **Multiple Scholarships Per Student**: Students can have multiple concurrent scholarships via junction table
+- **Disbursement Tracking**: Monitor scholarship payments and distributions
+- **Fee Management**: Tuition, miscellaneous, laboratory, and other fees with subsidy calculations
+- **Reports & Analytics**: Detailed reports grouped by grade level and scholarship type
+- **Data Export**: PDF, Excel (XLSX), and CSV export capabilities
+- **User Authentication**: Secure login with role-based access control (ADMIN, STAFF, VIEWER)
+- **Audit Logging**: Complete activity tracking for accountability
+- **Graduation Service**: Automated handling of graduating students (scholarship removal, disbursement cancellation)
 
 ---
 
-## Building and Running
+## Tech Stack
 
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database (local or cloud-hosted)
-- npm or yarn package manager
-
-### Environment Setup
-
-Create a `.env` file in the project root:
-
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/scholarship_db"
-JWT_SECRET="your-secure-secret-key-min-32-characters"
-SESSION_SECRET="your-session-secret"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-nextauth-secret"
-
-# Security Settings
-MAX_LOGIN_ATTEMPTS=5
-LOCKOUT_DURATION_MINUTES=15
-SESSION_DURATION_HOURS=8
-```
-
-### Development Server
-
-```bash
-# Install dependencies
-npm install
-
-# Setup database (push schema)
-npm run db:push
-
-# Seed database with sample data
-npm run db:seed
-
-# Start development server (runs on port 8080)
-npm run dev
-```
-
-Open [http://localhost:8080](http://localhost:8080)
-
-### Production Build
-
-```bash
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-```
-
-### Database Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm run db:push` | Push Prisma schema changes to database |
-| `npm run db:seed` | Seed database with sample data |
-| `npm run db:studio` | Open Prisma Studio (visual database editor) |
-| `npm run erd:generate` | Generate Entity Relationship Diagram |
-| `npm run erd:view` | View ERD in browser |
-
-### Utility Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm run lint` | Run ESLint |
-| `npm run clean` | Clean node_modules and .next, then reinstall |
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Next.js** | 16.x | React framework with App Router |
+| **React** | 19.x | UI library |
+| **TypeScript** | 5.x | Type safety |
+| **PostgreSQL** | - | Relational database |
+| **Prisma ORM** | 6.x | Database ORM with JS engine |
+| **Tailwind CSS** | 4.x | Utility-first styling |
+| **shadcn/ui** | - | Accessible UI components |
+| **Radix UI** | - | Primitive components |
+| **React Hook Form** | 7.x | Form management |
+| **TanStack Query** | 5.x | Server state management |
+| **Zod** | 3.x | Schema validation |
+| **Vitest** | 4.x | Testing framework |
+| **jsPDF** | 4.x | PDF generation |
+| **XLSX** | 0.18.x | Excel export |
 
 ---
 
@@ -112,56 +44,65 @@ npm run start
 
 ```
 scholarship-tracking-system/
-├── prisma/
-│   ├── schema.prisma          # Database schema definition
-│   ├── seed.ts                # Database seeding script
-│   └── schema-with-erd.prisma # Schema with ERD generator
 ├── src/
-│   ├── app/
-│   │   ├── (dashboard)/       # Dashboard layout group
-│   │   │   ├── page.tsx       # Dashboard home
-│   │   │   ├── students/      # Student management
-│   │   │   ├── scholarships/  # Scholarship management
-│   │   │   ├── reports/       # Reports & analytics
-│   │   │   └── settings/      # User settings
-│   │   ├── api/
-│   │   │   ├── auth/          # Authentication endpoints
-│   │   │   ├── students/      # Student CRUD API
-│   │   │   ├── scholarships/  # Scholarship CRUD API
-│   │   │   ├── export/        # PDF/CSV export API
-│   │   │   ├── dashboard/     # Dashboard stats API
-│   │   │   └── users/         # User management API
-│   │   ├── login/             # Login page
-│   │   ├── layout.tsx         # Root layout
-│   │   └── globals.css        # Global styles
+│   ├── app/                    # Next.js App Router
+│   │   ├── (dashboard)/        # Dashboard layout group
+│   │   │   ├── students/       # Student management page
+│   │   │   ├── scholarships/   # Scholarship management page
+│   │   │   ├── reports/        # Reports and analytics
+│   │   │   ├── settings/       # User settings
+│   │   │   ├── layout.tsx      # Dashboard layout
+│   │   │   └── page.tsx        # Dashboard home
+│   │   ├── api/                # API Routes
+│   │   │   ├── students/       # Student CRUD endpoints
+│   │   │   ├── scholarships/   # Scholarship CRUD endpoints
+│   │   │   ├── disbursements/  # Disbursement management
+│   │   │   ├── export/         # PDF/CSV/XLSX exports
+│   │   │   ├── auth/           # Authentication endpoints
+│   │   │   ├── users/          # User management
+│   │   │   ├── audit-logs/     # Audit log endpoints
+│   │   │   ├── sessions/       # Session management
+│   │   │   ├── scheduler/      # Cron job endpoints
+│   │   │   └── graduation/     # Graduation processing
+│   │   ├── login/              # Login page
+│   │   ├── layout.tsx          # Root layout
+│   │   └── globals.css         # Global styles
 │   ├── components/
-│   │   ├── ui/                # shadcn/ui primitives
-│   │   ├── layout/            # Layout components
-│   │   ├── forms/             # Form components
-│   │   ├── dashboard/         # Dashboard widgets
-│   │   ├── charts/            # Chart components
-│   │   ├── shared/            # Reusable components
-│   │   └── auth/              # Auth-related components
-│   ├── lib/
-│   │   ├── prisma.ts          # Prisma client singleton
-│   │   ├── auth.ts            # Authentication utilities
-│   │   ├── validations.ts     # Zod schemas
-│   │   ├── cache.ts           # Caching utilities
-│   │   └── utils.ts           # General utilities
-│   ├── hooks/                 # Custom React hooks
-│   ├── types/                 # TypeScript type definitions
-│   └── assets/                # Static assets
+│   │   ├── ui/                 # shadcn/ui components
+│   │   ├── forms/              # Form components (student, scholarship)
+│   │   ├── dashboard/          # Dashboard widgets
+│   │   ├── charts/             # Recharts visualizations
+│   │   ├── layout/             # Layout components
+│   │   ├── providers/          # Context providers
+│   │   ├── auth/               # Auth-related components
+│   │   └── shared/             # Shared/reusable components
+│   ├── hooks/                  # Custom React hooks
+│   ├── lib/                    # Utilities and services
+│   │   ├── auth.ts             # Authentication utilities
+│   │   ├── prisma.ts           # Prisma client instance
+│   │   ├── graduation-service.ts  # Graduation processing logic
+│   │   ├── scholarship-validation.ts  # Validation logic
+│   │   ├── backup-service.ts   # Database backup utilities
+│   │   ├── scheduler.ts        # Job scheduling
+│   │   ├── cron.ts             # Cron job definitions
+│   │   ├── constants.ts        # App constants
+│   │   └── utils.ts            # General utilities
+│   └── types/                  # TypeScript type definitions
+├── prisma/
+│   ├── schema.prisma           # Main Prisma schema
+│   ├── schema-with-erd.prisma  # Schema with ERD generator
+│   ├── seed.ts                 # Database seeding script
+│   └── migrations/             # Database migrations
 ├── docs/
-│   ├── ERD.svg                # Entity Relationship Diagram
-│   ├── index.html             # Interactive ERD viewer
-│   ├── README.md              # Database documentation
-│   └── RBAC-GUIDE.md          # Role-based access guide
-├── .env                       # Environment variables
-├── package.json               # Dependencies & scripts
-├── tsconfig.json              # TypeScript configuration
-├── next.config.ts             # Next.js configuration
-├── tailwind.config.ts         # Tailwind configuration
-└── vercel.json                # Vercel deployment config
+│   ├── ERD.svg                 # Entity Relationship Diagram
+│   ├── index.html              # Interactive ERD viewer
+│   ├── README.md               # Database documentation
+│   ├── RBAC-GUIDE.md           # Role-based access control guide
+│   └── TANSTACK-QUERY-GUIDE.md # TanStack Query usage guide
+├── tests/                      # Vitest test files
+├── scripts/                    # Utility scripts
+├── __tests__/                  # Additional test directory
+└── changelog/                  # Changelog files
 ```
 
 ---
@@ -173,24 +114,83 @@ scholarship-tracking-system/
 | Table | Description |
 |-------|-------------|
 | **User** | Authentication users with roles (ADMIN, STAFF, VIEWER) |
-| **Session** | User login sessions with expiration tracking |
-| **AuditLog** | System activity logging for accountability |
-| **Student** | Student records with education level tracking |
-| **Scholarship** | Scholarship programs (PAED, CHED, LGU types) |
-| **StudentScholarship** | Junction table for student-scholarship assignments |
-| **StudentFees** | Fee breakdown (tuition, misc, lab) with subsidy calculations |
-| **Disbursement** | Payment tracking for scholarship distributions |
+| **Session** | User login sessions with expiration |
+| **AuditLog** | System activity tracking |
+| **Student** | Student records with grade/year levels |
+| **Scholarship** | Scholarship programs (Internal/External) |
+| **StudentScholarship** | Junction table for many-to-many relationship |
+| **Disbursement** | Scholarship payment tracking |
+| **StudentFees** | Fee breakdown (tuition, misc, lab, etc.) |
+| **Backup** | Database backup records |
 
 ### Key Relationships
 
 - **User** → **Session** (One-to-Many)
 - **User** → **AuditLog** (One-to-Many)
-- **Student** → **StudentScholarship** (One-to-Many)
-- **Scholarship** → **StudentScholarship** (One-to-Many)
+- **Student** ↔ **Scholarship** (Many-to-Many via StudentScholarship)
 - **Student** → **StudentFees** (One-to-Many)
 - **Student** → **Disbursement** (One-to-Many)
+- **Scholarship** → **Disbursement** (One-to-Many)
 
-View the complete ERD at `docs/ERD.svg` or run `npm run erd:view`.
+---
+
+## Building and Running
+
+### Prerequisites
+
+- **Node.js** 18+
+- **PostgreSQL** database (or use the configured Prisma Accelerate URL)
+
+### Installation
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Configure environment variables (edit .env file)
+# DATABASE_URL, JWT_SECRET, SESSION_SECRET, etc.
+
+# 3. Generate Prisma client and push schema
+npx prisma db push
+
+# 4. Seed database with sample data
+npm run db:seed
+
+# 5. Start development server
+npm run dev
+```
+
+### Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server (port 8080) |
+| `npm run build` | Build for production (with Prisma generate) |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | TypeScript type checking |
+| `npm run db:push` | Push Prisma schema to database |
+| `npm run db:seed` | Seed database with sample data |
+| `npm run db:studio` | Open Prisma Studio (visual DB browser) |
+| `npm run erd:generate` | Generate Entity Relationship Diagram |
+| `npm run erd:view` | Open ERD viewer in browser |
+| `npm run test` | Run Vitest tests |
+| `npm run test:watch` | Run tests in watch mode |
+
+### Environment Variables
+
+Required variables in `.env`:
+
+```env
+DATABASE_URL="postgresql://..."
+JWT_SECRET="your-jwt-secret-min-32-chars"
+SESSION_SECRET="your-session-secret"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-nextauth-secret"
+MAX_LOGIN_ATTEMPTS=5
+LOCKOUT_DURATION_MINUTES=15
+SESSION_DURATION_HOURS=8
+```
 
 ---
 
@@ -198,277 +198,191 @@ View the complete ERD at `docs/ERD.svg` or run `npm run erd:view`.
 
 ### Code Style
 
-- **Files**: kebab-case (`student-form.tsx`)
-- **Components**: PascalCase (`StudentForm`)
-- **Variables**: camelCase
-- **Constants**: UPPER_SNAKE_CASE
-- **Database tables**: snake_case (mapped with Prisma `@@map`)
+- **TypeScript**: Strict mode enabled
+- **Formatting**: Consistent indentation, semicolons required
+- **Naming**: 
+  - Components: PascalCase
+  - Functions/variables: camelCase
+  - Constants: UPPER_SNAKE_CASE
+  - Files: kebab-case or camelCase matching export
 
-### Import Order
-
-1. External libraries (React, Next.js, third-party)
-2. Internal imports using `@/` alias
-3. Relative imports
+### Import Aliases
 
 ```typescript
-// External
-import { NextRequest, NextResponse } from 'next/server';
-import { useForm } from 'react-hook-form';
-
-// Internal
-import prisma from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
-
-// Relative
-import { Button } from './ui/button';
+import { Component } from '@/components/component-name';
+import { utility } from '@/lib/utility';
+import { Type } from '@/types';
 ```
 
-### Component Pattern
+### Testing Practices
 
+- Tests located in `tests/` directory with `.test.ts` extension
+- Use **Vitest** with globals enabled
+- Mock Prisma client and external dependencies
+- Test coverage uses V8 provider
+
+Example test structure:
 ```typescript
-import { cn } from '@/lib/utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-interface Props {
-  className?: string;
-  variant?: 'default' | 'outline';
-}
+describe('service-name', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-export function Component({
-  className,
-  variant = 'default',
-  ...props
-}: Props) {
-  return (
-    <div className={cn('base-styles', className)}>
-      {/* content */}
-    </div>
-  );
-}
-```
-
-### API Route Pattern
-
-```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import prisma from '@/lib/prisma';
-
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getSession();
-    
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const data = await prisma.student.findMany();
-    
-    return NextResponse.json({
-      success: true,
-      data,
+  describe('functionName', () => {
+    it('should do something', () => {
+      // Test implementation
     });
-  } catch (error) {
-    console.error('Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
+  });
+});
 ```
+
+### API Route Conventions
+
+- All API routes under `src/app/api/`
+- Use RESTful conventions:
+  - `GET /api/students` - List all
+  - `GET /api/students/[id]` - Get by ID
+  - `POST /api/students` - Create
+  - `PUT /api/students/[id]` - Update
+  - `DELETE /api/students/[id]` - Delete
+
+### Component Structure
+
+```typescript
+// 1. Imports (React, libraries, types)
+// 2. Component props interface
+// 3. Component function
+// 4. Export
+```
+
+### Database Operations
+
+- Always use Prisma transactions for multi-step operations
+- Include audit logging for data modifications
+- Use soft deletes (isArchived) where appropriate
+- Index frequently queried columns
+
+---
+
+## Key Architecture Patterns
 
 ### Authentication
 
-- JWT tokens stored in HTTP-only cookies
-- Session duration: 8 hours (configurable)
-- Account lockout after 5 failed attempts (15 min lockout)
+- JWT-based authentication with HTTP-only cookies
+- Session stored in database with expiration
+- Password hashing with bcryptjs
+- Account lockout after 5 failed attempts (15 min)
 - Role-based access control (RBAC)
-- Audit logging for all CRUD operations
 
-### TypeScript Guidelines
+### Data Flow
 
-- Strict mode enabled
-- Always type function parameters and return values
-- Use interfaces for object shapes
-- Use `Partial<T>` for update operations
-- Define types in `src/types/index.ts`
-
-### Error Handling
-
-- Wrap async operations in try-catch
-- Log errors to console
-- Return consistent API response format: `{ success, data?, error? }`
-- Use appropriate HTTP status codes (400, 401, 403, 404, 500)
-
-### Styling
-
-- Use Tailwind CSS utility classes
-- Use `cn()` utility for conditional classes
-- Mobile-first responsive design
-- shadcn/ui components as base primitives
-
----
-
-## API Endpoints
-
-### Authentication
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | User login |
-| POST | `/api/auth/logout` | User logout |
-| GET | `/api/auth/session` | Get current session |
-
-### Students
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/students` | List all students |
-| POST | `/api/students` | Create new student |
-| GET | `/api/students/:id` | Get student by ID |
-| PUT | `/api/students/:id` | Update student |
-| DELETE | `/api/students/:id` | Delete student |
-
-### Scholarships
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/scholarships` | List all scholarships |
-| POST | `/api/scholarships` | Create scholarship |
-| GET | `/api/scholarships/:id` | Get scholarship by ID |
-| PUT | `/api/scholarships/:id` | Update scholarship |
-| DELETE | `/api/scholarships/:id` | Delete scholarship |
-
-### Export
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/export/students/pdf` | Export students as PDF |
-| GET | `/api/export/students/xlsx` | Export students as Excel |
-| GET | `/api/export/students/csv` | Export students as CSV |
-
-### Dashboard
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/dashboard/stats` | Get dashboard statistics |
-
----
-
-## Default Credentials
-
-After running `npm run db:seed`, use these credentials:
-
-| Role | Username | Password |
-|------|----------|----------|
-| ADMIN | `admin` | `admin123` |
-
-⚠️ **Security Note**: Change default passwords immediately in production.
-
----
-
-## Deployment
-
-### Vercel Deployment
-
-The project is configured for Vercel deployment via `vercel.json`:
-
-```json
-{
-  "buildCommand": "npx prisma generate && npm run build"
-}
+```
+Browser → Next.js App Router → API Routes → Prisma ORM → PostgreSQL
+                ↓
+        React Components
+                ↓
+        TanStack Query (caching)
+                ↓
+            UI Display
 ```
 
-**Environment variables must be set in Vercel dashboard:**
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `SESSION_SECRET`
-- `NEXTAUTH_URL`
-- `NEXTAUTH_SECRET`
+### State Management
+
+- **TanStack Query**: Server state (API data)
+- **React Hook Form**: Form state
+- **React Context**: Theme, auth providers
 
 ---
 
-## Key Files Reference
+## Important Files Reference
 
 | File | Purpose |
 |------|---------|
 | `prisma/schema.prisma` | Database schema definition |
 | `src/lib/prisma.ts` | Prisma client singleton |
 | `src/lib/auth.ts` | Authentication utilities |
-| `src/app/layout.tsx` | Root layout with providers |
-| `src/components/ui/` | shadcn/ui component library |
+| `src/lib/graduation-service.ts` | Graduation processing logic |
+| `src/components/forms/` | All form components |
+| `src/app/api/` | All API route handlers |
 | `docs/ERD.svg` | Database entity relationship diagram |
-| `SYSTEM-MANUAL.md` | Complete user guide |
-| `AGENTS.md` | Development guidelines for AI agents |
+| `SYSTEM-MANUAL.md` | Complete user documentation |
 
 ---
 
 ## Common Tasks
 
-### Add a New Database Field
+### Add a New API Endpoint
 
-1. Update `prisma/schema.prisma`
-2. Run `npm run db:push`
-3. Regenerate Prisma client: `npx prisma generate`
-4. Update TypeScript types if needed
-5. Update forms and API routes
+1. Create folder under `src/app/api/your-endpoint/`
+2. Add `route.ts` with HTTP method handlers
+3. Import Prisma client: `import prisma from '@/lib/prisma'`
+4. Implement CRUD operations
+5. Add authentication/authorization checks
 
-### Add a New Page
+### Create a New Component
 
-1. Create folder in `src/app/(dashboard)/`
-2. Add `page.tsx` with React component
-3. Add navigation link in layout
-4. Create API routes if needed
+1. Create file in appropriate `src/components/` subdirectory
+2. Use TypeScript with proper prop typing
+3. Import from `@/components/ui/` for shadcn components
+4. Follow existing component patterns
 
-### Add Export Functionality
+### Add Database Migration
 
-1. Use `jspdf` for PDF exports
-2. Use `xlsx` for Excel/CSV exports
-3. Add API route in `src/app/api/export/`
-4. Set proper headers for file download
+```bash
+# After schema changes
+npx prisma db push
+
+# Or create named migration
+npx prisma migrate dev --name your_migration_name
+```
+
+### Run Tests
+
+```bash
+# Run all tests
+npm run test
+
+# Run in watch mode
+npm run test:watch
+
+# Run specific test file
+npx vitest tests/your-test.test.ts
+```
 
 ---
 
 ## Troubleshooting
 
-### Database Connection Issues
-
-```bash
-# Verify DATABASE_URL in .env
-# Check PostgreSQL is running
-# Run: npm run db:push
-```
-
-### Prisma Client Errors
-
+### Prisma Client Issues
 ```bash
 # Regenerate Prisma client
 npx prisma generate
+
+# Reset and push schema
+npx prisma db push --force-reset
 ```
 
-### Build Failures
-
+### Build Errors
 ```bash
-# Clean and reinstall
-npm run clean
+# Clear .next and node_modules
+rm -rf .next node_modules
+npm install
+npm run build
 ```
 
-### Session/Auth Issues
-
-1. Clear browser cookies
-2. Verify JWT_SECRET in .env
-3. Check session expiration settings
+### Database Connection Issues
+- Verify `DATABASE_URL` in `.env`
+- Check PostgreSQL is running
+- Ensure Prisma Accelerate API key is valid
 
 ---
 
 ## Additional Resources
 
-- [System Manual](./SYSTEM-MANUAL.md) - Complete user guide
-- [Database Documentation](./docs/README.md) - ERD and schema details
-- [Development Guide](./AGENTS.md) - Coding conventions and patterns
-- [Prisma Docs](https://pris.ly/d/prisma-schema)
-- [Next.js Docs](https://nextjs.org/docs)
-- [shadcn/ui Docs](https://ui.shadcn.com)
+- **System Manual**: `SYSTEM-MANUAL.md` - Complete user guide
+- **Database Docs**: `docs/README.md` - ERD and schema documentation
+- **RBAC Guide**: `docs/RBAC-GUIDE.md` - Role-based access control
+- **TanStack Query**: `docs/TANSTACK-QUERY-GUIDE.md` - Data fetching patterns
+- **Changelog**: `CHANGELOG.md` - Recent changes and updates

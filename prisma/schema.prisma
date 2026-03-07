@@ -92,6 +92,7 @@ model StudentScholarship {
   startTerm         String      @map("start_term")
   endTerm           String      @map("end_term")
   grantAmount       Decimal     @map("grant_amount") @db.Decimal(10, 2)
+  grantType         String      @default("FULL") @map("grant_type") // FULL, TUITION_ONLY, MISC_ONLY, LAB_ONLY, NONE
   scholarshipStatus String      @map("scholarship_status")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
@@ -102,6 +103,7 @@ model StudentScholarship {
   @@index([studentId])
   @@index([scholarshipId])
   @@index([scholarshipStatus])
+  @@index([grantType])
   @@map("student_scholarships")
 }
 
@@ -121,6 +123,10 @@ model Scholarship {
   isArchived          Boolean              @default(false) @map("is_archived")
   startDate           DateTime?            @map("start_date")
   eligiblePrograms    String?              @map("eligible_programs")
+  grantType           String               @default("FULL") @map("grant_type") // FULL, TUITION_ONLY, MISC_ONLY, LAB_ONLY, NONE
+  coversTuition       Boolean              @default(false) @map("covers_tuition")
+  coversMiscellaneous Boolean              @default(false) @map("covers_miscellaneous")
+  coversLaboratory    Boolean              @default(false) @map("covers_laboratory")
   disbursements       Disbursement[]
   students            StudentScholarship[]
 
@@ -130,6 +136,7 @@ model Scholarship {
   @@index([startDate])
   @@index([endDate])
   @@index([isArchived])
+  @@index([grantType])
   @@map("scholarships")
 }
 

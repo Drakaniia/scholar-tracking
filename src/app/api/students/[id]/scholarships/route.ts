@@ -78,7 +78,7 @@ export async function POST(
         const studentId = parseInt(id);
         const body = await request.json();
 
-        const { scholarshipId, awardDate, startTerm, endTerm, grantAmount, scholarshipStatus } = body;
+        const { scholarshipId, awardDate, startTerm, endTerm, grantAmount, grantType, scholarshipStatus } = body;
 
         // Validate required fields
         if (!scholarshipId) {
@@ -123,7 +123,8 @@ export async function POST(
                 awardDate: awardDate || new Date(),
                 startTerm: startTerm || '',
                 endTerm: endTerm || '',
-                grantAmount: grantAmount || scholarship.amount,
+                grantAmount: grantType === 'TUITION_ONLY' || grantType === 'NONE' ? 0 : (grantAmount || scholarship.amount),
+                grantType: grantType || scholarship.grantType || 'FULL',
                 scholarshipStatus: scholarshipStatus || 'Active',
             },
         });

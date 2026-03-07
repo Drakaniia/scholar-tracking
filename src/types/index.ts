@@ -27,6 +27,7 @@ export interface StudentScholarship {
     startTerm: string;
     endTerm: string;
     grantAmount: number;
+    grantType: GrantType;
     scholarshipStatus: string;
     createdAt: Date;
     updatedAt: Date;
@@ -48,6 +49,7 @@ export interface CreateStudentInput {
     startTerm?: string | null;
     endTerm?: string | null;
     grantAmount?: number | null;
+    grantType?: GrantType;
     scholarshipStatus?: string | null;
     scholarships?: Array<{
         scholarshipId: number;
@@ -55,6 +57,7 @@ export interface CreateStudentInput {
         startTerm: string;
         endTerm: string;
         grantAmount: number;
+        grantType?: GrantType;
         scholarshipStatus: string;
     }>;
 }
@@ -66,6 +69,17 @@ export type UpdateStudentInput = Partial<CreateStudentInput>;
 // ============================================
 export type ScholarshipType = 'PAED' | 'CHED' | 'LGU';
 export type ScholarshipSource = 'INTERNAL' | 'EXTERNAL';
+export type GrantType = 'FULL' | 'TUITION_ONLY' | 'MISC_ONLY' | 'LAB_ONLY' | 'NONE';
+
+export const GRANT_TYPES: GrantType[] = ['FULL', 'TUITION_ONLY', 'MISC_ONLY', 'LAB_ONLY', 'NONE'] as const;
+
+export const GRANT_TYPE_LABELS: Record<GrantType, string> = {
+    FULL: 'Full Grant (Cash + Tuition)',
+    TUITION_ONLY: 'Free Tuition Only',
+    MISC_ONLY: 'Miscellaneous Fees Only',
+    LAB_ONLY: 'Laboratory Fees Only',
+    NONE: 'None (Honorific Only)',
+};
 
 export interface Scholarship {
     id: number;
@@ -81,8 +95,10 @@ export interface Scholarship {
     isArchived: boolean;
     startDate?: Date | null;
     endDate?: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
+    grantType: GrantType;
+    coversTuition: boolean;
+    coversMiscellaneous: boolean;
+    coversLaboratory: boolean;
     students?: StudentScholarship[];
     disbursements?: Disbursement[];
 }
@@ -99,6 +115,10 @@ export interface CreateScholarshipInput {
     status: string;
     startDate?: Date | null;
     endDate?: Date | null;
+    grantType?: GrantType;
+    coversTuition?: boolean;
+    coversMiscellaneous?: boolean;
+    coversLaboratory?: boolean;
 }
 
 export type UpdateScholarshipInput = Partial<CreateScholarshipInput>;
