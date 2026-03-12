@@ -227,7 +227,9 @@ export default function SettingsPage() {
   // Academic Year state
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [loadingAcademicYears, setLoadingAcademicYears] = useState(false);
+  const [academicYearTotal, setAcademicYearTotal] = useState(0);
   const [academicYearTotalPages, setAcademicYearTotalPages] = useState(0);
+  const [academicYearPage, setAcademicYearPage] = useState(1);
   const [isAcademicYearDialogOpen, setIsAcademicYearDialogOpen] = useState(false);
   const [editingAcademicYear, setEditingAcademicYear] = useState<AcademicYear | null>(null);
   const [isSubmittingAcademicYear, setIsSubmittingAcademicYear] = useState(false);

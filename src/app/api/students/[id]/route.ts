@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma, { Prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { UpdateStudentInput } from '@/types';
 import { getSession } from '@/lib/auth';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
