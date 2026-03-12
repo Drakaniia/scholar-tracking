@@ -264,6 +264,12 @@ function DetailedView({
       Number(fees.miscellaneousFee) + Number(fees.laboratoryFee);
   };
 
+  const calculatePercentSubsidy = (fees: DetailedStudent['fees'][0]) => {
+    if (!fees) return 0;
+    const totalFees = calculateTotalFees(fees);
+    return totalFees > 0 ? (Number(fees.amountSubsidy) / totalFees) * 100 : 0;
+  };
+
   return (
     <Card className="border-gray-200">
       <CardHeader>
@@ -324,7 +330,7 @@ function DetailedView({
                                 <TableHead className="font-bold">M.I.</TableHead>
                                 <TableHead className="font-bold">Year Level</TableHead>
                                 <TableHead className="font-bold text-right">Total Fees</TableHead>
-                                <TableHead className="font-bold text-right">Subsidy</TableHead>
+                                <TableHead className="font-bold text-right">Amount Subsidy</TableHead>
                                 <TableHead className="font-bold text-right">% Subsidy</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -347,7 +353,7 @@ function DetailedView({
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <Badge variant="secondary" className="bg-primary/10 text-primary">
-                                        {fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '-'}
+                                        {fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '-'}
                                       </Badge>
                                     </TableCell>
                                   </TableRow>

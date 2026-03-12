@@ -47,8 +47,15 @@ export async function GET(request: NextRequest) {
         const calculateTotalFees = (fees: { tuitionFee: number | { toNumber: () => number }; otherFee: number | { toNumber: () => number }; miscellaneousFee: number | { toNumber: () => number }; laboratoryFee: number | { toNumber: () => number } } | null) => {
             if (!fees) return 0;
             const toNum = (val: number | { toNumber: () => number }) => typeof val === 'number' ? val : val.toNumber();
-            return toNum(fees.tuitionFee) + toNum(fees.otherFee) + 
+            return toNum(fees.tuitionFee) + toNum(fees.otherFee) +
                    toNum(fees.miscellaneousFee) + toNum(fees.laboratoryFee);
+        };
+
+        const calculatePercentSubsidy = (fees: { amountSubsidy: number | { toNumber: () => number }; tuitionFee: number | { toNumber: () => number }; otherFee: number | { toNumber: () => number }; miscellaneousFee: number | { toNumber: () => number }; laboratoryFee: number | { toNumber: () => number } } | null) => {
+            if (!fees) return 0;
+            const toNum = (val: number | { toNumber: () => number }) => typeof val === 'number' ? val : val.toNumber();
+            const totalFees = calculateTotalFees(fees);
+            return totalFees > 0 ? (toNum(fees.amountSubsidy) / totalFees) * 100 : 0;
         };
 
         if (format === 'xlsx') {
@@ -91,7 +98,7 @@ export async function GET(request: NextRequest) {
                         'Miscellaneous',
                         'Laboratory',
                         'Total Fees',
-                        'Subsidy Amount',
+                        'Amount Subsidy',
                         '% Subsidy'
                     ]);
 
@@ -113,7 +120,7 @@ export async function GET(request: NextRequest) {
                             fees ? Number(fees.laboratoryFee) : 0,
                             totalFees,
                             fees ? Number(fees.amountSubsidy) : 0,
-                            fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '0%'
+                            fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '0%'
                         ]);
                     });
 
@@ -212,7 +219,7 @@ export async function GET(request: NextRequest) {
                         'Miscellaneous',
                         'Laboratory',
                         'Total Fees',
-                        'Subsidy Amount',
+                        'Amount Subsidy',
                         '% Subsidy'
                     ].map(h => `"${h}"`).join(','));
 
@@ -234,7 +241,7 @@ export async function GET(request: NextRequest) {
                             fees ? Number(fees.laboratoryFee) : 0,
                             totalFees,
                             fees ? Number(fees.amountSubsidy) : 0,
-                            fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '0%'
+                            fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '0%'
                         ].map(v => `"${v}"`).join(','));
                     });
 
@@ -298,7 +305,7 @@ export async function GET(request: NextRequest) {
                         'Misc.',
                         'Lab',
                         'Total',
-                        'Subsidy',
+                        'Amt Subsidy',
                         '%'
                     ]],
                     body: typeStudents.map((student) => {
@@ -318,7 +325,7 @@ export async function GET(request: NextRequest) {
                             fees ? Number(fees.laboratoryFee) : 0,
                             totalFees,
                             fees ? Number(fees.amountSubsidy) : 0,
-                            fees ? `${Number(fees.percentSubsidy).toFixed(2)}%` : '0%'
+                            fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '0%'
                         ];
                     }),
                     styles: { fontSize: 7 },

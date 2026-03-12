@@ -38,6 +38,25 @@ import {
  SelectValue,
 } from '@/components/ui/select';
 
+// Pastel colors for scholarship types
+const PASTEL_COLORS = [
+ 'hsl(var(--pastel-purple))',
+ 'hsl(var(--pastel-blue))',
+ 'hsl(var(--pastel-pink))',
+ 'hsl(var(--pastel-orange))',
+ 'hsl(var(--pastel-green))',
+];
+
+// Function to get consistent color for a scholarship name
+const getScholarshipColor = (scholarshipName: string): string => {
+ let hash = 0;
+ for (let i = 0; i < scholarshipName.length; i++) {
+ hash = scholarshipName.charCodeAt(i) + ((hash << 5) - hash);
+ }
+ const index = Math.abs(hash) % PASTEL_COLORS.length;
+ return PASTEL_COLORS[index];
+};
+
 interface Scholarship {
  id: number;
  scholarshipName: string;
@@ -47,15 +66,30 @@ interface Scholarship {
  eligibleGradeLevels: string | null;
  eligiblePrograms: string | null;
  amount: number;
+ amountSubsidy: number;
+ percentSubsidy: number;
  requirements: string | null;
  status: string;
  grantType: string;
  coversTuition: boolean;
  coversMiscellaneous: boolean;
  coversLaboratory: boolean;
+ coversOther: boolean;
+ otherFeeName: string | null;
+ tuitionFee: number;
+ miscellaneousFee: number;
+ laboratoryFee: number;
+ otherFee: number;
  _count?: {
  students: number;
  };
+ students?: Array<{
+ student: {
+ fees: Array<{
+ percentSubsidy: number;
+ }>;
+ };
+ }>;
 }
 
 interface ScholarshipDetail extends Scholarship {
@@ -76,6 +110,10 @@ interface ScholarshipDetail extends Scholarship {
  gradeLevel: string;
  yearLevel: string;
  status: string;
+ fees: Array<{
+ percentSubsidy: number;
+ amountSubsidy: number;
+ }>;
  };
  }>;
 }
@@ -106,6 +144,21 @@ export default function ScholarshipsPage() {
  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
  const [selectedScholarship, setSelectedScholarship] = useState<ScholarshipDetail | null>(null);
  const [loadingDetail, setLoadingDetail] = useState(false);
+
+ // Calculate EFC for a scholarship: sum of (percentSubsidy / 100) for all students
+ const calculateEFC = useCallback((scholarship: Scholarship): number => {
+ if (!scholarship.students || scholarship.students.length === 0) return 0;
+ 
+ return scholarship.students.reduce((total, ss) => {
+ const studentFees = ss.student.fees;
+ if (!studentFees || studentFees.length === 0) return total;
+ // Sum all percentSubsidy values for this student
+ const studentPercentSubsidy = studentFees.reduce((sum, fee) => sum + Number(fee.percentSubsidy), 0);
+ // EFC = percentSubsidy (as the formula states: Multiply % Subsidy and Number of students)
+ // Since we're iterating through each student, we just add their percentSubsidy
+ return total + studentPercentSubsidy;
+ }, 0);
+ }, []);
 
  const fetchCounts = useCallback(async () => {
  try {
@@ -483,18 +536,28 @@ export default function ScholarshipsPage() {
  <TableHead className="text-right">Amount</TableHead>
  <TableHead>Students</TableHead>
  <TableHead>Status</TableHead>
+ <TableHead className="text-right">EFC</TableHead>
  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
  </TableRow>
  </TableHeader>
  <TableBody>
  {scholarships.map((scholarship) => (
- <TableRow 
+ <TableRow
  key={scholarship.id}
  className="cursor-pointer hover:bg-muted/50"
  onClick={() => handleViewDetails(scholarship.id)}
  >
  <TableCell className="font-medium">
+ <Badge
+ variant="outline"
+ style={{
+ backgroundColor: getScholarshipColor(scholarship.scholarshipName),
+ color: '#374151',
+ borderColor: getScholarshipColor(scholarship.scholarshipName),
+ }}
+ >
  {scholarship.scholarshipName}
+ </Badge>
  </TableCell>
  <TableCell>{scholarship.sponsor}</TableCell>
  <TableCell>
@@ -502,7 +565,7 @@ export default function ScholarshipsPage() {
  </TableCell>
  <TableCell>
  <Badge variant={scholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'}>
- {scholarship.grantType === 'TUITION_ONLY' ? 'Free Tuition' : 
+ {scholarship.grantType === 'TUITION_ONLY' ? 'Free Tuition' :
   scholarship.grantType === 'FULL' ? 'Full Grant' :
   scholarship.grantType === 'NONE' ? 'None' :
   scholarship.grantType.replace('_', ' ')}
@@ -531,6 +594,9 @@ export default function ScholarshipsPage() {
  >
  {scholarship.status}
  </Badge>
+ </TableCell>
+ <TableCell className="text-right font-semibold">
+ {calculateEFC(scholarship).toFixed(2)}%
  </TableCell>
  {isAdmin && (
  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -615,12 +681,20 @@ export default function ScholarshipsPage() {
  eligibleGradeLevels: editingScholarship.eligibleGradeLevels || '',
  eligiblePrograms: editingScholarship.eligiblePrograms || '',
  amount: editingScholarship.amount,
+ amountSubsidy: editingScholarship.amountSubsidy,
+ percentSubsidy: editingScholarship.percentSubsidy,
  requirements: editingScholarship.requirements || '',
  status: editingScholarship.status,
  grantType: editingScholarship.grantType as GrantType,
  coversTuition: editingScholarship.coversTuition,
  coversMiscellaneous: editingScholarship.coversMiscellaneous,
  coversLaboratory: editingScholarship.coversLaboratory,
+ coversOther: editingScholarship.coversOther,
+ otherFeeName: editingScholarship.otherFeeName || undefined,
+ tuitionFee: editingScholarship.tuitionFee,
+ miscellaneousFee: editingScholarship.miscellaneousFee,
+ laboratoryFee: editingScholarship.laboratoryFee,
+ otherFee: editingScholarship.otherFee,
  } : undefined}
  onSubmit={editingScholarship ? handleUpdate : handleCreate}
  onCancel={closeDialog}
@@ -721,10 +795,35 @@ export default function ScholarshipsPage() {
  </p>
  </div>
  <div>
+ <p className="text-sm font-medium text-muted-foreground">Amount Subsidy</p>
+ <p className="text-lg font-semibold">
+ {formatCurrency(selectedScholarship.amountSubsidy)}
+ </p>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">% Subsidy</p>
+ <p className="text-lg font-semibold">
+ {selectedScholarship.percentSubsidy.toFixed(2)}%
+ </p>
+ </div>
+ <div>
  <p className="text-sm font-medium text-muted-foreground">Status</p>
  <Badge variant={selectedScholarship.status === 'Active' ? 'default' : 'secondary'}>
  {selectedScholarship.status}
  </Badge>
+ </div>
+ <div>
+ <p className="text-sm font-medium text-muted-foreground">EFC (Total % Subsidy)</p>
+ <p className="text-2xl font-bold text-primary">
+ {selectedScholarship.students && selectedScholarship.students.length > 0
+ ? `${selectedScholarship.students.reduce((total, ss) => {
+ const studentFees = ss.student.fees;
+ if (!studentFees || studentFees.length === 0) return total;
+ const studentPercentSubsidy = studentFees.reduce((sum, fee: { percentSubsidy: number | string }) => sum + Number(fee.percentSubsidy), 0);
+ return total + studentPercentSubsidy;
+ }, 0).toFixed(2)}%`
+ : '0.00%'}
+ </p>
  </div>
  {(selectedScholarship.grantType === 'TUITION_ONLY' || selectedScholarship.grantType === 'MISC_ONLY' || selectedScholarship.grantType === 'LAB_ONLY') && (
  <div className="col-span-2">
@@ -739,7 +838,10 @@ export default function ScholarshipsPage() {
  {selectedScholarship.coversLaboratory && (
  <Badge variant="outline">Laboratory</Badge>
  )}
- {!selectedScholarship.coversTuition && !selectedScholarship.coversMiscellaneous && !selectedScholarship.coversLaboratory && (
+ {selectedScholarship.coversOther && (
+ <Badge variant="outline">{selectedScholarship.otherFeeName || 'Other'}</Badge>
+ )}
+ {!selectedScholarship.coversTuition && !selectedScholarship.coversMiscellaneous && !selectedScholarship.coversLaboratory && !selectedScholarship.coversOther && (
  <span className="text-sm text-muted-foreground">No specific fees selected</span>
  )}
  </div>
@@ -751,6 +853,38 @@ export default function ScholarshipsPage() {
  <p className="text-sm mt-1 p-3 bg-muted/50 rounded-lg whitespace-pre-wrap">
  {selectedScholarship.requirements}
  </p>
+ </div>
+ )}
+ {/* Fee Amounts Section */}
+ {(selectedScholarship.coversTuition || selectedScholarship.coversMiscellaneous || selectedScholarship.coversLaboratory || selectedScholarship.coversOther) && (
+ <div className="col-span-2">
+ <p className="text-sm font-medium text-muted-foreground mb-2">Fee Amounts</p>
+ <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+ {selectedScholarship.coversTuition && (
+ <div className="p-3 bg-muted/50 rounded-lg">
+ <p className="text-xs text-muted-foreground">Tuition Fee</p>
+ <p className="text-lg font-semibold text-primary">{formatCurrency(selectedScholarship.tuitionFee)}</p>
+ </div>
+ )}
+ {selectedScholarship.coversMiscellaneous && (
+ <div className="p-3 bg-muted/50 rounded-lg">
+ <p className="text-xs text-muted-foreground">Miscellaneous Fee</p>
+ <p className="text-lg font-semibold text-primary">{formatCurrency(selectedScholarship.miscellaneousFee)}</p>
+ </div>
+ )}
+ {selectedScholarship.coversLaboratory && (
+ <div className="p-3 bg-muted/50 rounded-lg">
+ <p className="text-xs text-muted-foreground">Laboratory Fee</p>
+ <p className="text-lg font-semibold text-primary">{formatCurrency(selectedScholarship.laboratoryFee)}</p>
+ </div>
+ )}
+ {selectedScholarship.coversOther && (
+ <div className="p-3 bg-muted/50 rounded-lg">
+ <p className="text-xs text-muted-foreground">{selectedScholarship.otherFeeName || 'Other'} Fee</p>
+ <p className="text-lg font-semibold text-primary">{formatCurrency(selectedScholarship.otherFee)}</p>
+ </div>
+ )}
+ </div>
  </div>
  )}
  </div>

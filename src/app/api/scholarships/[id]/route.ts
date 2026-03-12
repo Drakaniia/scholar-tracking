@@ -24,6 +24,8 @@ export async function GET(
                 eligibleGradeLevels: true,
                 eligiblePrograms: true,
                 amount: true,
+                amountSubsidy: true,
+                percentSubsidy: true,
                 requirements: true,
                 status: true,
                 isArchived: true,
@@ -31,6 +33,12 @@ export async function GET(
                 coversTuition: true,
                 coversMiscellaneous: true,
                 coversLaboratory: true,
+                coversOther: true,
+                otherFeeName: true,
+                tuitionFee: true,
+                miscellaneousFee: true,
+                laboratoryFee: true,
+                otherFee: true,
                 createdAt: true,
                 updatedAt: true,
                 students: {
@@ -45,6 +53,12 @@ export async function GET(
                                 yearLevel: true,
                                 program: true,
                                 status: true,
+                                fees: {
+                                    select: {
+                                        percentSubsidy: true,
+                                        amountSubsidy: true,
+                                    },
+                                },
                             },
                         },
                     },
@@ -115,17 +129,37 @@ export async function PUT(
 
         // Build update data object with only allowed fields
         const allowedFields: (keyof UpdateScholarshipInput)[] = [
-            'scholarshipName', 'sponsor', 'type', 'source', 
-            'eligibleGradeLevels', 'eligiblePrograms', 'amount', 
-            'requirements', 'status', 'grantType', 
-            'coversTuition', 'coversMiscellaneous', 'coversLaboratory'
+            'scholarshipName', 'sponsor', 'type', 'source',
+            'eligibleGradeLevels', 'eligiblePrograms', 'amount',
+            'requirements', 'status', 'grantType',
+            'coversTuition', 'coversMiscellaneous', 'coversLaboratory', 'coversOther',
+            'otherFeeName', 'tuitionFee', 'miscellaneousFee', 'laboratoryFee', 'otherFee',
+            'amountSubsidy', 'percentSubsidy'
         ];
-        
+
         const prismaData: Record<string, unknown> = {};
         for (const field of allowedFields) {
             if (updateData[field] !== undefined) {
                 prismaData[field] = updateData[field]!;
             }
+        }
+
+        // Calculate percentSubsidy if amountSubsidy or fee fields are being updated
+        // Skip if percentSubsidy is explicitly provided
+        if (updateData.percentSubsidy === undefined && 
+            (updateData.amountSubsidy !== undefined ||
+            updateData.tuitionFee !== undefined ||
+            updateData.miscellaneousFee !== undefined ||
+            updateData.laboratoryFee !== undefined ||
+            updateData.otherFee !== undefined)) {
+            const tuitionFee = updateData.tuitionFee ?? prismaData.tuitionFee as number ?? 0;
+            const miscellaneousFee = updateData.miscellaneousFee ?? prismaData.miscellaneousFee as number ?? 0;
+            const laboratoryFee = updateData.laboratoryFee ?? prismaData.laboratoryFee as number ?? 0;
+            const otherFee = updateData.otherFee ?? prismaData.otherFee as number ?? 0;
+            const amountSubsidy = updateData.amountSubsidy ?? prismaData.amountSubsidy as number ?? 0;
+
+            const totalFees = tuitionFee + miscellaneousFee + laboratoryFee + otherFee;
+            prismaData.percentSubsidy = totalFees > 0 ? (amountSubsidy / totalFees) * 100 : 0;
         }
 
         const scholarship = await prisma.scholarship.update({

@@ -114,6 +114,8 @@ export async function GET(request: NextRequest) {
                       eligibleGradeLevels: true,
                       eligiblePrograms: true,
                       amount: true,
+                      amountSubsidy: true,
+                      percentSubsidy: true,
                       requirements: true,
                       status: true,
                       isArchived: true,
@@ -121,10 +123,29 @@ export async function GET(request: NextRequest) {
                       coversTuition: true,
                       coversMiscellaneous: true,
                       coversLaboratory: true,
+                      coversOther: true,
+                      otherFeeName: true,
+                      tuitionFee: true,
+                      miscellaneousFee: true,
+                      laboratoryFee: true,
+                      otherFee: true,
                       createdAt: true,
                       updatedAt: true,
                       _count: {
                           select: { students: true },
+                      },
+                      students: {
+                          select: {
+                              student: {
+                                  select: {
+                                      fees: {
+                                          select: {
+                                              percentSubsidy: true,
+                                          },
+                                      },
+                                  },
+                              },
+                          },
                       },
                   },
             }),
@@ -187,6 +208,17 @@ export async function POST(request: NextRequest) {
                 coversTuition: body.coversTuition || false,
                 coversMiscellaneous: body.coversMiscellaneous || false,
                 coversLaboratory: body.coversLaboratory || false,
+                coversOther: body.coversOther || false,
+                otherFeeName: body.otherFeeName || null,
+                tuitionFee: body.tuitionFee || 0,
+                miscellaneousFee: body.miscellaneousFee || 0,
+                laboratoryFee: body.laboratoryFee || 0,
+                otherFee: body.otherFee || 0,
+                amountSubsidy: body.amountSubsidy || 0,
+                percentSubsidy: body.percentSubsidy !== undefined ? body.percentSubsidy : (() => {
+                    const totalFees = (body.tuitionFee || 0) + (body.miscellaneousFee || 0) + (body.laboratoryFee || 0) + (body.otherFee || 0);
+                    return totalFees > 0 ? ((body.amountSubsidy || 0) / totalFees) * 100 : 0;
+                })(),
             },
         });
 

@@ -126,6 +126,14 @@ model Scholarship {
   coversTuition       Boolean              @default(false) @map("covers_tuition")
   coversMiscellaneous Boolean              @default(false) @map("covers_miscellaneous")
   coversLaboratory    Boolean              @default(false) @map("covers_laboratory")
+  coversOther         Boolean              @default(false) @map("covers_other")
+  otherFeeName        String?              @map("other_fee_name")
+  tuitionFee          Decimal              @default(0) @map("tuition_fee") @db.Decimal(10, 2)
+  miscellaneousFee    Decimal              @default(0) @map("miscellaneous_fee") @db.Decimal(10, 2)
+  laboratoryFee       Decimal              @default(0) @map("laboratory_fee") @db.Decimal(10, 2)
+  otherFee            Decimal              @default(0) @map("other_fee") @db.Decimal(10, 2)
+  amountSubsidy       Decimal              @default(0) @map("amount_subsidy") @db.Decimal(10, 2)
+  percentSubsidy      Decimal              @default(0) @map("percent_subsidy") @db.Decimal(5, 2)
   disbursements       Disbursement[]
   students            StudentScholarship[]
 
@@ -162,7 +170,7 @@ model StudentFees {
   miscellaneousFee Decimal  @map("miscellaneous_fee") @db.Decimal(10, 2)
   laboratoryFee    Decimal  @map("laboratory_fee") @db.Decimal(10, 2)
   amountSubsidy    Decimal  @map("amount_subsidy") @db.Decimal(10, 2)
-  percentSubsidy   Decimal  @map("percent_subsidy") @db.Decimal(5, 2)
+  percentSubsidy   Decimal  @map("percent_subsidy") @db.Decimal(5, 2) // Computed: (amountSubsidy / totalFees) * 100
   term             String
   academicYear     String   @map("academic_year")
   createdAt        DateTime @default(now()) @map("created_at")

@@ -146,11 +146,42 @@ export default function StudentsPage() {
  const [totalPages, setTotalPages] = useState(1);
  const [total, setTotal] = useState(0);
  const [programs, setPrograms] = useState<string[]>([]);
- const [scholarships, setScholarships] = useState<Array<{ id: number; scholarshipName: string }>>([]);
+ const [scholarships, setScholarships] = useState<Array<{ id: number; scholarshipName: string; _count?: { students: number } }>>([]);
+ const [studentsWithoutScholarship, setStudentsWithoutScholarship] = useState<number>(0);
+ const [gradeLevelCounts, setGradeLevelCounts] = useState<Record<string, number>>({});
+ const [programCounts, setProgramCounts] = useState<Record<string, number>>({});
+ const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+ const [filteredTotal, setFilteredTotal] = useState<number>(0);
+ const [dynamicScholarshipCounts, setDynamicScholarshipCounts] = useState<Record<string, number>>({});
 const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hoveredScholarshipId, setHoveredScholarshipId] = useState<number | null>(null);
+
+  // Fetch filter counts based on current filters
+  const fetchFilterCounts = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
+      if (programFilter && programFilter !== 'all') params.append('program', programFilter);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
+
+      const res = await fetch(`/api/students/filter-options?${params}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setGradeLevelCounts(data.data.gradeLevelCounts || {});
+        setProgramCounts(data.data.programCounts || {});
+        setStatusCounts(data.data.statusCounts || {});
+        setDynamicScholarshipCounts(data.data.scholarshipCounts || {});
+        setStudentsWithoutScholarship(data.data.studentsWithoutScholarship || 0);
+        setFilteredTotal(data.data.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching filter counts:', error);
+    }
+  }, [gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
   const fetchStudents = useCallback(async () => {
  try {
  const params = new URLSearchParams();
@@ -198,30 +229,44 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
  }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
 
  useEffect(() => {
- // Fetch filter options
- const fetchFilterOptions = async () => {
+ // Fetch initial filter options (programs list and scholarships)
+ const fetchInitialOptions = async () => {
  try {
- const [programsRes, scholarshipsRes] = await Promise.all([
+ const [programsRes, scholarshipsRes, studentsRes] = await Promise.all([
  fetch('/api/students/filter-options'),
  fetch('/api/scholarships?limit=1000'),
+ fetch('/api/students?limit=1&archived=false'),
  ]);
- 
+
  const programsData = await programsRes.json();
  const scholarshipsData = await scholarshipsRes.json();
- 
+ const studentsData = await studentsRes.json();
+
  if (programsData.success) {
  setPrograms(programsData.data.programs || []);
  }
  if (scholarshipsData.success) {
- setScholarships(scholarshipsData.data || []);
+ const scholarshipList = scholarshipsData.data || [];
+ setScholarships(scholarshipList);
+ // Calculate students without scholarships from total
+ if (studentsData.success) {
+ const totalStudents = studentsData.total;
+ const studentsWithScholarships = scholarshipList.reduce((sum: number, s: { _count?: { students: number } }) => sum + (s._count?.students || 0), 0);
+ setStudentsWithoutScholarship(Math.max(0, totalStudents - studentsWithScholarships));
+ }
  }
  } catch (error) {
  console.error('Error fetching filter options:', error);
  }
  };
- 
- fetchFilterOptions();
+
+ fetchInitialOptions();
  }, []);
+
+ // Fetch filter counts whenever filters change
+ useEffect(() => {
+ fetchFilterCounts();
+ }, [fetchFilterCounts]);
 
  const openDeleteDialog = (student: Student) => {
  setDeletingStudent(student);
@@ -468,56 +513,56 @@ const handleViewDetails = async (studentId: number) => {
  
  <div className="flex flex-wrap items-center gap-2 flex-1">
  <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
- <SelectTrigger className="h-8 w-[140px] text-xs">
+ <SelectTrigger className="h-8 w-[160px] text-xs">
  <SelectValue placeholder="Grade Level" />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">All Grades</SelectItem>
+ <SelectItem value="all">All Grades ({filteredTotal})</SelectItem>
  {GRADE_LEVELS.map((level) => (
  <SelectItem key={level} value={level}>
- {GRADE_LEVEL_LABELS[level]}
+ {GRADE_LEVEL_LABELS[level]} ({gradeLevelCounts[level] || 0})
  </SelectItem>
  ))}
  </SelectContent>
  </Select>
 
  <Select value={programFilter} onValueChange={setProgramFilter}>
- <SelectTrigger className="h-8 w-[140px] text-xs">
+ <SelectTrigger className="h-8 w-[180px] text-xs">
  <SelectValue placeholder="Program" />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">All Programs</SelectItem>
+ <SelectItem value="all">All Programs ({filteredTotal})</SelectItem>
  {programs.map((program) => (
  <SelectItem key={program} value={program}>
- {program}
+ {program} ({programCounts[program] || 0})
  </SelectItem>
  ))}
  </SelectContent>
  </Select>
 
  <Select value={statusFilter} onValueChange={setStatusFilter}>
- <SelectTrigger className="h-8 w-[120px] text-xs">
+ <SelectTrigger className="h-8 w-[140px] text-xs">
  <SelectValue placeholder="Status" />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">All Status</SelectItem>
- <SelectItem value="Active">Active</SelectItem>
- <SelectItem value="Inactive">Inactive</SelectItem>
- <SelectItem value="Graduated">Graduated</SelectItem>
- <SelectItem value="Withdrawn">Withdrawn</SelectItem>
+ <SelectItem value="all">All Status ({filteredTotal})</SelectItem>
+ <SelectItem value="Active">Active ({statusCounts['Active'] || 0})</SelectItem>
+ <SelectItem value="Inactive">Inactive ({statusCounts['Inactive'] || 0})</SelectItem>
+ <SelectItem value="Graduated">Graduated ({statusCounts['Graduated'] || 0})</SelectItem>
+ <SelectItem value="Withdrawn">Withdrawn ({statusCounts['Withdrawn'] || 0})</SelectItem>
  </SelectContent>
  </Select>
 
  <Select value={scholarshipFilter} onValueChange={setScholarshipFilter}>
- <SelectTrigger className="h-8 w-[160px] text-xs">
+ <SelectTrigger className="h-8 w-[200px] text-xs">
  <SelectValue placeholder="Scholarship" />
  </SelectTrigger>
  <SelectContent>
- <SelectItem value="all">All Scholarships</SelectItem>
- <SelectItem value="none">No Scholarship</SelectItem>
+ <SelectItem value="all">All Scholarships ({filteredTotal})</SelectItem>
+ <SelectItem value="none">No Scholarship ({studentsWithoutScholarship})</SelectItem>
  {scholarships.map((scholarship) => (
  <SelectItem key={scholarship.id} value={scholarship.id.toString()}>
- {scholarship.scholarshipName}
+ {scholarship.scholarshipName} ({dynamicScholarshipCounts[scholarship.id.toString()] || 0})
  </SelectItem>
  ))}
  </SelectContent>
@@ -944,7 +989,7 @@ const handleViewDetails = async (studentId: number) => {
  <span>₱{(Number(fee.tuitionFee) + Number(fee.otherFee) + Number(fee.miscellaneousFee) + Number(fee.laboratoryFee)).toLocaleString()}</span>
  </div>
  <div className="flex justify-between font-semibold text-green-600 border-t border-gray-200 pt-2">
- <span>Subsidy ({fee.percentSubsidy}%):</span>
+ <span>Amount Subsidy ({fee.percentSubsidy}%):</span>
  <span>₱{fee.amountSubsidy.toLocaleString()}</span>
  </div>
  </div>
