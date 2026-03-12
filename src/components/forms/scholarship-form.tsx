@@ -89,7 +89,8 @@ export function ScholarshipForm({
 
     // Calculate percent subsidy from amount subsidy (amount / total fees)
     // Result is in decimal form (e.g., 0.1667 for 16.67%)
-    const calculatedPercentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
+    const calculatedPercentSubsidy = totalFees > 0 ? (amountSubsidy / totalFees) : 0;
+    const percentSubsidyDisplay = (calculatedPercentSubsidy * 100).toFixed(2);
 
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
@@ -192,7 +193,8 @@ export function ScholarshipForm({
                 <Input
                     id="scholarshipName"
                     {...form.register('scholarshipName', { required: true })}
-                    placeholder="Academic Excellence Award"
+                    placeholder="Enter scholarship name"
+                    className="placeholder:text-muted-foreground/50"
                 />
             </div>
 
@@ -201,7 +203,8 @@ export function ScholarshipForm({
                 <Input
                     id="sponsor"
                     {...form.register('sponsor', { required: true })}
-                    placeholder="University Foundation"
+                    placeholder="Enter sponsor name"
+                    className="placeholder:text-muted-foreground/50"
                 />
             </div>
 
@@ -233,7 +236,7 @@ export function ScholarshipForm({
                                         placeholder="Enter custom type"
                                         value={customType}
                                         onChange={handleCustomTypeChange}
-                                        className="mt-2"
+                                        className="mt-2 placeholder:text-muted-foreground/50"
                                         required
                                     />
                                 )}
@@ -410,7 +413,8 @@ export function ScholarshipForm({
                                     id="tuitionFee"
                                     value={tuitionFee}
                                     onChange={setTuitionFee}
-                                    placeholder="35,000"
+                                    placeholder="Enter tuition fee amount"
+                                    className="placeholder:text-muted-foreground/50"
                                 />
                             </div>
                         )}
@@ -421,7 +425,8 @@ export function ScholarshipForm({
                                     id="miscellaneousFee"
                                     value={miscellaneousFee}
                                     onChange={setMiscellaneousFee}
-                                    placeholder="3,000"
+                                    placeholder="Enter miscellaneous fee amount"
+                                    className="placeholder:text-muted-foreground/50"
                                 />
                             </div>
                         )}
@@ -432,7 +437,8 @@ export function ScholarshipForm({
                                     id="laboratoryFee"
                                     value={laboratoryFee}
                                     onChange={setLaboratoryFee}
-                                    placeholder="7,000"
+                                    placeholder="Enter laboratory fee amount"
+                                    className="placeholder:text-muted-foreground/50"
                                 />
                             </div>
                         )}
@@ -443,7 +449,8 @@ export function ScholarshipForm({
                                     id="otherFee"
                                     value={otherFee}
                                     onChange={setOtherFee}
-                                    placeholder="5,000"
+                                    placeholder="Enter other fee amount"
+                                    className="placeholder:text-muted-foreground/50"
                                 />
                             </div>
                         )}
@@ -464,7 +471,8 @@ export function ScholarshipForm({
                                     id="amount"
                                     value={field.value}
                                     onChange={field.onChange}
-                                    placeholder="10,000"
+                                    placeholder="Enter cash grant amount"
+                                    className="placeholder:text-muted-foreground/50"
                                 />
                             )}
                         />
@@ -527,7 +535,7 @@ export function ScholarshipForm({
                     </div>
                     <div className="flex justify-between items-center mt-1">
                         <span className="text-xs text-muted-foreground">Subsidy: ₱{amountSubsidy.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                        <span className="text-xs font-medium text-primary">{calculatedPercentSubsidy.toFixed(2)}% of total fees</span>
+                        <span className="text-xs font-medium text-primary">{percentSubsidyDisplay}% of total fees</span>
                     </div>
                 </div>
             )}
@@ -538,7 +546,8 @@ export function ScholarshipForm({
                     id="amountSubsidy"
                     value={amountSubsidy}
                     onChange={setAmountSubsidy}
-                    placeholder="5,000"
+                    placeholder="Enter subsidy amount"
+                    className="placeholder:text-muted-foreground/50"
                 />
                 <p className="text-xs text-muted-foreground">
                     The actual subsidy amount in pesos. % Subsidy is automatically calculated in reports based on Total Fees.
@@ -550,8 +559,9 @@ export function ScholarshipForm({
                 <Textarea
                     id="requirements"
                     {...form.register('requirements')}
-                    placeholder="Minimum GWA of 1.5, enrolled in any degree program..."
+                    placeholder="Enter scholarship requirements"
                     rows={3}
+                    className="placeholder:text-muted-foreground/50"
                 />
             </div>
 
@@ -571,7 +581,8 @@ export function ScholarshipForm({
                                 id="otherFeeName"
                                 value={otherFeeName}
                                 onChange={(e) => setOtherFeeName(e.target.value)}
-                                placeholder="e.g., Library Fee"
+                                placeholder="Enter fee name"
+                                className="placeholder:text-muted-foreground/50"
                                 autoFocus
                             />
                         </div>

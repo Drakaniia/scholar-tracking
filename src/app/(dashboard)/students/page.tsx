@@ -39,6 +39,7 @@ import { ImportButton } from '@/components/shared/import-button';
 import { useAuth } from '@/components/auth/auth-provider';
 import { fetchWithCache, clientCache } from '@/lib/cache';
 import { StudentFeesManager } from '@/components/forms/student-fees-manager';
+import { useDebounce } from '@/hooks/use-debounce';
 
 // Pastel colors for scholarships
 const PASTEL_COLORS = [
@@ -133,6 +134,7 @@ export default function StudentsPage() {
  const [students, setStudents] = useState<Student[]>([]);
  const [loading, setLoading] = useState(true);
  const [search, setSearch] = useState('');
+ const debouncedSearch = useDebounce(search, 300); // Debounce search by 300ms
  const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
  const [programFilter, setProgramFilter] = useState<string>('all');
  const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -168,7 +170,7 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
       if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
 
-      const res = await fetch(`/api/students/filter-options?${params}`);
+      const res = await fetch(`/api/students/filter-options?${params}`, { credentials: 'include' });
       const data = await res.json();
 
       if (data.success) {
@@ -186,7 +188,7 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fetchStudents = useCallback(async () => {
  try {
  const params = new URLSearchParams();
- if (search) params.append('search', search);
+ if (debouncedSearch) params.append('search', debouncedSearch);
  if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
  if (programFilter && programFilter !== 'all') params.append('program', programFilter);
  if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
@@ -196,17 +198,17 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
  params.append('page', page.toString());
 
  const url = `/api/students?${params}`;
- const json = await fetchWithCache<{ 
- success: boolean; 
+ const json = await fetchWithCache<{
+ success: boolean;
  data: Student[];
  total: number;
  totalPages: number;
  }>(
  url,
- undefined,
+ { credentials: 'include' },
  5 * 60 * 1000
  );
- 
+
  if (json.success) {
  setStudents(json.data);
  setTotal(json.total);
@@ -218,46 +220,35 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
  } finally {
  setLoading(false);
  }
- }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, page]);
+ }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, page]);
 
  useEffect(() => {
  fetchStudents();
- }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, fetchStudents]);
+ }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, fetchStudents]);
 
  useEffect(() => {
  // Reset to page 1 when filters change
  setPage(1);
- }, [search, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
+ }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
 
  useEffect(() => {
- // Fetch initial filter options (programs list and scholarships)
+ // Fetch initial filter options using optimized combined endpoint
  const fetchInitialOptions = async () => {
  try {
- const [programsRes, scholarshipsRes, studentsRes] = await Promise.all([
- fetch('/api/students/filter-options'),
- fetch('/api/scholarships?limit=1000'),
- fetch('/api/students?limit=1&archived=false'),
+ const [initialDataRes] = await Promise.all([
+ fetch('/api/students/initial-data', { credentials: 'include' }),
  ]);
 
- const programsData = await programsRes.json();
- const scholarshipsData = await scholarshipsRes.json();
- const studentsData = await studentsRes.json();
+ const initialData = await initialDataRes.json();
 
- if (programsData.success) {
- setPrograms(programsData.data.programs || []);
- }
- if (scholarshipsData.success) {
- const scholarshipList = scholarshipsData.data || [];
- setScholarships(scholarshipList);
- // Calculate students without scholarships from total
- if (studentsData.success) {
- const totalStudents = studentsData.total;
- const studentsWithScholarships = scholarshipList.reduce((sum: number, s: { _count?: { students: number } }) => sum + (s._count?.students || 0), 0);
- setStudentsWithoutScholarship(Math.max(0, totalStudents - studentsWithScholarships));
- }
+ if (initialData.success) {
+ setPrograms(initialData.data.programs || []);
+ setScholarships(initialData.data.scholarships || []);
+ setStudentsWithoutScholarship(initialData.data.studentsWithoutScholarship || 0);
+ setTotal(initialData.data.totalStudents || 0);
  }
  } catch (error) {
- console.error('Error fetching filter options:', error);
+ console.error('Error fetching initial data:', error);
  }
  };
 
@@ -300,6 +291,7 @@ const closeDeleteDialog = () => {
  method,
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify(data),
+ credentials: 'include',
  });
 
  const json = await res.json();
@@ -332,7 +324,7 @@ const closeDeleteDialog = () => {
  params.append('_t', cacheBuster.toString());
  
  const url = `/api/students?${params}`;
- const freshData = await fetch(url).then(r => r.json());
+ const freshData = await fetch(url, { credentials: 'include' }).then(r => r.json());
  if (freshData.success) {
  setStudents(freshData.data);
  setTotal(freshData.total);
@@ -352,7 +344,7 @@ const handleViewDetails = async (studentId: number) => {
   setDetailDialogOpen(true);
   setShowFullDetails(false);
   try {
-  const res = await fetch(`/api/students/${studentId}`);
+  const res = await fetch(`/api/students/${studentId}`, { credentials: 'include' });
   const json = await res.json();
   if (json.success) {
   setSelectedStudent(json.data);
@@ -377,6 +369,7 @@ const handleViewDetails = async (studentId: number) => {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'archive' }),
+        credentials: 'include',
       });
       const json = await res.json();
       if (json.success) {
@@ -403,7 +396,7 @@ const handleViewDetails = async (studentId: number) => {
         params.append('_t', Date.now().toString()); // Cache buster
         
         const url = `/api/students?${params}`;
-        const freshData = await fetch(url).then(r => r.json());
+        const freshData = await fetch(url, { credentials: 'include' }).then(r => r.json());
         if (freshData.success) {
           setStudents(freshData.data);
           setTotal(freshData.total);

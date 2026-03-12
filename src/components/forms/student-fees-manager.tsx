@@ -421,7 +421,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                                     <Input
                                         id="new-percent"
                                         type="text"
-                                        value={`${newFeeData.percentSubsidy?.toFixed(2) || '0.00'}%`}
+                                        value={`${newFeeData.percentSubsidy ? Number(newFeeData.percentSubsidy).toFixed(2) : '0.00'}%`}
                                         disabled
                                         className="bg-muted"
                                     />
@@ -562,7 +562,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                                                     <div className="relative">
                                                         <Input
                                                             type="text"
-                                                            value={`${(editData.percentSubsidy || 0).toFixed(2)}%`}
+                                                            value={`${Number(editData.percentSubsidy || 0).toFixed(2)}%`}
                                                             disabled
                                                             className="h-9 bg-muted"
                                                         />
@@ -603,7 +603,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                                                 <div className="flex items-center gap-3">
                                                     <Badge variant="outline">{fee.term} {fee.academicYear}</Badge>
                                                     <Badge variant="secondary" className="text-xs">
-                                                        {fee.percentSubsidy.toFixed(2)}% subsidy
+                                                        {Number(fee.percentSubsidy).toFixed(2)}% subsidy
                                                     </Badge>
                                                 </div>
                                                 {!readOnly && (
@@ -649,7 +649,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-muted-foreground">% Subsidy</p>
-                                                    <p className="font-semibold text-primary">{fee.percentSubsidy.toFixed(2)}%</p>
+                                                    <p className="font-semibold text-primary">{Number(fee.percentSubsidy).toFixed(2)}%</p>
                                                 </div>
                                             </div>
                                         </div>

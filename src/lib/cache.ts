@@ -219,23 +219,23 @@ export async function fetchWithCache<T>(
 
   // Try to get from cache
   const cached = clientCache.get<T>(cacheKey);
-  
+
   if (cached) {
     // If stale, revalidate in background (non-blocking, deduplicated)
     if (clientCache.isStale(cacheKey)) {
       // Check if revalidation is already in progress
       const inProgress = clientCache['revalidationInProgress'].get(cacheKey);
-      
+
       if (!inProgress && !clientCache['revalidationQueue'].has(cacheKey)) {
         clientCache['revalidationQueue'].add(cacheKey);
-        
+
         // Use requestIdleCallback for better performance (fallback to setTimeout)
-        const scheduleRevalidation = typeof requestIdleCallback !== 'undefined' 
-          ? requestIdleCallback 
+        const scheduleRevalidation = typeof requestIdleCallback !== 'undefined'
+          ? requestIdleCallback
           : (cb: () => void) => setTimeout(cb, 0);
-        
+
         scheduleRevalidation(() => {
-          const revalidationPromise = fetch(url, options)
+          const revalidationPromise = fetch(url, { ...options, credentials: 'include' })
             .then(res => {
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               return res.json();
@@ -250,12 +250,12 @@ export async function fetchWithCache<T>(
               clientCache['revalidationQueue'].delete(cacheKey);
               clientCache['revalidationInProgress'].delete(cacheKey);
             });
-          
+
           clientCache['revalidationInProgress'].set(cacheKey, revalidationPromise);
         });
       }
     }
-    
+
     return cached;
   }
 
@@ -266,7 +266,7 @@ export async function fetchWithCache<T>(
   }
 
   // Fetch fresh data
-  const fetchPromise = fetch(url, options)
+  const fetchPromise = fetch(url, { ...options, credentials: 'include' })
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -309,7 +309,7 @@ export async function mutateCache(
     // Trigger revalidation
     const [url] = key.split(':');
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       const data = await response.json();
       if (data.success) {
         clientCache.set(key, data);
@@ -325,12 +325,12 @@ export async function mutateCache(
  * Useful for preloading data when user lands on dashboard
  */
 export async function prefetchEndpoints(endpoints: string[]): Promise<void> {
-  const promises = endpoints.map(endpoint => 
-    fetchWithCache(endpoint, undefined, 5 * 60 * 1000).catch(err => {
+  const promises = endpoints.map(endpoint =>
+    fetchWithCache(endpoint, { credentials: 'include' }, 5 * 60 * 1000).catch(err => {
       console.warn(`Failed to prefetch ${endpoint}:`, err);
     })
   );
-  
+
   await Promise.allSettled(promises);
 }
 
