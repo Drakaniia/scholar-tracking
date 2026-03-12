@@ -532,7 +532,7 @@ const handleViewDetails = async (studentId: number) => {
  </SelectTrigger>
  <SelectContent>
  <SelectItem value="all">All Programs ({filteredTotal})</SelectItem>
- {programs.map((program) => (
+ {programs.filter((program) => program).map((program) => (
  <SelectItem key={program} value={program}>
  {program} ({programCounts[program] || 0})
  </SelectItem>
