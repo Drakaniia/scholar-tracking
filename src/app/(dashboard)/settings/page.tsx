@@ -227,9 +227,10 @@ export default function SettingsPage() {
   // Academic Year state
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [loadingAcademicYears, setLoadingAcademicYears] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [academicYearTotal, setAcademicYearTotal] = useState(0);
   const [academicYearTotalPages, setAcademicYearTotalPages] = useState(0);
-  const [academicYearPage, setAcademicYearPage] = useState(1);
+  const [academicYearPage] = useState(1);
   const [isAcademicYearDialogOpen, setIsAcademicYearDialogOpen] = useState(false);
   const [editingAcademicYear, setEditingAcademicYear] = useState<AcademicYear | null>(null);
   const [isSubmittingAcademicYear, setIsSubmittingAcademicYear] = useState(false);
@@ -330,6 +331,7 @@ export default function SettingsPage() {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({ role: newRole }),
+ credentials: 'include',
  });
  const result = await res.json();
 
@@ -356,6 +358,7 @@ export default function SettingsPage() {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({ status: newStatus }),
+ credentials: 'include',
  });
  const result = await res.json();
 
@@ -420,6 +423,7 @@ export default function SettingsPage() {
  role: formData.role,
  status: formData.status,
  }),
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -498,6 +502,7 @@ export default function SettingsPage() {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify(editFormData),
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -532,6 +537,7 @@ export default function SettingsPage() {
  try {
  const res = await fetch(`/api/users/${deletingUser.id}`, {
  method: 'DELETE',
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -584,6 +590,7 @@ export default function SettingsPage() {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({ newPassword: resetPasswordFormData.newPassword }),
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -607,7 +614,7 @@ export default function SettingsPage() {
  const fetchSessions = async () => {
  setLoadingSessions(true);
  try {
- const res = await fetch('/api/sessions');
+ const res = await fetch('/api/sessions', { credentials: 'include' });
  const result = await res.json();
 
  if (result.success) {
@@ -628,6 +635,7 @@ export default function SettingsPage() {
  try {
  const res = await fetch(`/api/sessions/${sessionId}`, {
  method: 'DELETE',
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -650,7 +658,7 @@ export default function SettingsPage() {
  const fetchProfile = async () => {
  setLoadingProfile(true);
  try {
- const res = await fetch('/api/profile');
+ const res = await fetch('/api/profile', { credentials: 'include' });
  const result = await res.json();
 
  if (result.success) {
@@ -696,6 +704,7 @@ export default function SettingsPage() {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify(profileData),
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -742,6 +751,7 @@ export default function SettingsPage() {
  currentPassword: changePasswordData.currentPassword,
  newPassword: changePasswordData.newPassword,
  }),
+ credentials: 'include',
  });
 
  const result = await res.json();
@@ -763,7 +773,7 @@ export default function SettingsPage() {
  // Audit log handlers
  const fetchAuditLogFilterOptions = async () => {
  try {
- const res = await fetch('/api/audit-logs/filter-options');
+ const res = await fetch('/api/audit-logs/filter-options', { credentials: 'include' });
  const result = await res.json();
 
  if (result.success) {
@@ -795,7 +805,7 @@ export default function SettingsPage() {
  params.append('endDate', auditLogFilters.endDate);
  }
 
- const res = await fetch(`/api/audit-logs?${params}`);
+ const res = await fetch(`/api/audit-logs?${params}`, { credentials: 'include' });
  const result = await res.json();
 
  if (result.success) {
@@ -843,8 +853,8 @@ export default function SettingsPage() {
   limit: '10',
   archived: 'true',
   });
-  
-  const response = await fetch(`/api/students?${params}`);
+
+  const response = await fetch(`/api/students?${params}`, { credentials: 'include' });
   const result = await response.json();
   
   if (result.success) {
@@ -872,8 +882,8 @@ export default function SettingsPage() {
   limit: '10',
   archived: 'true',
   });
-  
-  const response = await fetch(`/api/scholarships?${params}`);
+
+  const response = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
   const result = await response.json();
   
   if (result.success) {
@@ -900,6 +910,7 @@ export default function SettingsPage() {
   method: 'PATCH',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ action: 'unarchive' }),
+  credentials: 'include',
   });
   
   const result = await response.json();
@@ -927,6 +938,7 @@ export default function SettingsPage() {
   method: 'PATCH',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ action: 'unarchive' }),
+  credentials: 'include',
   });
 
   const result = await response.json();
@@ -954,7 +966,7 @@ export default function SettingsPage() {
         page: page.toString(),
         limit: '10',
       });
-      const res = await fetch(`/api/academic-years?${params}`);
+      const res = await fetch(`/api/academic-years?${params}`, { credentials: 'include' });
       const result = await res.json();
 
       if (result.success) {
@@ -974,7 +986,7 @@ export default function SettingsPage() {
 
   const fetchPromotionPreview = useCallback(async () => {
     try {
-      const res = await fetch('/api/academic-years/auto-promote');
+      const res = await fetch('/api/academic-years/auto-promote', { credentials: 'include' });
       const result = await res.json();
 
       if (result.success) {
@@ -1016,14 +1028,15 @@ export default function SettingsPage() {
     };
 
     try {
-      const url = editingAcademicYear 
+      const url = editingAcademicYear
         ? `/api/academic-years?id=${editingAcademicYear.id}`
         : '/api/academic-years';
-      
+
       const res = await fetch(url, {
         method: editingAcademicYear ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'include',
       });
 
       const result = await res.json();
@@ -1052,6 +1065,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`/api/academic-years?id=${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const result = await res.json();
@@ -1076,6 +1090,7 @@ export default function SettingsPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive }),
+        credentials: 'include',
       });
 
       const result = await res.json();
@@ -1108,6 +1123,7 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
+        credentials: 'include',
       });
 
       const result = await res.json();

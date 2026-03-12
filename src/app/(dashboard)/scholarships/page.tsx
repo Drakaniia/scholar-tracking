@@ -140,7 +140,7 @@ export default function ScholarshipsPage() {
 
  const fetchCounts = useCallback(async () => {
  try {
- const res = await fetch('/api/scholarships?action=counts');
+ const res = await fetch('/api/scholarships?action=counts', { credentials: 'include' });
  const data = await res.json();
  if (data.success) {
  setCounts(data.data);
@@ -159,7 +159,7 @@ export default function ScholarshipsPage() {
  if (sourceFilter && sourceFilter !== 'all') {
  params.append('source', sourceFilter);
  }
- const res = await fetch(`/api/scholarships?${params}`);
+ const res = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
  const data = await res.json();
 
  if (data.success) {
@@ -193,6 +193,7 @@ export default function ScholarshipsPage() {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify(data),
+ credentials: 'include',
  });
  const result = await res.json();
 
@@ -217,7 +218,7 @@ export default function ScholarshipsPage() {
  }
  params.append('_t', cacheBuster.toString());
  const freshUrl = `/api/scholarships?${params}`;
- const freshData = await fetch(freshUrl).then(r => r.json());
+ const freshData = await fetch(freshUrl, { credentials: 'include' }).then(r => r.json());
  if (freshData.success) {
  setScholarships(freshData.data);
  setTotal(freshData.total);
@@ -245,6 +246,7 @@ export default function ScholarshipsPage() {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify(data),
+ credentials: 'include',
  });
  const result = await res.json();
 
@@ -269,7 +271,7 @@ export default function ScholarshipsPage() {
  }
  params.append('_t', cacheBuster.toString());
  const freshUrl = `/api/scholarships?${params}`;
- const freshData = await fetch(freshUrl).then(r => r.json());
+ const freshData = await fetch(freshUrl, { credentials: 'include' }).then(r => r.json());
  if (freshData.success) {
  setScholarships(freshData.data);
  setTotal(freshData.total);
@@ -297,6 +299,7 @@ export default function ScholarshipsPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'archive' }),
+        credentials: 'include',
       });
       const result = await res.json();
 
@@ -321,7 +324,7 @@ export default function ScholarshipsPage() {
         }
         params.append('_t', cacheBuster.toString());
         const freshUrl = `/api/scholarships?${params}`;
-        const freshData = await fetch(freshUrl).then(r => r.json());
+        const freshData = await fetch(freshUrl, { credentials: 'include' }).then(r => r.json());
         if (freshData.success) {
           setScholarships(freshData.data);
           setTotal(freshData.total);
@@ -368,7 +371,7 @@ export default function ScholarshipsPage() {
  setLoadingDetail(true);
  setDetailDialogOpen(true);
  try {
- const res = await fetch(`/api/scholarships/${scholarshipId}`);
+ const res = await fetch(`/api/scholarships/${scholarshipId}`, { credentials: 'include' });
  const json = await res.json();
  if (json.success) {
  setSelectedScholarship(json.data);
