@@ -14,7 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { DialogFooter } from '@/components/ui/dialog';
+import { DialogFooter, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateScholarshipInput, GradeLevel, GRANT_TYPES, GRANT_TYPE_LABELS, GrantType } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
@@ -60,6 +60,42 @@ export function ScholarshipForm({
     const [coversLaboratory, setCoversLaboratory] = useState(
         defaultValues?.coversLaboratory || false
     );
+    const [coversOther, setCoversOther] = useState(
+        defaultValues?.coversOther || false
+    );
+    const [otherFeeName, setOtherFeeName] = useState(
+        defaultValues?.otherFeeName || ''
+    );
+    const [showOtherFeeDialog, setShowOtherFeeDialog] = useState(false);
+    const [tuitionFee, setTuitionFee] = useState(
+        defaultValues?.tuitionFee || 0
+    );
+    const [miscellaneousFee, setMiscellaneousFee] = useState(
+        defaultValues?.miscellaneousFee || 0
+    );
+    const [laboratoryFee, setLaboratoryFee] = useState(
+        defaultValues?.laboratoryFee || 0
+    );
+    const [otherFee, setOtherFee] = useState(
+        defaultValues?.otherFee || 0
+    );
+    const [percentSubsidy, setPercentSubsidy] = useState(
+        defaultValues?.percentSubsidy || 0
+    );
+    const [amountSubsidy, setAmountSubsidy] = useState(
+        defaultValues?.amountSubsidy || 0
+    );
+    const [subsidySource, setSubsidySource] = useState<'percent' | 'amount' | 'default'>('default');
+
+    // Update amountSubsidy when fees or percent change (only if source is percent)
+    const totalFees = tuitionFee + miscellaneousFee + laboratoryFee + otherFee;
+    if (subsidySource === 'percent' && totalFees > 0) {
+        const calculatedAmount = Number(((percentSubsidy / 100) * totalFees).toFixed(2));
+        // Only update if different to avoid infinite loops
+        if (Math.abs(calculatedAmount - amountSubsidy) > 0.01) {
+            setAmountSubsidy(calculatedAmount);
+        }
+    }
 
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
@@ -76,6 +112,13 @@ export function ScholarshipForm({
             coversTuition: false,
             coversMiscellaneous: false,
             coversLaboratory: false,
+            coversOther: false,
+            tuitionFee: 0,
+            miscellaneousFee: 0,
+            laboratoryFee: 0,
+            otherFee: 0,
+            amountSubsidy: 0,
+            percentSubsidy: 0,
             ...defaultValues,
         },
     });
@@ -113,6 +156,20 @@ export function ScholarshipForm({
         form.setValue('eligiblePrograms', updated.join(','));
     };
 
+    const handleCoversOtherChange = (checked: boolean) => {
+        setCoversOther(checked);
+        if (checked && !otherFeeName) {
+            // Open dialog to name the other fee
+            setShowOtherFeeDialog(true);
+        }
+    };
+
+    const handleOtherFeeNameSubmit = () => {
+        if (otherFeeName.trim()) {
+            setShowOtherFeeDialog(false);
+        }
+    };
+
     const handleFormSubmit = (data: CreateScholarshipInput) => {
         if (showCustomType && customType) {
             data.type = customType;
@@ -123,6 +180,14 @@ export function ScholarshipForm({
         data.coversTuition = coversTuition;
         data.coversMiscellaneous = coversMiscellaneous;
         data.coversLaboratory = coversLaboratory;
+        data.coversOther = coversOther;
+        data.otherFeeName = coversOther ? otherFeeName : null;
+        data.tuitionFee = tuitionFee;
+        data.miscellaneousFee = miscellaneousFee;
+        data.laboratoryFee = laboratoryFee;
+        data.otherFee = otherFee;
+        data.amountSubsidy = amountSubsidy;
+        data.percentSubsidy = percentSubsidy;
         onSubmit(data);
     };
 
@@ -280,7 +345,7 @@ export function ScholarshipForm({
             {selectedGrantType !== 'FULL' && selectedGrantType !== 'NONE' && (
                 <div className="space-y-2">
                     <Label>Covers</Label>
-                    <div className="grid grid-cols-3 gap-3 p-3 border rounded-md">
+                    <div className="grid grid-cols-4 gap-3 p-3 border rounded-md">
                         <div className="flex items-center space-x-2">
                             <Checkbox
                                 id="coversTuition"
@@ -298,7 +363,7 @@ export function ScholarshipForm({
                                 onCheckedChange={(checked) => setCoversMiscellaneous(checked as boolean)}
                             />
                             <Label htmlFor="coversMiscellaneous" className="text-sm font-normal cursor-pointer">
-                                Miscellaneous
+                                Misc
                             </Label>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -308,9 +373,98 @@ export function ScholarshipForm({
                                 onCheckedChange={(checked) => setCoversLaboratory(checked as boolean)}
                             />
                             <Label htmlFor="coversLaboratory" className="text-sm font-normal cursor-pointer">
-                                Laboratory
+                                Lab
                             </Label>
                         </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="coversOther"
+                                checked={coversOther}
+                                onCheckedChange={(checked) => handleCoversOtherChange(checked as boolean)}
+                            />
+                            <Label htmlFor="coversOther" className="text-sm font-normal cursor-pointer">
+                                Other
+                            </Label>
+                        </div>
+                    </div>
+                    {coversOther && otherFeeName && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Other fee name: <span className="font-medium">{otherFeeName}</span>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 ml-2 text-xs"
+                                onClick={() => setShowOtherFeeDialog(true)}
+                            >
+                                Edit
+                            </Button>
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {/* Fee Amount Inputs */}
+            {(coversTuition || coversMiscellaneous || coversLaboratory || coversOther) && (
+                <div className="space-y-2">
+                    <Label>Fee Amounts</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                        {coversTuition && (
+                            <div className="space-y-2">
+                                <Label htmlFor="tuitionFee">Tuition Fee (₱)</Label>
+                                <Input
+                                    id="tuitionFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={tuitionFee}
+                                    onChange={(e) => setTuitionFee(Number(e.target.value))}
+                                    placeholder="35000"
+                                />
+                            </div>
+                        )}
+                        {coversMiscellaneous && (
+                            <div className="space-y-2">
+                                <Label htmlFor="miscellaneousFee">Miscellaneous Fee (₱)</Label>
+                                <Input
+                                    id="miscellaneousFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={miscellaneousFee}
+                                    onChange={(e) => setMiscellaneousFee(Number(e.target.value))}
+                                    placeholder="3000"
+                                />
+                            </div>
+                        )}
+                        {coversLaboratory && (
+                            <div className="space-y-2">
+                                <Label htmlFor="laboratoryFee">Laboratory Fee (₱)</Label>
+                                <Input
+                                    id="laboratoryFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={laboratoryFee}
+                                    onChange={(e) => setLaboratoryFee(Number(e.target.value))}
+                                    placeholder="7000"
+                                />
+                            </div>
+                        )}
+                        {coversOther && (
+                            <div className="space-y-2">
+                                <Label htmlFor="otherFee">{otherFeeName || 'Other'} Fee (₱)</Label>
+                                <Input
+                                    id="otherFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={otherFee}
+                                    onChange={(e) => setOtherFee(Number(e.target.value))}
+                                    placeholder="5000"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -350,6 +504,56 @@ export function ScholarshipForm({
                 </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="amountSubsidy">Amount Subsidy (₱)</Label>
+                    <Input
+                        id="amountSubsidy"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={amountSubsidy}
+                        onChange={(e) => {
+                            const newAmount = Number(e.target.value);
+                            setAmountSubsidy(newAmount);
+                            setSubsidySource('amount');
+                            // Recalculate percentSubsidy based on new amount
+                            if (totalFees > 0) {
+                                setPercentSubsidy(Number(((newAmount / totalFees) * 100).toFixed(2)));
+                            }
+                        }}
+                        placeholder="5000"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        The actual subsidy amount in pesos
+                    </p>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="percentSubsidy">% Subsidy</Label>
+                    <Input
+                        id="percentSubsidy"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={percentSubsidy}
+                        onChange={(e) => {
+                            const newPercent = Number(e.target.value);
+                            setPercentSubsidy(newPercent);
+                            setSubsidySource('percent');
+                            // Recalculate amountSubsidy based on new percent
+                            if (totalFees > 0) {
+                                setAmountSubsidy(Number(((newPercent / 100) * totalFees).toFixed(2)));
+                            }
+                        }}
+                        placeholder="10.00"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Percentage of total fees covered by this scholarship
+                    </p>
+                </div>
+            </div>
+
             <div className="space-y-2">
                 <Label htmlFor="requirements">Requirements</Label>
                 <Textarea
@@ -359,6 +563,50 @@ export function ScholarshipForm({
                     rows={3}
                 />
             </div>
+
+            {/* Other Fee Name Dialog */}
+            <Dialog open={showOtherFeeDialog} onOpenChange={setShowOtherFeeDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Name of Other Fee</DialogTitle>
+                        <DialogDescription>
+                            Enter the name of the other fee you want to cover (e.g., Library Fee, Sports Fee, etc.)
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="otherFeeName">Fee Name</Label>
+                            <Input
+                                id="otherFeeName"
+                                value={otherFeeName}
+                                onChange={(e) => setOtherFeeName(e.target.value)}
+                                placeholder="e.g., Library Fee"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setShowOtherFeeDialog(false);
+                                setCoversOther(false);
+                                setOtherFeeName('');
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleOtherFeeNameSubmit}
+                            disabled={!otherFeeName.trim()}
+                        >
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <DialogFooter className="gap-2">
                 <Button type="button" variant="outline" onClick={onCancel}>
