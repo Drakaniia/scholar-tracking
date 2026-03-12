@@ -364,8 +364,9 @@ export default function ReportsPage() {
  <TableCell className="text-right">
  1
  </TableCell>
- <TableCell className="text-right">
- {fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '-'}
+ <TableCell className="text-right font-semibold">
+ {/* EFC = % Subsidy × No. of Students */}
+ {fees ? `${(calculatePercentSubsidy(fees) * 1).toFixed(2)}%` : '-'}
  </TableCell>
  </TableRow>
  );
@@ -377,9 +378,12 @@ export default function ReportsPage() {
  {students.length}
  </TableCell>
  <TableCell className="text-right">
+ {/* Total EFC = Sum of (% Subsidy × No. of Students) for all students */}
  {students.reduce((sum, s) => {
  const fees = s.fees[0];
- return sum + (fees ? Number(fees.percentSubsidy) : 0);
+ const percentSubsidy = fees ? calculatePercentSubsidy(fees) : 0;
+ const numberOfStudents = 1; // Each row represents 1 student
+ return sum + (percentSubsidy * numberOfStudents);
  }, 0).toFixed(2)}%
  </TableCell>
  </TableRow>
