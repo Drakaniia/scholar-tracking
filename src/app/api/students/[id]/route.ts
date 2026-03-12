@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma, { Prisma } from '@/lib/prisma';
 import { UpdateStudentInput } from '@/types';
 import { getSession } from '@/lib/auth';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
@@ -231,6 +231,9 @@ export async function PUT(
                         })),
                     });
                 }
+
+                // Sync StudentFees with new scholarships
+                await syncStudentFeesWithScholarships(tx, studentId, scholarships.map(s => s.scholarshipId));
             }
 
             return { student, removedScholarships };
@@ -346,5 +349,91 @@ export async function PATCH(
             { success: false, error: `Failed to ${action} student` },
             { status: 500 }
         );
+    }
+}
+
+/**
+ * Helper function to sync StudentFees with scholarship changes
+ * Recalculates fees based on currently assigned scholarships
+ */
+async function syncStudentFeesWithScholarships(
+    tx: Prisma.TransactionClient,
+    studentId: number,
+    scholarshipIds: number[]
+) {
+    // Get current academic year
+    const currentAcademicYear = await tx.academicYear.findFirst({
+        where: { isActive: true },
+    });
+
+    const term = currentAcademicYear?.semester === '1ST' ? '1st Semester' : 
+                 currentAcademicYear?.semester === '2ND' ? '2nd Semester' : 'Summer';
+    
+    const academicYear = currentAcademicYear?.year || new Date().getFullYear().toString();
+    const academicYearId = currentAcademicYear?.id || null;
+
+    // Get all scholarships with their fee structures
+    const scholarships = await tx.scholarship.findMany({
+        where: { id: { in: scholarshipIds } },
+    });
+
+    // Calculate total fees from all scholarships
+    let totalTuitionFee = 0;
+    let totalMiscellaneousFee = 0;
+    let totalLaboratoryFee = 0;
+    let totalOtherFee = 0;
+    let totalAmountSubsidy = 0;
+
+    for (const scholarship of scholarships) {
+        totalTuitionFee += Number(scholarship.tuitionFee) || 0;
+        totalMiscellaneousFee += Number(scholarship.miscellaneousFee) || 0;
+        totalLaboratoryFee += Number(scholarship.laboratoryFee) || 0;
+        totalOtherFee += Number(scholarship.otherFee) || 0;
+        totalAmountSubsidy += Number(scholarship.amountSubsidy) || 0;
+    }
+
+    // Calculate percent subsidy (as decimal, e.g., 0.1667 for 16.67%)
+    const totalFees = totalTuitionFee + totalMiscellaneousFee + totalLaboratoryFee + totalOtherFee;
+    const percentSubsidy = totalFees > 0 ? Number((totalAmountSubsidy / totalFees).toFixed(4)) : 0;
+
+    // Check if fees already exist for this term
+    const existingFees = await tx.studentFees.findFirst({
+        where: {
+            studentId,
+            term: `${term} ${academicYear}`,
+            academicYear,
+        },
+    });
+
+    if (existingFees) {
+        // Update existing fees
+        await tx.studentFees.update({
+            where: { id: existingFees.id },
+            data: {
+                tuitionFee: totalTuitionFee,
+                miscellaneousFee: totalMiscellaneousFee,
+                laboratoryFee: totalLaboratoryFee,
+                otherFee: totalOtherFee,
+                amountSubsidy: totalAmountSubsidy,
+                percentSubsidy,
+                academicYearId,
+            },
+        });
+    } else {
+        // Create new fees
+        await tx.studentFees.create({
+            data: {
+                studentId,
+                tuitionFee: totalTuitionFee,
+                miscellaneousFee: totalMiscellaneousFee,
+                laboratoryFee: totalLaboratoryFee,
+                otherFee: totalOtherFee,
+                amountSubsidy: totalAmountSubsidy,
+                percentSubsidy,
+                term: `${term} ${academicYear}`,
+                academicYear,
+                academicYearId,
+            },
+        });
     }
 }

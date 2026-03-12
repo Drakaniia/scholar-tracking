@@ -156,8 +156,10 @@ model Disbursement {
   remarks          String?
   scholarshipId    Int         @map("scholarship_id")
   studentId        Int         @map("student_id")
+  academicYearId   Int?        @map("academic_year_id")
   scholarship      Scholarship @relation(fields: [scholarshipId], references: [id])
   student          Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearRel  AcademicYear? @relation(fields: [academicYearId], references: [id])
 
   @@map("disbursements")
 }
@@ -173,10 +175,13 @@ model StudentFees {
   percentSubsidy   Decimal  @map("percent_subsidy") @db.Decimal(5, 2) // Computed: (amountSubsidy / totalFees) * 100
   term             String
   academicYear     String   @map("academic_year")
+  academicYearId   Int?     @map("academic_year_id")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
   student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearRel  AcademicYear? @relation(fields: [academicYearId], references: [id])
 
+  @@unique([studentId, term, academicYear])
   @@map("student_fees")
 }
 
@@ -195,4 +200,22 @@ model Backup {
   @@index([recordId])
   @@index([createdAt])
   @@map("backups")
+}
+
+model AcademicYear {
+  id            Int      @id @default(autoincrement()) @map("academic_year_id")
+  year          String   @unique @map("year") // "2025-2026"
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  semester      String   @default("1ST") @map("semester") // 1ST, 2ND, SUMMER
+  isActive      Boolean  @default(false) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  studentFees   StudentFees[]
+  disbursements Disbursement[]
+  
+  @@index([isActive])
+  @@index([year])
+  @@map("academic_years")
 }

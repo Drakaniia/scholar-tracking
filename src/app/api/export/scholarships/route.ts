@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
             'Type',
             'Source',
             'Amount',
+            'Tuition Fee',
+            'Misc Fee',
+            'Lab Fee',
+            'Other Fee',
+            'Amount Subsidy',
+            '% Subsidy',
             'Requirements',
             'Status',
             'Students',
@@ -38,6 +44,12 @@ export async function GET(request: NextRequest) {
             s.type,
             s.source,
             Number(s.amount),
+            Number(s.tuitionFee),
+            Number(s.miscellaneousFee),
+            Number(s.laboratoryFee),
+            Number(s.otherFee),
+            Number(s.amountSubsidy),
+            `${Number(s.percentSubsidy).toFixed(2)}%`,
             s.requirements || '',
             s.status,
             s._count.students,
@@ -99,17 +111,20 @@ export async function GET(request: NextRequest) {
 
         const totalAmount = scholarships.reduce((sum, s) => sum + Number(s.amount), 0);
         const activeCount = scholarships.filter((s) => s.status === 'Active').length;
-        doc.text(`Total Programs: ${scholarships.length} | Active: ${activeCount} | Total Amount: ₱${totalAmount.toLocaleString()}`, 14, 38);
+        const totalSubsidy = scholarships.reduce((sum, s) => sum + Number(s.amountSubsidy), 0);
+        doc.text(`Total Programs: ${scholarships.length} | Active: ${activeCount} | Total Amount: ₱${totalAmount.toLocaleString()} | Total Subsidy: ₱${totalSubsidy.toLocaleString()}`, 14, 38);
 
         autoTable(doc, {
             startY: 45,
-            head: [['Name', 'Sponsor', 'Type', 'Source', 'Amount', 'Status', 'Students']],
+            head: [['Name', 'Sponsor', 'Type', 'Source', 'Amount', 'Subsidy', '% Sub', 'Status', 'Students']],
             body: scholarships.map((s) => [
                 s.scholarshipName,
                 s.sponsor,
                 s.type,
                 s.source === 'INTERNAL' ? 'Internal' : 'External',
                 `₱${Number(s.amount).toLocaleString()}`,
+                `₱${Number(s.amountSubsidy).toLocaleString()}`,
+                `${Number(s.percentSubsidy).toFixed(2)}%`,
                 s.status,
                 String(s._count.students),
             ]),

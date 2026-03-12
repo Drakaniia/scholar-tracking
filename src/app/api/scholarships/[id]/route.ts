@@ -140,36 +140,127 @@ export async function PUT(
         const prismaData: Record<string, unknown> = {};
         for (const field of allowedFields) {
             if (updateData[field] !== undefined) {
-                prismaData[field] = updateData[field]!;
+                // Convert Decimal-compatible fields to numbers
+                if (['tuitionFee', 'miscellaneousFee', 'laboratoryFee', 'otherFee', 'amountSubsidy', 'percentSubsidy', 'amount'].includes(field)) {
+                    const value = updateData[field];
+                    prismaData[field] = value !== null ? Number(value) : 0;
+                } else {
+                    prismaData[field] = updateData[field]!;
+                }
             }
         }
 
         // Calculate percentSubsidy if amountSubsidy or fee fields are being updated
         // Skip if percentSubsidy is explicitly provided
-        if (updateData.percentSubsidy === undefined && 
+        if (updateData.percentSubsidy === undefined &&
             (updateData.amountSubsidy !== undefined ||
             updateData.tuitionFee !== undefined ||
             updateData.miscellaneousFee !== undefined ||
             updateData.laboratoryFee !== undefined ||
             updateData.otherFee !== undefined)) {
-            const tuitionFee = updateData.tuitionFee ?? prismaData.tuitionFee as number ?? 0;
-            const miscellaneousFee = updateData.miscellaneousFee ?? prismaData.miscellaneousFee as number ?? 0;
-            const laboratoryFee = updateData.laboratoryFee ?? prismaData.laboratoryFee as number ?? 0;
-            const otherFee = updateData.otherFee ?? prismaData.otherFee as number ?? 0;
-            const amountSubsidy = updateData.amountSubsidy ?? prismaData.amountSubsidy as number ?? 0;
+            const tuitionFee = Number(updateData.tuitionFee ?? prismaData.tuitionFee ?? 0);
+            const miscellaneousFee = Number(updateData.miscellaneousFee ?? prismaData.miscellaneousFee ?? 0);
+            const laboratoryFee = Number(updateData.laboratoryFee ?? prismaData.laboratoryFee ?? 0);
+            const otherFee = Number(updateData.otherFee ?? prismaData.otherFee ?? 0);
+            const amountSubsidy = Number(updateData.amountSubsidy ?? prismaData.amountSubsidy ?? 0);
 
             const totalFees = tuitionFee + miscellaneousFee + laboratoryFee + otherFee;
-            prismaData.percentSubsidy = totalFees > 0 ? (amountSubsidy / totalFees) * 100 : 0;
+            // Calculate percentSubsidy as decimal (e.g., 0.1667 for 16.67%)
+            prismaData.percentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
         }
 
-        const scholarship = await prisma.scholarship.update({
-            where: { id: scholarshipId },
-            data: prismaData,
-        });
+        let scholarship;
+        try {
+            scholarship = await prisma.scholarship.update({
+                where: { id: scholarshipId },
+                data: prismaData,
+            });
+        } catch (updateError) {
+            console.error('Error updating scholarship:', updateError);
+            return NextResponse.json(
+                { success: false, error: 'Failed to update scholarship', details: updateError instanceof Error ? updateError.message : 'Unknown error' },
+                { status: 500 }
+            );
+        }
+
+        // If amountSubsidy or fee fields were updated, sync with existing student fees
+        const subsidyFieldsUpdated = updateData.amountSubsidy !== undefined ||
+            updateData.tuitionFee !== undefined ||
+            updateData.miscellaneousFee !== undefined ||
+            updateData.laboratoryFee !== undefined ||
+            updateData.otherFee !== undefined;
+
+        if (subsidyFieldsUpdated) {
+            try {
+                // Get all students with this scholarship
+                const studentScholarships = await prisma.studentScholarship.findMany({
+                    where: {
+                        scholarshipId,
+                        scholarshipStatus: 'Active',
+                    },
+                    select: {
+                        studentId: true,
+                    },
+                });
+
+                // Update student fees for each student
+                const updatedScholarship = await prisma.scholarship.findUnique({
+                    where: { id: scholarshipId },
+                });
+
+                if (updatedScholarship && studentScholarships.length > 0) {
+                    const totalFees =
+                        Number(updatedScholarship.tuitionFee || 0) +
+                        Number(updatedScholarship.miscellaneousFee || 0) +
+                        Number(updatedScholarship.laboratoryFee || 0) +
+                        Number(updatedScholarship.otherFee || 0);
+
+                    const amountSubsidy = updateData.amountSubsidy !== undefined
+                        ? Number(updateData.amountSubsidy)
+                        : Number(updatedScholarship.amountSubsidy || 0);
+
+                    // Calculate percentSubsidy as decimal (e.g., 0.1667 for 16.67%)
+                    const percentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
+
+                    // Update fees for all students with this scholarship
+                    await Promise.all(
+                        studentScholarships.map(async (ss) => {
+                            // Get the student's existing fees to find the right term/year
+                            const existingFees = await prisma.studentFees.findMany({
+                                where: { studentId: ss.studentId },
+                                orderBy: { createdAt: 'desc' },
+                                take: 1,
+                            });
+
+                            if (existingFees.length > 0) {
+                                // Update existing fee record
+                                await prisma.studentFees.update({
+                                    where: { id: existingFees[0].id },
+                                    data: {
+                                        tuitionFee: Number(updatedScholarship.tuitionFee || 0),
+                                        miscellaneousFee: Number(updatedScholarship.miscellaneousFee || 0),
+                                        laboratoryFee: Number(updatedScholarship.laboratoryFee || 0),
+                                        otherFee: Number(updatedScholarship.otherFee || 0),
+                                        amountSubsidy,
+                                        percentSubsidy,
+                                    },
+                                });
+                            }
+                            // Skip creating new records if student has no fees yet
+                        })
+                    );
+                }
+            } catch (syncError) {
+                console.error('Error syncing scholarship to student fees:', syncError);
+                // Don't fail the entire request, just log the error
+            }
+        }
 
         // Invalidate cache
         queryOptimizer.invalidatePattern('scholarships-list');
         queryOptimizer.invalidate('scholarships-counts');
+        queryOptimizer.invalidatePattern('students-list');
+        queryOptimizer.invalidatePattern('dashboard');
 
         return NextResponse.json({
             success: true,

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
  Table,
  TableBody,
@@ -19,10 +20,11 @@ import {
  SelectTrigger,
  SelectValue,
 } from '@/components/ui/select';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/shared';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
 
 interface DetailedStudent {
  id: number;
@@ -60,15 +62,13 @@ const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
 export default function ReportsPage() {
  const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
  const [loading, setLoading] = useState(true);
- const [scholarshipTypesByGrade, setScholarshipTypesByGrade] = useState<Record<string, string[]>>({});
+ const [scholarshipNamesByGradeAndType, setScholarshipNamesByGradeAndType] = useState<Record<string, Record<string, string[]>>>({});
  const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
  const [fundingTypeFilter, setFundingTypeFilter] = useState<'all' | 'internal' | 'external'>('all');
+ const [isRefreshing, setIsRefreshing] = useState(false);
 
- useEffect(() => {
- fetchDetailedView();
- }, []);
-
- const fetchDetailedView = async () => {
+ const fetchDetailedView = useCallback(async () => {
+ setIsRefreshing(true);
  try {
  const res = await fetch('/api/dashboard/detailed');
  const json = await res.json();
@@ -76,39 +76,69 @@ export default function ReportsPage() {
  if (json.success) {
  setDetailedStudents(json.data);
 
- // Extract unique scholarship types per grade level
- const typesByGrade: Record<string, Set<string>> = {};
+ // Extract unique scholarship names per grade level and type
+ const namesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
 
  json.data.forEach((student: DetailedStudent) => {
- if (!typesByGrade[student.gradeLevel]) {
- typesByGrade[student.gradeLevel] = new Set();
+ const gradeLevel = student.gradeLevel;
+ if (!namesByGradeAndType[gradeLevel]) {
+ namesByGradeAndType[gradeLevel] = {};
  }
 
  student.scholarships.forEach((ss: DetailedStudent['scholarships'][0]) => {
- if (ss.scholarship?.type) {
- typesByGrade[student.gradeLevel].add(ss.scholarship.type);
+ if (ss.scholarship?.type && ss.scholarship?.scholarshipName) {
+ const type = ss.scholarship.type;
+ if (!namesByGradeAndType[gradeLevel][type]) {
+ namesByGradeAndType[gradeLevel][type] = new Set();
+ }
+ namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
  }
  });
  });
 
  // Convert Sets to sorted arrays
- const sortedTypesByGrade: Record<string, string[]> = {};
- Object.keys(typesByGrade).forEach((grade) => {
- sortedTypesByGrade[grade] = Array.from(typesByGrade[grade]).sort();
+ const sortedNamesByGradeAndType: Record<string, Record<string, string[]>> = {};
+ Object.keys(namesByGradeAndType).forEach((grade) => {
+ sortedNamesByGradeAndType[grade] = {};
+ Object.keys(namesByGradeAndType[grade]).forEach((type) => {
+ sortedNamesByGradeAndType[grade][type] = Array.from(namesByGradeAndType[grade][type]).sort();
  });
- setScholarshipTypesByGrade(sortedTypesByGrade);
+ });
+ setScholarshipNamesByGradeAndType(sortedNamesByGradeAndType);
+ toast.success('Reports data refreshed');
  }
  } catch (error) {
  console.error('Error fetching detailed view:', error);
+ toast.error('Failed to refresh reports');
  } finally {
  setLoading(false);
+ setIsRefreshing(false);
  }
+ }, []);
+
+ useEffect(() => {
+ fetchDetailedView();
+
+ // Listen for refresh events from other pages
+ const handleRefreshEvent = () => {
+ fetchDetailedView();
  };
+
+ window.addEventListener('refreshDashboard', handleRefreshEvent);
+ return () => {
+ window.removeEventListener('refreshDashboard', handleRefreshEvent);
+ };
+ }, [fetchDetailedView]);
 
  const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
  return detailedStudents.filter(
  (s) => s.gradeLevel === gradeLevel && s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
  );
+ };
+
+ // Get scholarship names for a specific grade level and type
+ const getScholarshipNames = (gradeLevel: string, scholarshipType: string): string[] => {
+ return scholarshipNamesByGradeAndType[gradeLevel]?.[scholarshipType] || [];
  };
 
  const isInternalScholarship = (scholarshipType: string): boolean => {
@@ -164,7 +194,8 @@ export default function ReportsPage() {
  const calculatePercentSubsidy = (fees: DetailedStudent['fees'][0]) => {
  if (!fees) return 0;
  const totalFees = calculateTotalFees(fees);
- return totalFees > 0 ? (Number(fees.amountSubsidy) / totalFees) * 100 : 0;
+ // Return as decimal (e.g., 0.1667 for 16.67%)
+ return totalFees > 0 ? Number((Number(fees.amountSubsidy) / totalFees).toFixed(4)) : 0;
  };
 
  if (loading) {
@@ -181,7 +212,19 @@ export default function ReportsPage() {
  title="Reports"
  description="Detailed student scholarship reports and analytics"
  >
+ <div className="flex gap-2">
+ <Button
+ variant="outline"
+ size="sm"
+ onClick={() => fetchDetailedView()}
+ disabled={isRefreshing}
+ className="gap-2"
+ >
+ <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+ Refresh
+ </Button>
  <ExportButton endpoint="/api/export/students" filename="detailed-student-scholarship-report" />
+ </div>
  </PageHeader>
 
  <Card className="border-gray-200">
@@ -261,7 +304,7 @@ export default function ReportsPage() {
  }
 
  // Get scholarship types for this grade level and apply funding filter
- const allScholarshipTypes = scholarshipTypesByGrade[gradeLevel] || [];
+ const allScholarshipTypes = Object.keys(scholarshipNamesByGradeAndType[gradeLevel] || {});
  const scholarshipTypes = filterScholarshipTypes(allScholarshipTypes);
 
  if (scholarshipTypes.length === 0) return null;
@@ -273,28 +316,40 @@ export default function ReportsPage() {
  <h2 className="text-xl font-bold">{GRADE_LEVEL_LABELS[gradeLevel]}</h2>
  </div>
 
- {/* Subheaders - Scholarship Types */}
+ {/* Subheaders - Scholarship Types with actual scholarship names */}
  <div className="space-y-6 pl-4">
  {scholarshipTypes.map((scholarshipType) => {
  const students = getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType);
- 
+ const scholarshipNames = getScholarshipNames(gradeLevel, scholarshipType);
+
  if (students.length === 0) return null;
 
  return (
  <div key={scholarshipType} className="space-y-2">
  <div className="bg-muted px-4 py-2 rounded-md">
+ <div className="flex items-center justify-between">
+ <div className="space-y-1">
  <h3 className="text-lg font-semibold text-muted-foreground">
  {scholarshipType} Scholarship
  </h3>
+ {scholarshipNames.length > 0 && (
+ <p className="text-sm text-muted-foreground">
+ {scholarshipNames.join(', ')}
+ </p>
+ )}
+ </div>
+ <Badge variant="outline" className="text-sm">
+ {students.length} student{students.length !== 1 ? 's' : ''}
+ </Badge>
+ </div>
  </div>
  <div className="overflow-x-auto border border-gray-200 rounded-lg">
- <Table className="table-fixed min-w-[1150px] text-xs">
+ <Table className="table-fixed min-w-[1000px] text-xs">
  <colgroup>
  <col className="w-[110px]" />
  <col className="w-[110px]" />
  <col className="w-[50px]" />
  <col className="w-[80px]" />
- <col className="w-[160px]" />
  <col className="w-[75px]" />
  <col className="w-[75px]" />
  <col className="w-[65px]" />
@@ -311,7 +366,6 @@ export default function ReportsPage() {
  <TableHead className="font-bold">First Name</TableHead>
  <TableHead className="font-bold">M.I.</TableHead>
  <TableHead className="font-bold">Year Level</TableHead>
- <TableHead className="font-bold">Scholarships</TableHead>
  <TableHead className="font-bold text-right">Tuition</TableHead>
  <TableHead className="font-bold text-right">Other Fees</TableHead>
  <TableHead className="font-bold text-right">Misc.</TableHead>
@@ -327,7 +381,6 @@ export default function ReportsPage() {
  {students.map((student) => {
  const fees = student.fees[0];
  const totalFees = fees ? calculateTotalFees(fees) : 0;
- const scholarshipNames = student.scholarships.map(ss => ss.scholarship.scholarshipName).join(', ');
 
  return (
  <TableRow key={student.id}>
@@ -335,9 +388,6 @@ export default function ReportsPage() {
  <TableCell className="truncate" title={student.firstName}>{student.firstName}</TableCell>
  <TableCell className="text-center">{student.middleInitial || '-'}</TableCell>
  <TableCell className="truncate">{student.yearLevel}</TableCell>
- <TableCell className="truncate" title={scholarshipNames}>
- {scholarshipNames}
- </TableCell>
  <TableCell className="text-right">
  {fees ? formatCurrency(Number(fees.tuitionFee)) : '-'}
  </TableCell>
@@ -358,33 +408,31 @@ export default function ReportsPage() {
  </TableCell>
  <TableCell className="text-right">
  <Badge variant="secondary" className="text-xs">
- {fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '-'}
+ {fees ? `${calculatePercentSubsidy(fees).toFixed(2)}` : '-'}
  </Badge>
  </TableCell>
  <TableCell className="text-right">
  1
  </TableCell>
  <TableCell className="text-right font-semibold">
- {/* EFC = % Subsidy × No. of Students */}
- {fees ? `${(calculatePercentSubsidy(fees) * 1).toFixed(2)}%` : '-'}
+ {fees ? `${(calculatePercentSubsidy(fees)).toFixed(2)}` : '-'}
  </TableCell>
  </TableRow>
  );
  })}
  {/* Totals Row */}
  <TableRow className="bg-muted/50 font-semibold">
- <TableCell colSpan={12} className="text-right">Total</TableCell>
+ <TableCell colSpan={11} className="text-right">Total</TableCell>
  <TableCell className="text-right">
  {students.length}
  </TableCell>
  <TableCell className="text-right">
- {/* Total EFC = Sum of (% Subsidy × No. of Students) for all students */}
  {students.reduce((sum, s) => {
  const fees = s.fees[0];
  const percentSubsidy = fees ? calculatePercentSubsidy(fees) : 0;
- const numberOfStudents = 1; // Each row represents 1 student
+ const numberOfStudents = 1;
  return sum + (percentSubsidy * numberOfStudents);
- }, 0).toFixed(2)}%
+ }, 0).toFixed(2)}
  </TableCell>
  </TableRow>
  </TableBody>

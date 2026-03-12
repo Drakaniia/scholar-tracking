@@ -38,6 +38,7 @@ import { ExportButton } from '@/components/shared';
 import { ImportButton } from '@/components/shared/import-button';
 import { useAuth } from '@/components/auth/auth-provider';
 import { fetchWithCache, clientCache } from '@/lib/cache';
+import { StudentFeesManager } from '@/components/forms/student-fees-manager';
 
 // Pastel colors for scholarships
 const PASTEL_COLORS = [
@@ -961,42 +962,10 @@ const handleViewDetails = async (studentId: number) => {
  )}
 
  {/* Fees Information */}
- {selectedStudent.fees && selectedStudent.fees.length > 0 && (
  <div className="border-t border-gray-200 pt-4">
  <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
- {selectedStudent.fees.map((fee, index) => (
- <div key={index} className="space-y-2 mb-4">
- <p className="font-medium">{fee.term} - {fee.academicYear}</p>
- <div className="grid grid-cols-2 gap-2 text-sm">
- <div className="flex justify-between">
- <span className="text-muted-foreground">Tuition Fee:</span>
- <span>₱{fee.tuitionFee.toLocaleString()}</span>
+ <StudentFeesManager studentId={selectedStudent.id} readOnly={false} />
  </div>
- <div className="flex justify-between">
- <span className="text-muted-foreground">Other Fee:</span>
- <span>₱{fee.otherFee.toLocaleString()}</span>
- </div>
- <div className="flex justify-between">
- <span className="text-muted-foreground">Miscellaneous:</span>
- <span>₱{fee.miscellaneousFee.toLocaleString()}</span>
- </div>
- <div className="flex justify-between">
- <span className="text-muted-foreground">Laboratory:</span>
- <span>₱{fee.laboratoryFee.toLocaleString()}</span>
- </div>
- <div className="flex justify-between font-semibold border-t border-gray-200 pt-2">
- <span>Total Fees:</span>
- <span>₱{(Number(fee.tuitionFee) + Number(fee.otherFee) + Number(fee.miscellaneousFee) + Number(fee.laboratoryFee)).toLocaleString()}</span>
- </div>
- <div className="flex justify-between font-semibold text-green-600 border-t border-gray-200 pt-2">
- <span>Amount Subsidy ({fee.percentSubsidy}%):</span>
- <span>₱{fee.amountSubsidy.toLocaleString()}</span>
- </div>
- </div>
- </div>
- ))}
- </div>
- )}
  </>
  )}
  </div>

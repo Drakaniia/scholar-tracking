@@ -83,13 +83,6 @@ interface Scholarship {
  _count?: {
  students: number;
  };
- students?: Array<{
- student: {
- fees: Array<{
- percentSubsidy: number;
- }>;
- };
- }>;
 }
 
 interface ScholarshipDetail extends Scholarship {
@@ -144,21 +137,6 @@ export default function ScholarshipsPage() {
  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
  const [selectedScholarship, setSelectedScholarship] = useState<ScholarshipDetail | null>(null);
  const [loadingDetail, setLoadingDetail] = useState(false);
-
- // Calculate EFC for a scholarship: sum of (percentSubsidy / 100) for all students
- const calculateEFC = useCallback((scholarship: Scholarship): number => {
- if (!scholarship.students || scholarship.students.length === 0) return 0;
- 
- return scholarship.students.reduce((total, ss) => {
- const studentFees = ss.student.fees;
- if (!studentFees || studentFees.length === 0) return total;
- // Sum all percentSubsidy values for this student
- const studentPercentSubsidy = studentFees.reduce((sum, fee) => sum + Number(fee.percentSubsidy), 0);
- // EFC = percentSubsidy (as the formula states: Multiply % Subsidy and Number of students)
- // Since we're iterating through each student, we just add their percentSubsidy
- return total + studentPercentSubsidy;
- }, 0);
- }, []);
 
  const fetchCounts = useCallback(async () => {
  try {
@@ -536,7 +514,6 @@ export default function ScholarshipsPage() {
  <TableHead className="text-right">Amount</TableHead>
  <TableHead>Students</TableHead>
  <TableHead>Status</TableHead>
- <TableHead className="text-right">EFC</TableHead>
  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
  </TableRow>
  </TableHeader>
@@ -594,9 +571,6 @@ export default function ScholarshipsPage() {
  >
  {scholarship.status}
  </Badge>
- </TableCell>
- <TableCell className="text-right font-semibold">
- {calculateEFC(scholarship).toFixed(2)}%
  </TableCell>
  {isAdmin && (
  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

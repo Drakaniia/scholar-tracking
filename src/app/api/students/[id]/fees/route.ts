@@ -1,0 +1,200 @@
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { CreateStudentFeesInput } from '@/types';
+import { getSession } from '@/lib/auth';
+import { queryOptimizer } from '@/lib/query-optimizer';
+
+// GET /api/students/[id]/fees - Get all fees for a student
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const studentId = parseInt(id);
+
+        if (isNaN(studentId)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid student ID' },
+                { status: 400 }
+            );
+        }
+
+        const fees = await prisma.studentFees.findMany({
+            where: { studentId },
+            orderBy: { academicYear: 'desc' },
+        });
+
+        return NextResponse.json({
+            success: true,
+            data: fees,
+        });
+    } catch (error) {
+        console.error('Error fetching student fees:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to fetch student fees' },
+            { status: 500 }
+        );
+    }
+}
+
+// POST /api/students/[id]/fees - Create or update student fees
+export async function POST(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await getSession();
+
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
+        const { id } = await params;
+        const studentId = parseInt(id);
+
+        if (isNaN(studentId)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid student ID' },
+                { status: 400 }
+            );
+        }
+
+        const body: CreateStudentFeesInput & { academicYearId?: number } = await request.json();
+
+        // Calculate percentSubsidy from amountSubsidy and total fees
+        const totalFees = 
+            Number(body.tuitionFee) + 
+            Number(body.miscellaneousFee) + 
+            Number(body.laboratoryFee) + 
+            Number(body.otherFee);
+        
+        const percentSubsidy = totalFees > 0 
+            ? (Number(body.amountSubsidy) / totalFees) * 100 
+            : 0;
+
+        // Check if fees already exist for this term and academic year
+        const existingFees = await prisma.studentFees.findFirst({
+            where: {
+                studentId,
+                term: body.term,
+                academicYear: body.academicYear,
+            },
+        });
+
+        let fees;
+        if (existingFees) {
+            // Update existing fees
+            fees = await prisma.studentFees.update({
+                where: { id: existingFees.id },
+                data: {
+                    tuitionFee: body.tuitionFee,
+                    miscellaneousFee: body.miscellaneousFee,
+                    laboratoryFee: body.laboratoryFee,
+                    otherFee: body.otherFee,
+                    amountSubsidy: body.amountSubsidy,
+                    percentSubsidy,
+                    academicYearId: body.academicYearId || null,
+                },
+            });
+        } else {
+            // Create new fees
+            fees = await prisma.studentFees.create({
+                data: {
+                    studentId,
+                    tuitionFee: body.tuitionFee,
+                    miscellaneousFee: body.miscellaneousFee,
+                    laboratoryFee: body.laboratoryFee,
+                    otherFee: body.otherFee,
+                    amountSubsidy: body.amountSubsidy,
+                    percentSubsidy,
+                    term: body.term,
+                    academicYear: body.academicYear,
+                    academicYearId: body.academicYearId || null,
+                },
+            });
+        }
+
+        // Invalidate cache
+        queryOptimizer.invalidatePattern(`student-${studentId}-fees`);
+        queryOptimizer.invalidatePattern('students-list');
+        queryOptimizer.invalidatePattern('dashboard');
+
+        return NextResponse.json({
+            success: true,
+            data: fees,
+            message: existingFees ? 'Student fees updated successfully' : 'Student fees created successfully',
+        });
+    } catch (error) {
+        console.error('Error saving student fees:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to save student fees' },
+            { status: 500 }
+        );
+    }
+}
+
+// DELETE /api/students/[id]/fees - Delete student fees
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await getSession();
+
+        if (!session || session.role !== 'ADMIN') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
+        const { id } = await params;
+        const studentId = parseInt(id);
+
+        if (isNaN(studentId)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid student ID' },
+                { status: 400 }
+            );
+        }
+
+        const searchParams = request.nextUrl.searchParams;
+        const term = searchParams.get('term');
+        const academicYear = searchParams.get('academicYear');
+
+        if (!term || !academicYear) {
+            return NextResponse.json(
+                { success: false, error: 'Term and academic year are required' },
+                { status: 400 }
+            );
+        }
+
+        await prisma.studentFees.deleteMany({
+            where: {
+                studentId,
+                term,
+                academicYear,
+            },
+        });
+
+        // Invalidate cache
+        queryOptimizer.invalidatePattern(`student-${studentId}-fees`);
+        queryOptimizer.invalidatePattern('students-list');
+        queryOptimizer.invalidatePattern('dashboard');
+
+        return NextResponse.json({
+            success: true,
+            message: 'Student fees deleted successfully',
+        });
+    } catch (error) {
+        console.error('Error deleting student fees:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to delete student fees' },
+            { status: 500 }
+        );
+    }
+}

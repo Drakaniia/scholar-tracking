@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const session = await getSession();
-        
+
         if (!session || session.role !== 'ADMIN') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
             // Validate scholarship assignments before creating them
             const scholarshipIds = body.scholarships.map(s => s.scholarshipId);
             await validateMultipleStudentScholarshipEligibility(student.id, scholarshipIds);
-            
+
             await prisma.studentScholarship.createMany({
                 data: body.scholarships.map(scholarship => ({
                     studentId: student.id,
@@ -193,12 +193,15 @@ export async function POST(request: NextRequest) {
                     scholarshipStatus: scholarship.scholarshipStatus || 'Active',
                 })),
             });
+
+            // Auto-create StudentFees from scholarships
+            await createStudentFeesFromScholarships(student.id, body.scholarships.map(s => s.scholarshipId));
         }
         // Fallback to single scholarship for backward compatibility
         else if (body.scholarshipId) {
             // Validate scholarship assignment before creating it
             await validateMultipleStudentScholarshipEligibility(student.id, [body.scholarshipId]);
-            
+
             await prisma.studentScholarship.create({
                 data: {
                     studentId: student.id,
@@ -210,6 +213,9 @@ export async function POST(request: NextRequest) {
                     scholarshipStatus: body.scholarshipStatus || 'Active',
                 },
             });
+
+            // Auto-create StudentFees from scholarship
+            await createStudentFeesFromScholarships(student.id, [body.scholarshipId]);
         }
 
         return NextResponse.json({
@@ -223,5 +229,87 @@ export async function POST(request: NextRequest) {
             { success: false, error: 'Failed to create student' },
             { status: 500 }
         );
+    }
+}
+
+/**
+ * Helper function to create StudentFees from assigned scholarships
+ * Copies fee structure from scholarship to student's fee record
+ */
+async function createStudentFeesFromScholarships(studentId: number, scholarshipIds: number[]) {
+    // Get current academic year
+    const currentAcademicYear = await prisma.academicYear.findFirst({
+        where: { isActive: true },
+    });
+
+    const term = currentAcademicYear?.semester === '1ST' ? '1st Semester' : 
+                 currentAcademicYear?.semester === '2ND' ? '2nd Semester' : 'Summer';
+    
+    const academicYear = currentAcademicYear?.year || new Date().getFullYear().toString();
+    const academicYearId = currentAcademicYear?.id || null;
+
+    // Get all scholarships with their fee structures
+    const scholarships = await prisma.scholarship.findMany({
+        where: { id: { in: scholarshipIds } },
+    });
+
+    // Calculate total fees from all scholarships
+    let totalTuitionFee = 0;
+    let totalMiscellaneousFee = 0;
+    let totalLaboratoryFee = 0;
+    let totalOtherFee = 0;
+    let totalAmountSubsidy = 0;
+
+    for (const scholarship of scholarships) {
+        totalTuitionFee += Number(scholarship.tuitionFee) || 0;
+        totalMiscellaneousFee += Number(scholarship.miscellaneousFee) || 0;
+        totalLaboratoryFee += Number(scholarship.laboratoryFee) || 0;
+        totalOtherFee += Number(scholarship.otherFee) || 0;
+        totalAmountSubsidy += Number(scholarship.amountSubsidy) || 0;
+    }
+
+    // Calculate percent subsidy (as decimal, e.g., 0.1667 for 16.67%)
+    const totalFees = totalTuitionFee + totalMiscellaneousFee + totalLaboratoryFee + totalOtherFee;
+    const percentSubsidy = totalFees > 0 ? Number((totalAmountSubsidy / totalFees).toFixed(4)) : 0;
+
+    // Check if fees already exist for this term
+    const existingFees = await prisma.studentFees.findFirst({
+        where: {
+            studentId,
+            term: `${term} ${academicYear}`,
+            academicYear,
+        },
+    });
+
+    if (existingFees) {
+        // Update existing fees by adding to current values
+        await prisma.studentFees.update({
+            where: { id: existingFees.id },
+            data: {
+                tuitionFee: Number(existingFees.tuitionFee) + totalTuitionFee,
+                miscellaneousFee: Number(existingFees.miscellaneousFee) + totalMiscellaneousFee,
+                laboratoryFee: Number(existingFees.laboratoryFee) + totalLaboratoryFee,
+                otherFee: Number(existingFees.otherFee) + totalOtherFee,
+                amountSubsidy: Number(existingFees.amountSubsidy) + totalAmountSubsidy,
+                percentSubsidy,
+                academicYearId,
+            },
+        });
+    } else {
+        // Create new fees
+        await prisma.studentFees.create({
+            data: {
+                studentId,
+                tuitionFee: totalTuitionFee,
+                miscellaneousFee: totalMiscellaneousFee,
+                laboratoryFee: totalLaboratoryFee,
+                otherFee: totalOtherFee,
+                amountSubsidy: totalAmountSubsidy,
+                percentSubsidy,
+                term: `${term} ${academicYear}`,
+                academicYear,
+                academicYearId,
+            },
+        });
     }
 }
