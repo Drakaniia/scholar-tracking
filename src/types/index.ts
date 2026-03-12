@@ -99,6 +99,14 @@ export interface Scholarship {
     coversTuition: boolean;
     coversMiscellaneous: boolean;
     coversLaboratory: boolean;
+    coversOther: boolean;
+    otherFeeName?: string | null;
+    tuitionFee: number;
+    miscellaneousFee: number;
+    laboratoryFee: number;
+    otherFee: number;
+    amountSubsidy: number;
+    percentSubsidy: number;
     students?: StudentScholarship[];
     disbursements?: Disbursement[];
 }
@@ -117,6 +125,14 @@ export interface CreateScholarshipInput {
     coversTuition?: boolean;
     coversMiscellaneous?: boolean;
     coversLaboratory?: boolean;
+    coversOther?: boolean;
+    otherFeeName?: string | null;
+    tuitionFee?: number;
+    miscellaneousFee?: number;
+    laboratoryFee?: number;
+    otherFee?: number;
+    amountSubsidy?: number;
+    percentSubsidy?: number;
 }
 
 export type UpdateScholarshipInput = Partial<CreateScholarshipInput>;
