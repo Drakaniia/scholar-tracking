@@ -70,7 +70,7 @@ export default function ReportsPage() {
  const fetchDetailedView = useCallback(async () => {
  setIsRefreshing(true);
  try {
- const res = await fetch('/api/dashboard/detailed');
+ const res = await fetch('/api/dashboard/detailed', { credentials: 'include' });
  const json = await res.json();
 
  if (json.success) {

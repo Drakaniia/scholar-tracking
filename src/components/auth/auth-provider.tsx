@@ -38,7 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       if (response.ok) {
         const userData = await response.json();
         setUser(userData.user);
@@ -56,7 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      const response = await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success || response.ok) {
@@ -81,14 +89,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let mounted = true;
+    let isRedirecting = false;
 
     // Check authentication status for dashboard pages
     const verifyAuth = async () => {
-      const isAuthenticated = await checkAuth();
-      if (!isAuthenticated && mounted) {
-        router.push('/login');
-      } else if (mounted) {
-        setIsLoading(false);
+      try {
+        const isAuthenticated = await checkAuth();
+        if (!isAuthenticated && mounted && !isRedirecting) {
+          isRedirecting = true;
+          router.push('/login');
+        } else if (mounted) {
+          setIsLoading(false);
+        }
+      } catch {
+        if (mounted && !isRedirecting) {
+          isRedirecting = true;
+          router.push('/login');
+        }
       }
     };
 

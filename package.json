@@ -14,6 +14,7 @@
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "db:add-indexes": "npx tsx scripts/add-indexes.ts",
     "erd:generate": "prisma generate --schema=prisma/schema-with-erd.prisma",
     "erd:view": "start docs/index.html",
     "clean": "rm -rf node_modules .next && npm install"

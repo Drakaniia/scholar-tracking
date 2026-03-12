@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 // GET /api/students/filter-options - Get filter options with counts based on current filters
+// Optimized to use database-level aggregation instead of fetching all records
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
@@ -36,48 +37,100 @@ export async function GET(request: NextRequest) {
             };
         }
 
-        // Get filtered students
-        const students = await prisma.student.findMany({
-            where,
-            select: {
-                program: true,
-                gradeLevel: true,
-                status: true,
-                scholarships: {
-                    select: {
-                        scholarshipId: true,
-                    },
+        // Use Promise.all to execute aggregation queries in parallel
+        const [
+            programAgg,
+            gradeLevelAgg,
+            statusAgg,
+            scholarshipAgg,
+            totalResult,
+        ] = await Promise.all([
+            // Get program counts
+            prisma.student.groupBy({
+                by: ['program'],
+                where,
+                _count: {
+                    id: true,
                 },
-            },
-        });
+            }),
+            // Get grade level counts
+            prisma.student.groupBy({
+                by: ['gradeLevel'],
+                where,
+                _count: {
+                    id: true,
+                },
+            }),
+            // Get status counts
+            prisma.student.groupBy({
+                by: ['status'],
+                where,
+                _count: {
+                    id: true,
+                },
+            }),
+            // Get scholarship counts (from student_scholarships junction table)
+            prisma.studentScholarship.groupBy({
+                by: ['scholarshipId'],
+                where: {
+                    student: where,
+                },
+                _count: {
+                    studentId: true,
+                },
+            }),
+            // Get total count
+            prisma.student.count({ where }),
+        ]);
 
-        // Calculate counts for programs
+        // Convert aggregation results to count maps
         const programCounts: Record<string, number> = {};
         const gradeLevelCounts: Record<string, number> = {};
         const statusCounts: Record<string, number> = {};
         const scholarshipCounts: Record<string, number> = {};
-        let studentsWithoutScholarship = 0;
 
-        students.forEach(student => {
-            // Program counts
-            programCounts[student.program] = (programCounts[student.program] || 0) + 1;
-            
-            // Grade level counts
-            gradeLevelCounts[student.gradeLevel] = (gradeLevelCounts[student.gradeLevel] || 0) + 1;
-            
-            // Status counts
-            statusCounts[student.status] = (statusCounts[student.status] || 0) + 1;
-
-            // Scholarship counts
-            if (student.scholarships && student.scholarships.length > 0) {
-                student.scholarships.forEach(ss => {
-                    const key = ss.scholarshipId.toString();
-                    scholarshipCounts[key] = (scholarshipCounts[key] || 0) + 1;
-                });
-            } else {
-                studentsWithoutScholarship++;
+        programAgg.forEach(item => {
+            if (item.program) {
+                programCounts[item.program] = item._count.id;
             }
         });
+
+        gradeLevelAgg.forEach(item => {
+            if (item.gradeLevel) {
+                gradeLevelCounts[item.gradeLevel] = item._count.id;
+            }
+        });
+
+        statusAgg.forEach(item => {
+            if (item.status) {
+                statusCounts[item.status] = item._count.id;
+            }
+        });
+
+        scholarshipAgg.forEach(item => {
+            if (item.scholarshipId) {
+                scholarshipCounts[item.scholarshipId.toString()] = item._count.studentId;
+            }
+        });
+
+        // Calculate students without scholarship
+        let studentsWithoutScholarship = 0;
+        if (scholarshipId === 'none' || !scholarshipId || scholarshipId === 'all') {
+            // Only calculate if not already filtered by scholarship
+            if (scholarshipId !== 'none') {
+                const withoutScholarshipWhere = {
+                    ...where,
+                    scholarships: {
+                        none: {},
+                    },
+                };
+                studentsWithoutScholarship = await prisma.student.count({
+                    where: withoutScholarshipWhere,
+                });
+            } else {
+                studentsWithoutScholarship = totalResult;
+            }
+        }
 
         return NextResponse.json({
             success: true,
@@ -88,7 +141,12 @@ export async function GET(request: NextRequest) {
                 statusCounts,
                 scholarshipCounts,
                 studentsWithoutScholarship,
-                total: students.length,
+                total: totalResult,
+            },
+        }, {
+            headers: {
+                'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+                'X-Cache-Source': 'database-aggregation',
             },
         });
     } catch (error) {

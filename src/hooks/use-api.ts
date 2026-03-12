@@ -28,7 +28,7 @@ export function useApi<T>(
         setError(null);
 
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, { credentials: 'include' });
             const json = await res.json();
 
             if (json.success) {
@@ -81,6 +81,7 @@ export function useMutation<TInput>(
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: method !== 'DELETE' ? JSON.stringify(input) : undefined,
+                credentials: 'include',
             });
 
             const json = await res.json();

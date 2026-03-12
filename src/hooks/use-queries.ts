@@ -209,7 +209,7 @@ export function useDashboardStats(
         params.append('source', source);
       }
       const url = `/api/dashboard${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard stats');
       }
@@ -233,7 +233,7 @@ export function useDashboardDetailed(
         params.append('source', source);
       }
       const url = `/api/dashboard/detailed${params.toString() ? `?${params.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch detailed dashboard data');
       }
@@ -262,8 +262,8 @@ export function useStudents(
           params.append(key, String(value));
         }
       });
-      
-      const response = await fetch(`/api/students?${params}`);
+
+      const response = await fetch(`/api/students?${params}`, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch students');
       }
@@ -279,7 +279,7 @@ export function useStudent(id: number, options?: Partial<UseQueryOptions<ApiResp
   return useQuery<ApiResponse<StudentDetail>, Error>({
     queryKey: queryKeys.students.detail(id),
     queryFn: async () => {
-      const response = await fetch(`/api/students/${id}`);
+      const response = await fetch(`/api/students/${id}`, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch student');
       }
@@ -296,7 +296,7 @@ export function useStudentFilterOptions(options?: Partial<UseQueryOptions<ApiRes
   return useQuery<ApiResponse<{ programs: string[] }>, Error>({
     queryKey: queryKeys.students.filterOptions(),
     queryFn: async () => {
-      const response = await fetch('/api/students/filter-options');
+      const response = await fetch('/api/students/filter-options', { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch filter options');
       }
@@ -317,6 +317,7 @@ export function useCreateStudent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'include',
       });
 
       const json = await response.json();
@@ -346,6 +347,7 @@ export function useUpdateStudent() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'include',
       });
 
       const json = await response.json();
@@ -369,13 +371,14 @@ export function useUpdateStudent() {
 
 export function useDeleteStudent() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/students/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
-      
+
       const json = await response.json();
       if (!response.ok) {
         throw new Error(json.error || 'Failed to delete student');
@@ -411,8 +414,8 @@ export function useScholarships(
           params.append(key, String(value));
         }
       });
-      
-      const response = await fetch(`/api/scholarships?${params}`);
+
+      const response = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch scholarships');
       }
@@ -428,7 +431,7 @@ export function useScholarship(id: number, options?: Partial<UseQueryOptions<Api
   return useQuery<ApiResponse<Scholarship>, Error>({
     queryKey: queryKeys.scholarships.detail(id),
     queryFn: async () => {
-      const response = await fetch(`/api/scholarships/${id}`);
+      const response = await fetch(`/api/scholarships/${id}`, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch scholarship');
       }
@@ -450,6 +453,7 @@ export function useCreateScholarship() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'include',
       });
 
       const json = await response.json();
@@ -478,6 +482,7 @@ export function useUpdateScholarship() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'include',
       });
 
       const json = await response.json();
@@ -500,13 +505,14 @@ export function useUpdateScholarship() {
 
 export function useDeleteScholarship() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/scholarships/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
-      
+
       const json = await response.json();
       if (!response.ok) {
         throw new Error(json.error || 'Failed to delete scholarship');
