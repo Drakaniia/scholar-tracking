@@ -162,6 +162,22 @@ export async function POST(request: NextRequest) {
 
         const body: CreateStudentInput = await request.json();
 
+        // Check if student with same name already exists
+        const existingStudent = await prisma.student.findFirst({
+            where: {
+                lastName: body.lastName.toUpperCase(),
+                firstName: body.firstName.toUpperCase(),
+                isArchived: false,
+            },
+        });
+
+        if (existingStudent) {
+            return NextResponse.json(
+                { success: false, error: 'Student already exists' },
+                { status: 409 }
+            );
+        }
+
         const student = await prisma.student.create({
             data: {
                 lastName: body.lastName.toUpperCase(),

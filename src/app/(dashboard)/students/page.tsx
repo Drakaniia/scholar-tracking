@@ -281,6 +281,7 @@ const closeDeleteDialog = () => {
  };
 
  const handleFormSubmit = async (data: CreateStudentInput) => {
+ setSubmitting(true);
  try {
  const url = editingStudent
  ? `/api/students/${editingStudent.id}`
@@ -336,6 +337,8 @@ const closeDeleteDialog = () => {
  } catch (error) {
  console.error('Error saving student:', error);
  toast.error('Failed to save student');
+ } finally {
+ setSubmitting(false);
  }
  };
 
@@ -475,6 +478,7 @@ const handleViewDetails = async (studentId: number) => {
  onSubmit={handleFormSubmit}
  onCancel={() => setDialogOpen(false)}
  isEditing={!!editingStudent}
+ loading={submitting}
  studentName={editingStudent ? `${editingStudent.firstName} ${editingStudent.lastName}` : undefined}
  />
  </DialogContent>
