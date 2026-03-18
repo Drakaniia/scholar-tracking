@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
                     gradeLevel: true,
                     yearLevel: true,
                     status: true,
+                    birthDate: true,
                     createdAt: true,
                     updatedAt: true,
                     scholarships: {

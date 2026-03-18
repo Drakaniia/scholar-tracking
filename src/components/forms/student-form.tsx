@@ -3,6 +3,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -779,7 +780,16 @@ export function StudentForm({
                     <Input
                         id="birthDate"
                         type="date"
-                        value={defaultValues?.birthDate ? new Date(defaultValues.birthDate).toISOString().split('T')[0] : ''}
+                        value={(() => {
+                            const watchedValue = form.watch('birthDate');
+                            if (watchedValue) {
+                                return new Date(watchedValue).toISOString().split('T')[0];
+                            }
+                            if (defaultValues?.birthDate) {
+                                return new Date(defaultValues.birthDate).toISOString().split('T')[0];
+                            }
+                            return '';
+                        })()}
                         onChange={(e) => {
                             const dateValue = e.target.value ? new Date(e.target.value) : null;
                             form.setValue('birthDate', dateValue);
@@ -1033,14 +1043,11 @@ export function StudentForm({
                             <Label htmlFor="tuitionFee" className="text-sm font-medium">Tuition Fee</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
-                                <Input
+                                <CurrencyInput
                                     id="tuitionFee"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
                                     value={fees.tuitionFee}
-                                    onChange={(e) => handleFeeChange('tuitionFee', parseFloat(e.target.value) || 0)}
+                                    onChange={(value) => handleFeeChange('tuitionFee', value)}
+                                    placeholder="0.00"
                                     className="pl-7 h-10"
                                 />
                             </div>
@@ -1051,14 +1058,11 @@ export function StudentForm({
                             <Label htmlFor="otherFee" className="text-sm font-medium">Other Fees</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
-                                <Input
+                                <CurrencyInput
                                     id="otherFee"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
                                     value={fees.otherFee}
-                                    onChange={(e) => handleFeeChange('otherFee', parseFloat(e.target.value) || 0)}
+                                    onChange={(value) => handleFeeChange('otherFee', value)}
+                                    placeholder="0.00"
                                     className="pl-7 h-10"
                                 />
                             </div>
@@ -1069,14 +1073,11 @@ export function StudentForm({
                             <Label htmlFor="miscellaneousFee" className="text-sm font-medium">Miscellaneous Fee</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
-                                <Input
+                                <CurrencyInput
                                     id="miscellaneousFee"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
                                     value={fees.miscellaneousFee}
-                                    onChange={(e) => handleFeeChange('miscellaneousFee', parseFloat(e.target.value) || 0)}
+                                    onChange={(value) => handleFeeChange('miscellaneousFee', value)}
+                                    placeholder="0.00"
                                     className="pl-7 h-10"
                                 />
                             </div>
@@ -1087,14 +1088,11 @@ export function StudentForm({
                             <Label htmlFor="laboratoryFee" className="text-sm font-medium">Laboratory Fee</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
-                                <Input
+                                <CurrencyInput
                                     id="laboratoryFee"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
                                     value={fees.laboratoryFee}
-                                    onChange={(e) => handleFeeChange('laboratoryFee', parseFloat(e.target.value) || 0)}
+                                    onChange={(value) => handleFeeChange('laboratoryFee', value)}
+                                    placeholder="0.00"
                                     className="pl-7 h-10"
                                 />
                             </div>
