@@ -192,8 +192,8 @@ export default function ReportsPage() {
  const calculatePercentSubsidy = (fees: DetailedStudent['fees'][0]) => {
  if (!fees) return 0;
  const totalFees = calculateTotalFees(fees);
- // Return as decimal (e.g., 0.1667 for 16.67%)
- return totalFees > 0 ? Number((Number(fees.amountSubsidy) / totalFees).toFixed(4)) : 0;
+ // Return as percentage (e.g., 16.67 for 16.67%)
+ return totalFees > 0 ? Number(((Number(fees.amountSubsidy) / totalFees) * 100).toFixed(2)) : 0;
  };
 
  if (loading) {

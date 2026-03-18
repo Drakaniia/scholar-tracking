@@ -81,9 +81,9 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                Number(fee.otherFee || 0);
     };
 
-    // Calculate percent subsidy (as decimal, e.g., 0.1667 for 16.67%)
+    // Calculate percent subsidy (as percentage, e.g., 16.67 for 16.67%)
     const calculatePercentSubsidy = (amountSubsidy: number, totalFees: number) => {
-        return totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
+        return totalFees > 0 ? Number(((amountSubsidy / totalFees) * 100).toFixed(2)) : 0;
     };
 
     const fetchFees = useCallback(async () => {

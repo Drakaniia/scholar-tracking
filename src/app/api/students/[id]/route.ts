@@ -396,9 +396,9 @@ async function updateStudentFees(
         totalAmountSubsidy += Number(ss.scholarship.amountSubsidy) || 0;
     }
 
-    // Calculate percent subsidy (as decimal, e.g., 0.1667 for 16.67%)
+    // Calculate percent subsidy (as percentage, e.g., 16.67 for 16.67%)
     const amountSubsidy = Math.min(totalAmountSubsidy, totalFees);
-    const percentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
+    const percentSubsidy = totalFees > 0 ? Number(((amountSubsidy / totalFees) * 100).toFixed(2)) : 0;
 
     // Check if fees exist for this term
     const existingFees = await tx.studentFees.findFirst({
