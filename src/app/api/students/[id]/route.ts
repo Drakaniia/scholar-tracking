@@ -232,9 +232,11 @@ export async function PUT(
                         })),
                     });
                 }
+            }
 
-                // Sync StudentFees with new scholarships
-                await syncStudentFeesWithScholarships(tx, studentId, scholarships.map(s => s.scholarshipId));
+            // Update StudentFees if provided
+            if (body.fees) {
+                await updateStudentFees(tx, studentId, body.fees);
             }
 
             return { student, removedScholarships };
@@ -354,50 +356,51 @@ export async function PATCH(
 }
 
 /**
- * Helper function to sync StudentFees with scholarship changes
- * Recalculates fees based on currently assigned scholarships
+ * Helper function to update student fees with manual values
  */
-async function syncStudentFeesWithScholarships(
+async function updateStudentFees(
     tx: Prisma.TransactionClient,
     studentId: number,
-    scholarshipIds: number[]
+    feeData: {
+        tuitionFee?: number;
+        otherFee?: number;
+        miscellaneousFee?: number;
+        laboratoryFee?: number;
+    }
 ) {
     // Get current academic year
     const currentAcademicYear = await tx.academicYear.findFirst({
         where: { isActive: true },
     });
 
-    const term = currentAcademicYear?.semester === '1ST' ? '1st Semester' : 
+    const term = currentAcademicYear?.semester === '1ST' ? '1st Semester' :
                  currentAcademicYear?.semester === '2ND' ? '2nd Semester' : 'Summer';
-    
+
     const academicYear = currentAcademicYear?.year || new Date().getFullYear().toString();
     const academicYearId = currentAcademicYear?.id || null;
 
-    // Get all scholarships with their fee structures
-    const scholarships = await tx.scholarship.findMany({
-        where: { id: { in: scholarshipIds } },
+    // Calculate total fees
+    const totalFees = (feeData.tuitionFee || 0) +
+                     (feeData.otherFee || 0) +
+                     (feeData.miscellaneousFee || 0) +
+                     (feeData.laboratoryFee || 0);
+
+    // Calculate subsidies based on scholarships
+    const studentScholarships = await tx.studentScholarship.findMany({
+        where: { studentId },
+        include: { scholarship: true },
     });
 
-    // Calculate total fees from all scholarships
-    let totalTuitionFee = 0;
-    let totalMiscellaneousFee = 0;
-    let totalLaboratoryFee = 0;
-    let totalOtherFee = 0;
     let totalAmountSubsidy = 0;
-
-    for (const scholarship of scholarships) {
-        totalTuitionFee += Number(scholarship.tuitionFee) || 0;
-        totalMiscellaneousFee += Number(scholarship.miscellaneousFee) || 0;
-        totalLaboratoryFee += Number(scholarship.laboratoryFee) || 0;
-        totalOtherFee += Number(scholarship.otherFee) || 0;
-        totalAmountSubsidy += Number(scholarship.amountSubsidy) || 0;
+    for (const ss of studentScholarships) {
+        totalAmountSubsidy += Number(ss.scholarship.amountSubsidy) || 0;
     }
 
     // Calculate percent subsidy (as decimal, e.g., 0.1667 for 16.67%)
-    const totalFees = totalTuitionFee + totalMiscellaneousFee + totalLaboratoryFee + totalOtherFee;
-    const percentSubsidy = totalFees > 0 ? Number((totalAmountSubsidy / totalFees).toFixed(4)) : 0;
+    const amountSubsidy = Math.min(totalAmountSubsidy, totalFees);
+    const percentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
 
-    // Check if fees already exist for this term
+    // Check if fees exist for this term
     const existingFees = await tx.studentFees.findFirst({
         where: {
             studentId,
@@ -411,11 +414,11 @@ async function syncStudentFeesWithScholarships(
         await tx.studentFees.update({
             where: { id: existingFees.id },
             data: {
-                tuitionFee: totalTuitionFee,
-                miscellaneousFee: totalMiscellaneousFee,
-                laboratoryFee: totalLaboratoryFee,
-                otherFee: totalOtherFee,
-                amountSubsidy: totalAmountSubsidy,
+                tuitionFee: feeData.tuitionFee ?? Number(existingFees.tuitionFee),
+                otherFee: feeData.otherFee ?? Number(existingFees.otherFee),
+                miscellaneousFee: feeData.miscellaneousFee ?? Number(existingFees.miscellaneousFee),
+                laboratoryFee: feeData.laboratoryFee ?? Number(existingFees.laboratoryFee),
+                amountSubsidy,
                 percentSubsidy,
                 academicYearId,
             },
@@ -425,11 +428,11 @@ async function syncStudentFeesWithScholarships(
         await tx.studentFees.create({
             data: {
                 studentId,
-                tuitionFee: totalTuitionFee,
-                miscellaneousFee: totalMiscellaneousFee,
-                laboratoryFee: totalLaboratoryFee,
-                otherFee: totalOtherFee,
-                amountSubsidy: totalAmountSubsidy,
+                tuitionFee: feeData.tuitionFee || 0,
+                otherFee: feeData.otherFee || 0,
+                miscellaneousFee: feeData.miscellaneousFee || 0,
+                laboratoryFee: feeData.laboratoryFee || 0,
+                amountSubsidy,
                 percentSubsidy,
                 term: `${term} ${academicYear}`,
                 academicYear,

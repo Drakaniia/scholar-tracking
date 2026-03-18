@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -359,46 +360,38 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="new-tuition">Tuition Fee (₱)</Label>
-                                <Input
+                                <CurrencyInput
                                     id="new-tuition"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newFeeData.tuitionFee}
-                                    onChange={(e) => updateNewFeeField('tuitionFee', parseFloat(e.target.value) || 0)}
+                                    value={newFeeData.tuitionFee || 0}
+                                    onChange={(value) => updateNewFeeField('tuitionFee', value)}
+                                    placeholder="0.00"
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="new-misc">Miscellaneous Fee (₱)</Label>
-                                <Input
+                                <CurrencyInput
                                     id="new-misc"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newFeeData.miscellaneousFee}
-                                    onChange={(e) => updateNewFeeField('miscellaneousFee', parseFloat(e.target.value) || 0)}
+                                    value={newFeeData.miscellaneousFee || 0}
+                                    onChange={(value) => updateNewFeeField('miscellaneousFee', value)}
+                                    placeholder="0.00"
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="new-lab">Laboratory Fee (₱)</Label>
-                                <Input
+                                <CurrencyInput
                                     id="new-lab"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newFeeData.laboratoryFee}
-                                    onChange={(e) => updateNewFeeField('laboratoryFee', parseFloat(e.target.value) || 0)}
+                                    value={newFeeData.laboratoryFee || 0}
+                                    onChange={(value) => updateNewFeeField('laboratoryFee', value)}
+                                    placeholder="0.00"
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="new-other">Other Fee (₱)</Label>
-                                <Input
+                                <CurrencyInput
                                     id="new-other"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newFeeData.otherFee}
-                                    onChange={(e) => updateNewFeeField('otherFee', parseFloat(e.target.value) || 0)}
+                                    value={newFeeData.otherFee || 0}
+                                    onChange={(value) => updateNewFeeField('otherFee', value)}
+                                    placeholder="0.00"
                                 />
                             </div>
                         </div>
@@ -406,13 +399,11 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="new-subsidy">Amount Subsidy (₱)</Label>
-                                <Input
+                                <CurrencyInput
                                     id="new-subsidy"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newFeeData.amountSubsidy}
-                                    onChange={(e) => updateNewFeeField('amountSubsidy', parseFloat(e.target.value) || 0)}
+                                    value={newFeeData.amountSubsidy || 0}
+                                    onChange={(value) => updateNewFeeField('amountSubsidy', value)}
+                                    placeholder="0.00"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -501,45 +492,37 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Tuition Fee (₱)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
+                                                    <CurrencyInput
                                                         value={editData.tuitionFee || 0}
-                                                        onChange={(e) => updateEditField('tuitionFee', parseFloat(e.target.value) || 0)}
+                                                        onChange={(value) => updateEditField('tuitionFee', value)}
+                                                        placeholder="0.00"
                                                         className="h-9"
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Miscellaneous Fee (₱)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
+                                                    <CurrencyInput
                                                         value={editData.miscellaneousFee || 0}
-                                                        onChange={(e) => updateEditField('miscellaneousFee', parseFloat(e.target.value) || 0)}
+                                                        onChange={(value) => updateEditField('miscellaneousFee', value)}
+                                                        placeholder="0.00"
                                                         className="h-9"
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Laboratory Fee (₱)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
+                                                    <CurrencyInput
                                                         value={editData.laboratoryFee || 0}
-                                                        onChange={(e) => updateEditField('laboratoryFee', parseFloat(e.target.value) || 0)}
+                                                        onChange={(value) => updateEditField('laboratoryFee', value)}
+                                                        placeholder="0.00"
                                                         className="h-9"
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Other Fee (₱)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
+                                                    <CurrencyInput
                                                         value={editData.otherFee || 0}
-                                                        onChange={(e) => updateEditField('otherFee', parseFloat(e.target.value) || 0)}
+                                                        onChange={(value) => updateEditField('otherFee', value)}
+                                                        placeholder="0.00"
                                                         className="h-9"
                                                     />
                                                 </div>
@@ -548,12 +531,10 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Amount Subsidy (₱)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
+                                                    <CurrencyInput
                                                         value={editData.amountSubsidy || 0}
-                                                        onChange={(e) => updateEditField('amountSubsidy', parseFloat(e.target.value) || 0)}
+                                                        onChange={(value) => updateEditField('amountSubsidy', value)}
+                                                        placeholder="0.00"
                                                         className="h-9"
                                                     />
                                                 </div>

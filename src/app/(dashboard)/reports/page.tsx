@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,7 @@ import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/shared';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { useDashboardDetailed } from '@/hooks/use-queries';
 
 interface DetailedStudent {
  id: number;
@@ -67,68 +68,65 @@ export default function ReportsPage() {
  const [fundingTypeFilter, setFundingTypeFilter] = useState<'all' | 'internal' | 'external'>('all');
  const [isRefreshing, setIsRefreshing] = useState(false);
 
- const fetchDetailedView = useCallback(async () => {
- setIsRefreshing(true);
- try {
- const res = await fetch('/api/dashboard/detailed', { credentials: 'include' });
- const json = await res.json();
+ // TanStack Query hook for data fetching
+ const { data: detailedData, refetch: refetchDetailedView } = useDashboardDetailed(
+   undefined,
+   {
+     staleTime: 5 * 60 * 1000,
+     refetchOnWindowFocus: false,
+   }
+ );
 
- if (json.success) {
- setDetailedStudents(json.data);
-
- // Extract unique scholarship names per grade level and type
- const namesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
-
- json.data.forEach((student: DetailedStudent) => {
- const gradeLevel = student.gradeLevel;
- if (!namesByGradeAndType[gradeLevel]) {
- namesByGradeAndType[gradeLevel] = {};
- }
-
- student.scholarships.forEach((ss: DetailedStudent['scholarships'][0]) => {
- if (ss.scholarship?.type && ss.scholarship?.scholarshipName) {
- const type = ss.scholarship.type;
- if (!namesByGradeAndType[gradeLevel][type]) {
- namesByGradeAndType[gradeLevel][type] = new Set();
- }
- namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
- }
- });
- });
-
- // Convert Sets to sorted arrays
- const sortedNamesByGradeAndType: Record<string, Record<string, string[]>> = {};
- Object.keys(namesByGradeAndType).forEach((grade) => {
- sortedNamesByGradeAndType[grade] = {};
- Object.keys(namesByGradeAndType[grade]).forEach((type) => {
- sortedNamesByGradeAndType[grade][type] = Array.from(namesByGradeAndType[grade][type]).sort();
- });
- });
- setScholarshipNamesByGradeAndType(sortedNamesByGradeAndType);
- toast.success('Reports data refreshed');
- }
- } catch (error) {
- console.error('Error fetching detailed view:', error);
- toast.error('Failed to refresh reports');
- } finally {
- setLoading(false);
- setIsRefreshing(false);
- }
- }, []);
-
+ // Update state when TanStack Query data changes
  useEffect(() => {
- fetchDetailedView();
+   if (detailedData) {
+     setDetailedStudents(detailedData.data);
+     setLoading(false);
 
- // Listen for refresh events from other pages
- const handleRefreshEvent = () => {
- fetchDetailedView();
- };
+     // Extract unique scholarship names per grade level and type
+     const namesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
 
- window.addEventListener('refreshDashboard', handleRefreshEvent);
- return () => {
- window.removeEventListener('refreshDashboard', handleRefreshEvent);
+     detailedData.data.forEach((student: DetailedStudent) => {
+       const gradeLevel = student.gradeLevel;
+       if (!namesByGradeAndType[gradeLevel]) {
+         namesByGradeAndType[gradeLevel] = {};
+       }
+
+       student.scholarships.forEach((ss: DetailedStudent['scholarships'][0]) => {
+         if (ss.scholarship?.type && ss.scholarship?.scholarshipName) {
+           const type = ss.scholarship.type;
+           if (!namesByGradeAndType[gradeLevel][type]) {
+             namesByGradeAndType[gradeLevel][type] = new Set();
+           }
+           namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
+         }
+       });
+     });
+
+     // Convert Sets to sorted arrays
+     const sortedNamesByGradeAndType: Record<string, Record<string, string[]>> = {};
+     Object.keys(namesByGradeAndType).forEach((grade) => {
+       sortedNamesByGradeAndType[grade] = {};
+       Object.keys(namesByGradeAndType[grade]).forEach((type) => {
+         sortedNamesByGradeAndType[grade][type] = Array.from(namesByGradeAndType[grade][type]).sort();
+       });
+     });
+     setScholarshipNamesByGradeAndType(sortedNamesByGradeAndType);
+   }
+ }, [detailedData]);
+
+ // Handle manual refresh
+ const handleRefresh = async () => {
+   setIsRefreshing(true);
+   try {
+     await refetchDetailedView();
+     toast.success('Reports data refreshed');
+   } catch {
+     toast.error('Failed to refresh reports');
+   } finally {
+     setIsRefreshing(false);
+   }
  };
- }, [fetchDetailedView]);
 
  const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
  return detailedStudents.filter(
@@ -216,7 +214,7 @@ export default function ReportsPage() {
  <Button
  variant="outline"
  size="sm"
- onClick={() => fetchDetailedView()}
+ onClick={handleRefresh}
  disabled={isRefreshing}
  className="gap-2"
  >

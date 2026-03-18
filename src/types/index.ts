@@ -62,6 +62,7 @@ export interface CreateStudentInput {
         grantType?: GrantType;
         scholarshipStatus: string;
     }>;
+    fees?: StudentFeesInput;
 }
 
 export type UpdateStudentInput = Partial<CreateStudentInput>;
@@ -200,6 +201,18 @@ export interface CreateStudentFeesInput {
 export type UpdateStudentFeesInput = Partial<CreateStudentFeesInput>;
 
 // ============================================
+// FEE FORM TYPES
+// ============================================
+
+// Fee data for form submission (manual input only)
+export interface StudentFeesInput {
+    tuitionFee?: number;
+    otherFee?: number;
+    miscellaneousFee?: number;
+    laboratoryFee?: number;
+}
+
+// ============================================
 // ENUM VALUES
 // ============================================
 export type GradeLevel = 'GRADE_SCHOOL' | 'JUNIOR_HIGH' | 'SENIOR_HIGH' | 'COLLEGE';
@@ -285,6 +298,22 @@ export interface PaginatedResponse<T> {
     page: number;
     limit: number;
     totalPages: number;
+}
+
+// ============================================
+// STUDENT FILTER OPTIONS
+// ============================================
+export interface StudentFilterOptions {
+    programs: string[];
+    programCounts: Record<string, number>;
+    gradeLevelCounts: Record<string, number>;
+    statusCounts: Record<string, number>;
+    scholarshipCounts: Record<string, number>;
+    studentsWithoutScholarship: number;
+    total: number;
+    scholarships?: Array<{ id: number; scholarshipName: string }>;
+    filteredTotal?: number;
+    dynamicScholarshipCounts?: Record<string, number>;
 }
 
 // ============================================
