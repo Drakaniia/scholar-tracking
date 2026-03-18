@@ -62,6 +62,7 @@ export interface CreateStudentInput {
         grantType?: GrantType;
         scholarshipStatus: string;
     }>;
+    fees?: StudentFeesInput;
 }
 
 export type UpdateStudentInput = Partial<CreateStudentInput>;
@@ -198,6 +199,18 @@ export interface CreateStudentFeesInput {
 }
 
 export type UpdateStudentFeesInput = Partial<CreateStudentFeesInput>;
+
+// ============================================
+// FEE FORM TYPES
+// ============================================
+
+// Fee data for form submission (manual input only)
+export interface StudentFeesInput {
+    tuitionFee?: number;
+    otherFee?: number;
+    miscellaneousFee?: number;
+    laboratoryFee?: number;
+}
 
 // ============================================
 // ENUM VALUES

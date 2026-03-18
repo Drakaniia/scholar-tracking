@@ -192,47 +192,88 @@ export async function POST(request: NextRequest) {
         });
 
         // Handle multiple scholarships if provided
-        if (body.scholarships && body.scholarships.length > 0) {
-            // Validate scholarship assignments before creating them
-            const scholarshipIds = body.scholarships.map(s => s.scholarshipId);
-            await validateMultipleStudentScholarshipEligibility(student.id, scholarshipIds);
 
-            await prisma.studentScholarship.createMany({
-                data: body.scholarships.map(scholarship => ({
-                    studentId: student.id,
-                    scholarshipId: scholarship.scholarshipId,
-                    awardDate: scholarship.awardDate || new Date(),
-                    startTerm: scholarship.startTerm || '',
-                    endTerm: scholarship.endTerm || '',
-                    grantAmount: scholarship.grantAmount || 0,
-                    grantType: scholarship.grantType || 'FULL',
-                    scholarshipStatus: scholarship.scholarshipStatus || 'Active',
-                })),
-            });
+                if (body.scholarships && body.scholarships.length > 0) {
 
-            // Auto-create StudentFees from scholarships
-            await createStudentFeesFromScholarships(student.id, body.scholarships.map(s => s.scholarshipId));
-        }
-        // Fallback to single scholarship for backward compatibility
-        else if (body.scholarshipId) {
-            // Validate scholarship assignment before creating it
-            await validateMultipleStudentScholarshipEligibility(student.id, [body.scholarshipId]);
+                    // Validate scholarship assignments before creating them
 
-            await prisma.studentScholarship.create({
-                data: {
-                    studentId: student.id,
-                    scholarshipId: body.scholarshipId,
-                    awardDate: body.awardDate || new Date(),
-                    startTerm: body.startTerm || '',
-                    endTerm: body.endTerm || '',
-                    grantAmount: body.grantAmount || 0,
-                    scholarshipStatus: body.scholarshipStatus || 'Active',
-                },
-            });
+                    const scholarshipIds = body.scholarships.map(s => s.scholarshipId);
 
-            // Auto-create StudentFees from scholarship
-            await createStudentFeesFromScholarships(student.id, [body.scholarshipId]);
-        }
+                    await validateMultipleStudentScholarshipEligibility(student.id, scholarshipIds);
+
+        
+
+                    await prisma.studentScholarship.createMany({
+
+                        data: body.scholarships.map(scholarship => ({
+
+                            studentId: student.id,
+
+                            scholarshipId: scholarship.scholarshipId,
+
+                            awardDate: scholarship.awardDate || new Date(),
+
+                            startTerm: scholarship.startTerm || '',
+
+                            endTerm: scholarship.endTerm || '',
+
+                            grantAmount: scholarship.grantAmount || 0,
+
+                            grantType: scholarship.grantType || 'FULL',
+
+                            scholarshipStatus: scholarship.scholarshipStatus || 'Active',
+
+                        })),
+
+                    });
+
+                }
+
+        
+
+                // Fallback to single scholarship for backward compatibility
+
+                else if (body.scholarshipId) {
+
+                    // Validate scholarship assignment before creating it
+
+                    await validateMultipleStudentScholarshipEligibility(student.id, [body.scholarshipId]);
+
+        
+
+                    await prisma.studentScholarship.create({
+
+                        data: {
+
+                            studentId: student.id,
+
+                            scholarshipId: body.scholarshipId,
+
+                            awardDate: body.awardDate || new Date(),
+
+                            startTerm: body.startTerm || '',
+
+                            endTerm: body.endTerm || '',
+
+                            grantAmount: body.grantAmount || 0,
+
+                            scholarshipStatus: body.scholarshipStatus || 'Active',
+
+                        },
+
+                    });
+
+                }
+
+        
+
+                // Create StudentFees with manual values
+
+                if (body.fees) {
+
+                    await createStudentFeesManual(student.id, body.fees);
+
+                }
 
         return NextResponse.json({
             success: true,
@@ -249,44 +290,48 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Helper function to create StudentFees from assigned scholarships
- * Copies fee structure from scholarship to student's fee record
+ * Helper function to create StudentFees with manual values
  */
-async function createStudentFeesFromScholarships(studentId: number, scholarshipIds: number[]) {
+async function createStudentFeesManual(
+    studentId: number,
+    fees: {
+        tuitionFee?: number;
+        otherFee?: number;
+        miscellaneousFee?: number;
+        laboratoryFee?: number;
+    }
+) {
     // Get current academic year
     const currentAcademicYear = await prisma.academicYear.findFirst({
         where: { isActive: true },
     });
 
-    const term = currentAcademicYear?.semester === '1ST' ? '1st Semester' : 
+    const term = currentAcademicYear?.semester === '1ST' ? '1st Semester' :
                  currentAcademicYear?.semester === '2ND' ? '2nd Semester' : 'Summer';
-    
+
     const academicYear = currentAcademicYear?.year || new Date().getFullYear().toString();
     const academicYearId = currentAcademicYear?.id || null;
 
-    // Get all scholarships with their fee structures
-    const scholarships = await prisma.scholarship.findMany({
-        where: { id: { in: scholarshipIds } },
+    // Calculate total fees
+    const totalFees = (fees.tuitionFee || 0) +
+                     (fees.otherFee || 0) +
+                     (fees.miscellaneousFee || 0) +
+                     (fees.laboratoryFee || 0);
+
+    // Calculate subsidies based on scholarships
+    const studentScholarships = await prisma.studentScholarship.findMany({
+        where: { studentId },
+        include: { scholarship: true },
     });
 
-    // Calculate total fees from all scholarships
-    let totalTuitionFee = 0;
-    let totalMiscellaneousFee = 0;
-    let totalLaboratoryFee = 0;
-    let totalOtherFee = 0;
     let totalAmountSubsidy = 0;
-
-    for (const scholarship of scholarships) {
-        totalTuitionFee += Number(scholarship.tuitionFee) || 0;
-        totalMiscellaneousFee += Number(scholarship.miscellaneousFee) || 0;
-        totalLaboratoryFee += Number(scholarship.laboratoryFee) || 0;
-        totalOtherFee += Number(scholarship.otherFee) || 0;
-        totalAmountSubsidy += Number(scholarship.amountSubsidy) || 0;
+    for (const ss of studentScholarships) {
+        totalAmountSubsidy += Number(ss.scholarship.amountSubsidy) || 0;
     }
 
     // Calculate percent subsidy (as decimal, e.g., 0.1667 for 16.67%)
-    const totalFees = totalTuitionFee + totalMiscellaneousFee + totalLaboratoryFee + totalOtherFee;
-    const percentSubsidy = totalFees > 0 ? Number((totalAmountSubsidy / totalFees).toFixed(4)) : 0;
+    const amountSubsidy = Math.min(totalAmountSubsidy, totalFees);
+    const percentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
 
     // Check if fees already exist for this term
     const existingFees = await prisma.studentFees.findFirst({
@@ -298,15 +343,15 @@ async function createStudentFeesFromScholarships(studentId: number, scholarshipI
     });
 
     if (existingFees) {
-        // Update existing fees by adding to current values
+        // Update existing fees
         await prisma.studentFees.update({
             where: { id: existingFees.id },
             data: {
-                tuitionFee: Number(existingFees.tuitionFee) + totalTuitionFee,
-                miscellaneousFee: Number(existingFees.miscellaneousFee) + totalMiscellaneousFee,
-                laboratoryFee: Number(existingFees.laboratoryFee) + totalLaboratoryFee,
-                otherFee: Number(existingFees.otherFee) + totalOtherFee,
-                amountSubsidy: Number(existingFees.amountSubsidy) + totalAmountSubsidy,
+                tuitionFee: fees.tuitionFee || 0,
+                otherFee: fees.otherFee || 0,
+                miscellaneousFee: fees.miscellaneousFee || 0,
+                laboratoryFee: fees.laboratoryFee || 0,
+                amountSubsidy,
                 percentSubsidy,
                 academicYearId,
             },
@@ -316,11 +361,11 @@ async function createStudentFeesFromScholarships(studentId: number, scholarshipI
         await prisma.studentFees.create({
             data: {
                 studentId,
-                tuitionFee: totalTuitionFee,
-                miscellaneousFee: totalMiscellaneousFee,
-                laboratoryFee: totalLaboratoryFee,
-                otherFee: totalOtherFee,
-                amountSubsidy: totalAmountSubsidy,
+                tuitionFee: fees.tuitionFee || 0,
+                otherFee: fees.otherFee || 0,
+                miscellaneousFee: fees.miscellaneousFee || 0,
+                laboratoryFee: fees.laboratoryFee || 0,
+                amountSubsidy,
                 percentSubsidy,
                 term: `${term} ${academicYear}`,
                 academicYear,

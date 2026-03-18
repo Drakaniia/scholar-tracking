@@ -12,11 +12,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DialogFooter } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { YEAR_LEVELS, GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, GradeLevel, GrantType, TermType, TERM_TYPES, TERM_TYPE_LABELS, TERM_FORMATS } from '@/types';
 import { useState, useEffect } from 'react';
-import { Plus, X, Search, Filter, Calendar } from 'lucide-react';
+import { Plus, X, Search, Filter, Calendar, Info } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,6 +27,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Completed', 'Suspended'] as const;
 
@@ -69,7 +75,7 @@ const GRADE_SCHOOL_LEVELS = [
     'Grade 6'
 ] as const;
 
-interface Scholarship {
+interface ScholarshipFormData {
     id: number;
     scholarshipName: string;
     type: string;
@@ -124,7 +130,7 @@ export function StudentForm({
     const [customCourse, setCustomCourse] = useState('');
     const [customProgram, setCustomProgram] = useState('');
     const [customStrand, setCustomStrand] = useState('');
-    const [scholarships, setScholarships] = useState<Scholarship[]>([]);
+    const [scholarships, setScholarships] = useState<ScholarshipFormData[]>([]);
     const [loadingScholarships, setLoadingScholarships] = useState(false);
     const [selectedScholarships, setSelectedScholarships] = useState<SelectedScholarship[]>(
         defaultValues?.scholarships?.map(s => ({
@@ -141,6 +147,14 @@ export function StudentForm({
     const [scholarshipSearch, setScholarshipSearch] = useState('');
     const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<'all' | 'INTERNAL' | 'EXTERNAL'>('all');
     const [showScholarshipSelector, setShowScholarshipSelector] = useState(false);
+
+    // Fee state management (manual input only)
+    const [fees, setFees] = useState({
+        tuitionFee: 0,
+        otherFee: 0,
+        miscellaneousFee: 0,
+        laboratoryFee: 0
+    });
 
     const form = useForm<CreateStudentInput>({
         defaultValues: {
@@ -220,7 +234,7 @@ export function StudentForm({
         setCustomStrand('');
     };
 
-    const addScholarship = (scholarship: Scholarship) => {
+    const addScholarship = (scholarship: ScholarshipFormData) => {
         const alreadySelected = selectedScholarships.some(s => s.scholarshipId === scholarship.id);
         if (alreadySelected) return;
 
@@ -342,12 +356,28 @@ export function StudentForm({
         return scholarships.find(s => s.id === scholarshipId);
     };
 
+    // Handle fee field changes (manual input only)
+    const handleFeeChange = (field: keyof typeof fees, value: number) => {
+        setFees(prev => ({ ...prev, [field]: value }));
+    };
+
+    // Calculate total fees
+    const getTotalFees = () => {
+        return fees.tuitionFee + fees.otherFee + fees.miscellaneousFee + fees.laboratoryFee;
+    };
+
     const handleFormSubmit = (data: CreateStudentInput) => {
-        const submitData = {
+        const submitData: CreateStudentInput = {
             ...data,
             scholarships: selectedScholarships.length > 0 ? selectedScholarships : undefined,
+            fees: {
+                tuitionFee: fees.tuitionFee,
+                otherFee: fees.otherFee,
+                miscellaneousFee: fees.miscellaneousFee,
+                laboratoryFee: fees.laboratoryFee
+            }
         };
-        
+
         // Show confirmation dialog when editing
         if (isEditing) {
             setPendingData(submitData);
@@ -975,6 +1005,110 @@ export function StudentForm({
                                 </div>
                     </Card>
                 )}
+            </div>
+
+            {/* Fee Information Section */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">Fee Information</h3>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Info className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="text-sm max-w-xs">
+                                    Enter the actual amounts this student needs to pay. These vary per student.
+                                    Total Fees are auto-calculated.
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+
+                <Card className="border-2 p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Tuition Fee */}
+                        <div className="space-y-2">
+                            <Label htmlFor="tuitionFee" className="text-sm font-medium">Tuition Fee</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
+                                <Input
+                                    id="tuitionFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={fees.tuitionFee}
+                                    onChange={(e) => handleFeeChange('tuitionFee', parseFloat(e.target.value) || 0)}
+                                    className="pl-7 h-10"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Other Fees */}
+                        <div className="space-y-2">
+                            <Label htmlFor="otherFee" className="text-sm font-medium">Other Fees</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
+                                <Input
+                                    id="otherFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={fees.otherFee}
+                                    onChange={(e) => handleFeeChange('otherFee', parseFloat(e.target.value) || 0)}
+                                    className="pl-7 h-10"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Miscellaneous Fee */}
+                        <div className="space-y-2">
+                            <Label htmlFor="miscellaneousFee" className="text-sm font-medium">Miscellaneous Fee</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
+                                <Input
+                                    id="miscellaneousFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={fees.miscellaneousFee}
+                                    onChange={(e) => handleFeeChange('miscellaneousFee', parseFloat(e.target.value) || 0)}
+                                    className="pl-7 h-10"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Laboratory Fee */}
+                        <div className="space-y-2">
+                            <Label htmlFor="laboratoryFee" className="text-sm font-medium">Laboratory Fee</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₱</span>
+                                <Input
+                                    id="laboratoryFee"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={fees.laboratoryFee}
+                                    onChange={(e) => handleFeeChange('laboratoryFee', parseFloat(e.target.value) || 0)}
+                                    className="pl-7 h-10"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Total Fees Summary */}
+                    <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                        <span className="text-sm font-medium">Total Fees:</span>
+                        <span className="text-lg font-bold text-primary">
+                            ₱{getTotalFees().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                </Card>
             </div>
 
             <DialogFooter className="gap-3 pt-4">

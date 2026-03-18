@@ -40,6 +40,11 @@ const LoginPage = () => {
       }
 
       if (response.ok && result.success) {
+        // Store user data in sessionStorage for instant auth on next page load
+        if (result.user) {
+          sessionStorage.setItem('scholartrack_user', JSON.stringify(result.user));
+        }
+        
         // Redirect directly to dashboard
         router.push('/');
       } else {
