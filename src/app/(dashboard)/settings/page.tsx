@@ -1179,7 +1179,10 @@ export default function SettingsPage() {
   <FileText className="h-4 w-4" />
   Audit Logs
   </TabsTrigger>
-  <TabsTrigger value="archived" className="gap-2">
+  <TabsTrigger value="archived" className="gap-2" onClick={() => {
+  fetchArchivedStudents(1);
+  fetchArchivedScholarships(1);
+  }}>
   <Archive className="h-4 w-4" />
   Archived Items
   </TabsTrigger>

@@ -207,6 +207,19 @@ export function StudentForm({
         }
     }, [scholarships]);
 
+    useEffect(() => {
+        // Populate fees from defaultValues when editing
+        if (isEditing && defaultValues?.fees) {
+            const fee = defaultValues.fees;
+            setFees({
+                tuitionFee: Number(fee.tuitionFee) || 0,
+                otherFee: Number(fee.otherFee) || 0,
+                miscellaneousFee: Number(fee.miscellaneousFee) || 0,
+                laboratoryFee: Number(fee.laboratoryFee) || 0,
+            });
+        }
+    }, [defaultValues?.fees, isEditing]);
+
     const fetchScholarships = async () => {
         setLoadingScholarships(true);
         try {

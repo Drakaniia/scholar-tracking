@@ -230,8 +230,17 @@ const closeDeleteDialog = () => {
   }, []);
 
   const handleEdit = async (student: Student) => {
- setEditingStudent(student as StudentWithScholarships);
- setDialogOpen(true);
+ try {
+   // Fetch student details including fees
+   const res = await fetch(`/api/students/${student.id}`, { credentials: 'include' });
+   const json = await res.json();
+   if (json.success) {
+     setEditingStudent(json.data as StudentWithScholarships);
+     setDialogOpen(true);
+   }
+ } catch (error) {
+   console.error('Error fetching student details:', error);
+   }
  };
 
  const handleFormSubmit = async (data: CreateStudentInput) => {
@@ -344,6 +353,12 @@ const handleViewDetails = (studentId: number) => {
   yearLevel: editingStudent.yearLevel,
   status: editingStudent.status,
   birthDate: editingStudent.birthDate ? new Date(editingStudent.birthDate) : undefined,
+  fees: editingStudent.fees && editingStudent.fees.length > 0 ? {
+  tuitionFee: editingStudent.fees[0].tuitionFee,
+  otherFee: editingStudent.fees[0].otherFee,
+  miscellaneousFee: editingStudent.fees[0].miscellaneousFee,
+  laboratoryFee: editingStudent.fees[0].laboratoryFee,
+  } : undefined,
   scholarships: editingStudent.scholarships?.map(ss => ({
   scholarshipId: ss.scholarshipId,
   awardDate: new Date(ss.awardDate),
