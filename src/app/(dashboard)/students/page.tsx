@@ -58,6 +58,12 @@ type StudentMutationData = {
   yearLevel: string;
   status: string;
   birthDate?: Date | null;
+  fees?: {
+    tuitionFee: number;
+    otherFee: number;
+    miscellaneousFee: number;
+    laboratoryFee: number;
+  };
   scholarships?: Array<{
     scholarshipId: number;
     awardDate: Date;
@@ -255,6 +261,12 @@ const closeDeleteDialog = () => {
      yearLevel: data.yearLevel,
      status: data.status,
      birthDate: data.birthDate || null,
+     fees: data.fees ? {
+       tuitionFee: Number(data.fees.tuitionFee) || 0,
+       otherFee: Number(data.fees.otherFee) || 0,
+       miscellaneousFee: Number(data.fees.miscellaneousFee) || 0,
+       laboratoryFee: Number(data.fees.laboratoryFee) || 0,
+     } : undefined,
      scholarships: data.scholarships?.map(s => ({
        scholarshipId: s.scholarshipId,
        awardDate: s.awardDate,

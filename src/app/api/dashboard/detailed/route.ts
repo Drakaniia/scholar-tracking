@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
                     },
                 },
                 fees: {
-                    orderBy: { createdAt: 'desc' },
+                    // Prefer the latest edited fee record (users may update subsidies/fees without creating a new row)
+                    orderBy: { updatedAt: 'desc' },
                     take: 1,
                 },
             },

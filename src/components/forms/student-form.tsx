@@ -208,17 +208,38 @@ export function StudentForm({
     }, [scholarships]);
 
     useEffect(() => {
-        // Populate fees from defaultValues when editing
+        // Populate fees from defaultValues when editing - only run once when editing mode changes
+        // We don't want this to re-run when defaultValues changes during typing
         if (isEditing && defaultValues?.fees) {
             const fee = defaultValues.fees;
+            setFees(prevFees => {
+                // Only update if the values are different to avoid unnecessary re-renders
+                const newFees = {
+                    tuitionFee: Number(fee.tuitionFee) || 0,
+                    otherFee: Number(fee.otherFee) || 0,
+                    miscellaneousFee: Number(fee.miscellaneousFee) || 0,
+                    laboratoryFee: Number(fee.laboratoryFee) || 0,
+                };
+                // Check if values are actually different
+                if (prevFees.tuitionFee !== newFees.tuitionFee ||
+                    prevFees.otherFee !== newFees.otherFee ||
+                    prevFees.miscellaneousFee !== newFees.miscellaneousFee ||
+                    prevFees.laboratoryFee !== newFees.laboratoryFee) {
+                    return newFees;
+                }
+                return prevFees;
+            });
+        } else if (!isEditing) {
+            // Reset fees when not editing (adding new student)
             setFees({
-                tuitionFee: Number(fee.tuitionFee) || 0,
-                otherFee: Number(fee.otherFee) || 0,
-                miscellaneousFee: Number(fee.miscellaneousFee) || 0,
-                laboratoryFee: Number(fee.laboratoryFee) || 0,
+                tuitionFee: 0,
+                otherFee: 0,
+                miscellaneousFee: 0,
+                laboratoryFee: 0,
             });
         }
-    }, [defaultValues?.fees, isEditing]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isEditing]);
 
     const fetchScholarships = async () => {
         setLoadingScholarships(true);

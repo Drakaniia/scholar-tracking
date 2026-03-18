@@ -69,10 +69,12 @@ export default function ReportsPage() {
  const [isRefreshing, setIsRefreshing] = useState(false);
 
  // TanStack Query hook for data fetching
+ // staleTime: 0 ensures fresh data is always fetched when this page mounts,
+ // so fee/subsidy edits from the student page appear immediately.
  const { data: detailedData, refetch: refetchDetailedView } = useDashboardDetailed(
    undefined,
    {
-     staleTime: 5 * 60 * 1000,
+     staleTime: 0,
      refetchOnWindowFocus: false,
    }
  );
@@ -92,15 +94,22 @@ export default function ReportsPage() {
          namesByGradeAndType[gradeLevel] = {};
        }
 
-       student.scholarships.forEach((ss: DetailedStudent['scholarships'][0]) => {
-         if (ss.scholarship?.type && ss.scholarship?.scholarshipName) {
-           const type = ss.scholarship.type;
-           if (!namesByGradeAndType[gradeLevel][type]) {
-             namesByGradeAndType[gradeLevel][type] = new Set();
-           }
-           namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
+       if (!student.scholarships || student.scholarships.length === 0) {
+         if (!namesByGradeAndType[gradeLevel]['No Scholarship']) {
+           namesByGradeAndType[gradeLevel]['No Scholarship'] = new Set();
          }
-       });
+         namesByGradeAndType[gradeLevel]['No Scholarship'].add('Unassigned');
+       } else {
+         student.scholarships.forEach((ss: DetailedStudent['scholarships'][0]) => {
+           if (ss.scholarship?.type && ss.scholarship?.scholarshipName) {
+             const type = ss.scholarship.type;
+             if (!namesByGradeAndType[gradeLevel][type]) {
+               namesByGradeAndType[gradeLevel][type] = new Set();
+             }
+             namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
+           }
+         });
+       }
      });
 
      // Convert Sets to sorted arrays
@@ -130,7 +139,10 @@ export default function ReportsPage() {
 
  const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
  return detailedStudents.filter(
- (s) => s.gradeLevel === gradeLevel && s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
+ (s) => s.gradeLevel === gradeLevel && 
+      (scholarshipType === 'No Scholarship' 
+        ? (!s.scholarships || s.scholarships.length === 0)
+        : s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType))
  );
  };
 
@@ -160,6 +172,8 @@ export default function ReportsPage() {
 
  const hasMatchingScholarship = (student: DetailedStudent): boolean => {
  if (fundingTypeFilter === 'all') return true;
+ if (!student.scholarships || student.scholarships.length === 0) return false;
+ 
  if (fundingTypeFilter === 'internal') {
  return student.scholarships?.some(ss => isInternalScholarship(ss.scholarship?.type));
  }
