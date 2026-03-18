@@ -63,48 +63,28 @@ export async function POST(
             );
         }
 
-        const body: CreateStudentFeesInput & { academicYearId?: number } = await request.json();
+        const body: CreateStudentFeesInput & { academicYearId?: number; id?: number } = await request.json();
 
         // Calculate percentSubsidy from amountSubsidy and total fees
-        const totalFees = 
-            Number(body.tuitionFee) + 
-            Number(body.miscellaneousFee) + 
-            Number(body.laboratoryFee) + 
+        const totalFees =
+            Number(body.tuitionFee) +
+            Number(body.miscellaneousFee) +
+            Number(body.laboratoryFee) +
             Number(body.otherFee);
-        
-        const percentSubsidy = totalFees > 0 
-            ? (Number(body.amountSubsidy) / totalFees) * 100 
+
+        const percentSubsidy = totalFees > 0
+            ? (Number(body.amountSubsidy) / totalFees) * 100
             : 0;
 
-        // Check if fees already exist for this term and academic year
-        const existingFees = await prisma.studentFees.findFirst({
-            where: {
-                studentId,
-                term: body.term,
-                academicYear: body.academicYear,
-            },
-        });
-
         let fees;
-        if (existingFees) {
-            // Update existing fees
+        let wasUpdated = false;
+        
+        // If id is provided, update by id directly
+        if (body.id) {
+            // Update existing fees by id
             fees = await prisma.studentFees.update({
-                where: { id: existingFees.id },
+                where: { id: body.id },
                 data: {
-                    tuitionFee: body.tuitionFee,
-                    miscellaneousFee: body.miscellaneousFee,
-                    laboratoryFee: body.laboratoryFee,
-                    otherFee: body.otherFee,
-                    amountSubsidy: body.amountSubsidy,
-                    percentSubsidy,
-                    academicYearId: body.academicYearId || null,
-                },
-            });
-        } else {
-            // Create new fees
-            fees = await prisma.studentFees.create({
-                data: {
-                    studentId,
                     tuitionFee: body.tuitionFee,
                     miscellaneousFee: body.miscellaneousFee,
                     laboratoryFee: body.laboratoryFee,
@@ -116,6 +96,49 @@ export async function POST(
                     academicYearId: body.academicYearId || null,
                 },
             });
+            wasUpdated = true;
+        } else {
+            // Check if fees already exist for this term and academic year
+            const existingFees = await prisma.studentFees.findFirst({
+                where: {
+                    studentId,
+                    term: body.term,
+                    academicYear: body.academicYear,
+                },
+            });
+
+            if (existingFees) {
+                // Update existing fees
+                fees = await prisma.studentFees.update({
+                    where: { id: existingFees.id },
+                    data: {
+                        tuitionFee: body.tuitionFee,
+                        miscellaneousFee: body.miscellaneousFee,
+                        laboratoryFee: body.laboratoryFee,
+                        otherFee: body.otherFee,
+                        amountSubsidy: body.amountSubsidy,
+                        percentSubsidy,
+                        academicYearId: body.academicYearId || null,
+                    },
+                });
+                wasUpdated = true;
+            } else {
+                // Create new fees
+                fees = await prisma.studentFees.create({
+                    data: {
+                        studentId,
+                        tuitionFee: body.tuitionFee,
+                        miscellaneousFee: body.miscellaneousFee,
+                        laboratoryFee: body.laboratoryFee,
+                        otherFee: body.otherFee,
+                        amountSubsidy: body.amountSubsidy,
+                        percentSubsidy,
+                        term: body.term,
+                        academicYear: body.academicYear,
+                        academicYearId: body.academicYearId || null,
+                    },
+                });
+            }
         }
 
         // Invalidate cache
@@ -126,7 +149,7 @@ export async function POST(
         return NextResponse.json({
             success: true,
             data: fees,
-            message: existingFees ? 'Student fees updated successfully' : 'Student fees created successfully',
+            message: wasUpdated ? 'Student fees updated successfully' : 'Student fees created successfully',
         });
     } catch (error) {
         console.error('Error saving student fees:', error);

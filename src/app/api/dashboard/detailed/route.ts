@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 // GET /api/dashboard/detailed - Get detailed student report
 export async function GET(request: NextRequest) {
@@ -7,27 +8,44 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const sourceFilter = searchParams.get('source') || '';
 
-        const students = await prisma.student.findMany({
-            where: {
-                scholarships: {
-                    some: sourceFilter ? {
-                        scholarship: {
-                            source: sourceFilter,
-                        },
-                    } : {},
+        // Build where clause - include all students, filter by scholarship source if specified
+        const whereClause: Prisma.StudentWhereInput = {};
+        
+        // Only filter by scholarship if a source is specified
+        if (sourceFilter) {
+            whereClause.scholarships = {
+                some: {
+                    scholarship: {
+                        source: sourceFilter,
+                    },
                 },
-            },
+            };
+        }
+        // If no source filter, don't add scholarships filter - include all students
+
+        const students = await prisma.student.findMany({
+            where: whereClause,
             orderBy: [
                 { gradeLevel: 'asc' },
                 { lastName: 'asc' },
             ],
             include: {
-                scholarships: {
-                    where: sourceFilter ? {
+                scholarships: sourceFilter ? {
+                    where: {
                         scholarship: {
                             source: sourceFilter,
                         },
-                    } : undefined,
+                    },
+                    include: {
+                        scholarship: {
+                            select: {
+                                scholarshipName: true,
+                                type: true,
+                                source: true,
+                            },
+                        },
+                    },
+                } : {
                     include: {
                         scholarship: {
                             select: {

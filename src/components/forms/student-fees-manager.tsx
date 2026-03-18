@@ -161,8 +161,15 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...editData,
+                    id: editData.id,
+                    tuitionFee: editData.tuitionFee,
+                    miscellaneousFee: editData.miscellaneousFee,
+                    laboratoryFee: editData.laboratoryFee,
+                    otherFee: editData.otherFee,
+                    amountSubsidy: editData.amountSubsidy,
                     percentSubsidy,
+                    term: editData.term,
+                    academicYear: editData.academicYear,
                     studentId,
                 }),
             });

@@ -34,6 +34,7 @@ import {
   useCreateScholarship,
   useUpdateScholarship,
   useDeleteScholarship,
+  useScholarshipFilterOptions,
 } from '@/hooks/use-queries';
 import {
  Select,
@@ -105,7 +106,6 @@ export default function ScholarshipsPage() {
  const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
  const [deletingScholarship, setDeletingScholarship] = useState<Scholarship | null>(null);
  const [submitting, setSubmitting] = useState(false);
- const [counts] = useState<ScholarshipCounts>({ total: 0, internal: 0, external: 0 });
  const [page, setPage] = useState(1);
  const [totalPages, setTotalPages] = useState(1);
  const [total, setTotal] = useState(0);
@@ -131,6 +131,20 @@ export default function ScholarshipsPage() {
  const createScholarshipMutation = useCreateScholarship();
  const updateScholarshipMutation = useUpdateScholarship();
  const deleteScholarshipMutation = useDeleteScholarship();
+
+ // TanStack Query hook for filter options
+ const { data: filterOptionsData } = useScholarshipFilterOptions({
+   source: sourceFilter,
+ });
+
+ const [counts, setCounts] = useState<ScholarshipCounts>({ total: 0, internal: 0, external: 0 });
+
+ // Update counts when filter options data changes
+ useEffect(() => {
+   if (filterOptionsData?.data) {
+     setCounts(filterOptionsData.data as ScholarshipCounts);
+   }
+ }, [filterOptionsData]);
 
  // Update state when TanStack Query data changes
  useEffect(() => {
@@ -636,7 +650,7 @@ export default function ScholarshipsPage() {
  <div>
  <p className="text-sm font-medium text-muted-foreground">% Subsidy</p>
  <p className="text-lg font-semibold">
- {selectedScholarship.percentSubsidy.toFixed(2)}%
+ {Number(selectedScholarship.percentSubsidy || 0).toFixed(2)}%
  </p>
  </div>
  <div>
