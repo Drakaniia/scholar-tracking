@@ -440,7 +440,7 @@ function DashboardContent() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-600 mb-4">Failed to load dashboard data</p>
-          <Button onClick={() => router.push('/loading')} variant="gradient">
+          <Button onClick={() => window.location.reload()} variant="gradient">
             Reload Dashboard
           </Button>
         </div>

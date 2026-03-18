@@ -69,41 +69,58 @@ export async function GET(request: NextRequest) {
             disbursements: () => prisma.disbursement.aggregate({
                 _sum: { amount: true },
             }),
-            monthlyTrends: () => prisma.$queryRaw`
-                WITH months AS (
-                    SELECT generate_series(
-                        DATE_TRUNC('month', NOW() - INTERVAL '5 months'),
-                        DATE_TRUNC('month', NOW()),
-                        '1 month'::interval
-                    ) AS month
-                ),
-                awarded_by_month AS (
-                    SELECT 
-                        DATE_TRUNC('month', ss.award_date) as month,
-                        COALESCE(SUM(ss.grant_amount), 0)::numeric as total_awarded
-                    FROM student_scholarships ss
-                    WHERE ss.award_date >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
-                        AND ss.award_date <= DATE_TRUNC('month', NOW())
-                    GROUP BY DATE_TRUNC('month', ss.award_date)
-                ),
-                disbursed_by_month AS (
-                    SELECT 
-                        DATE_TRUNC('month', d.disbursement_date) as month,
-                        COALESCE(SUM(d.amount), 0)::numeric as total_disbursed
-                    FROM disbursements d
-                    WHERE d.disbursement_date >= DATE_TRUNC('month', NOW() - INTERVAL '5 months')
-                        AND d.disbursement_date <= DATE_TRUNC('month', NOW())
-                    GROUP BY DATE_TRUNC('month', d.disbursement_date)
-                )
-                SELECT 
-                    TO_CHAR(m.month, 'Mon') as month,
-                    COALESCE(awarded_by_month.total_awarded, 0)::numeric as awarded,
-                    COALESCE(disbursed_by_month.total_disbursed, 0)::numeric as disbursed
-                FROM months m
-                LEFT JOIN awarded_by_month ON DATE_TRUNC('month', awarded_by_month.month) = m.month
-                LEFT JOIN disbursed_by_month ON DATE_TRUNC('month', disbursed_by_month.month) = m.month
-                ORDER BY m.month ASC
-            `,
+            monthlyTrends: async () => {
+                // Get recent student scholarships and disbursements
+                const [scholarships, disbs] = await Promise.all([
+                    prisma.studentScholarship.findMany({
+                        take: 100,
+                        orderBy: { awardDate: 'desc' },
+                        select: {
+                            awardDate: true,
+                            grantAmount: true,
+                        },
+                    }),
+                    prisma.disbursement.findMany({
+                        take: 100,
+                        orderBy: { disbursementDate: 'desc' },
+                        select: {
+                            disbursementDate: true,
+                            amount: true,
+                        },
+                    }),
+                ]);
+
+                // Group by month (last 6 months)
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const now = new Date();
+                const result: Array<{ month: string; awarded: number; disbursed: number }> = [];
+
+                for (let i = 5; i >= 0; i--) {
+                    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+                    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+
+                    const monthName = months[monthDate.getMonth()];
+
+                    const awarded = scholarships
+                        .filter(s => {
+                            const d = new Date(s.awardDate);
+                            return d >= monthStart && d <= monthEnd;
+                        })
+                        .reduce((sum, s) => sum + Number(s.grantAmount), 0);
+
+                    const disbursed = disbs
+                        .filter(d => {
+                            const date = new Date(d.disbursementDate);
+                            return date >= monthStart && date <= monthEnd;
+                        })
+                        .reduce((sum, d) => sum + Number(d.amount), 0);
+
+                    result.push({ month: monthName, awarded, disbursed });
+                }
+
+                return result;
+            },
             recentStudents: () => prisma.student.findMany({
                 take: 5,
                 orderBy: { updatedAt: 'desc' },

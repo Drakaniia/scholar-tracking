@@ -226,6 +226,7 @@
             <button onclick="zoomOut()">🔍 Zoom Out</button>
             <button onclick="resetZoom()">↺ Reset Zoom</button>
             <button onclick="downloadERD()">⬇️ Download SVG</button>
+            <button onclick="downloadERDAsPNG()">📸 Download PNG</button>
             <button onclick="openInNewTab()">🔗 Open in New Tab</button>
         </div>
         
@@ -391,7 +392,53 @@ flowchart TD
             link.download = 'scholarship-tracking-erd.svg';
             link.click();
         }
-        
+
+        async function downloadERDAsPNG() {
+            try {
+                // Fetch the SVG file directly
+                const response = await fetch('ERD.svg');
+                const svgText = await response.text();
+                
+                // Create a data URL from the SVG
+                const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+                
+                // Create image to load SVG
+                const img = new Image();
+                
+                img.onload = function() {
+                    // Create canvas with SVG dimensions from viewBox
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 1645;
+                    canvas.height = 1971;
+                    
+                    // Draw white background
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw SVG on canvas
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Convert to PNG and download
+                    const pngUrl = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = pngUrl;
+                    link.download = 'scholarship-tracking-erd.png';
+                    link.click();
+                };
+                
+                img.onerror = function() {
+                    console.error('Failed to load SVG image');
+                    alert('Failed to load ERD image for PNG conversion. Please run this page on a local server (e.g., use "npx serve" or open via VS Code Live Server).');
+                };
+                
+                img.src = svgDataUrl;
+            } catch (error) {
+                console.error('Error downloading PNG:', error);
+                alert('Failed to download PNG. This page needs to be served via HTTP server due to browser security restrictions.\n\nSolution: Run a local server:\n1. npx serve docs\n2. Or use VS Code Live Server extension\n3. Or: python -m http.server 8000');
+            }
+        }
+
         function openInNewTab() {
             window.open('ERD.svg', '_blank');
         }

@@ -588,20 +588,6 @@ export function StudentForm({
                     )}
                 />
             </div>
-            
-            <div className="space-y-3">
-                <Label htmlFor="birthDate" className="text-sm font-medium">Birth Date</Label>
-                <Input
-                    id="birthDate"
-                    type="date"
-                    value={defaultValues?.birthDate ? new Date(defaultValues.birthDate).toISOString().split('T')[0] : ''}
-                    onChange={(e) => {
-                        const dateValue = e.target.value ? new Date(e.target.value) : null;
-                        form.setValue('birthDate', dateValue);
-                    }}
-                    className="h-10"
-                />
-            </div>
         </>
     )}
 
