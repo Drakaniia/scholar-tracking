@@ -301,6 +301,22 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================
+// STUDENT FILTER OPTIONS
+// ============================================
+export interface StudentFilterOptions {
+    programs: string[];
+    programCounts: Record<string, number>;
+    gradeLevelCounts: Record<string, number>;
+    statusCounts: Record<string, number>;
+    scholarshipCounts: Record<string, number>;
+    studentsWithoutScholarship: number;
+    total: number;
+    scholarships?: Array<{ id: number; scholarshipName: string }>;
+    filteredTotal?: number;
+    dynamicScholarshipCounts?: Record<string, number>;
+}
+
+// ============================================
 // DASHBOARD STATS
 // ============================================
 export interface DashboardStats {

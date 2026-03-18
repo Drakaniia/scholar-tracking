@@ -12,6 +12,7 @@
  * ```
  */
 
+import { useCallback } from 'react';
 import {
   useQuery,
   useMutation,
@@ -19,6 +20,7 @@ import {
   UseQueryOptions,
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { StudentFilterOptions, CreateStudentInput, UpdateStudentInput } from '@/types';
 
 // ============================================
 // QUERY KEYS (Centralized for consistency)
@@ -292,8 +294,8 @@ export function useStudent(id: number, options?: Partial<UseQueryOptions<ApiResp
   });
 }
 
-export function useStudentFilterOptions(options?: Partial<UseQueryOptions<ApiResponse<{ programs: string[] }>, Error>>) {
-  return useQuery<ApiResponse<{ programs: string[] }>, Error>({
+export function useStudentFilterOptions(options?: Partial<UseQueryOptions<ApiResponse<StudentFilterOptions>, Error>>) {
+  return useQuery<ApiResponse<StudentFilterOptions>, Error>({
     queryKey: queryKeys.students.filterOptions(),
     queryFn: async () => {
       const response = await fetch('/api/students/filter-options', { credentials: 'include' });
@@ -311,7 +313,7 @@ export function useStudentFilterOptions(options?: Partial<UseQueryOptions<ApiRes
 export function useCreateStudent() {
   const queryClient = useQueryClient();
 
-  return useMutation<ApiResponse<{ id: number }>, Error, Partial<Student>>({
+  return useMutation<ApiResponse<{ id: number }>, Error, CreateStudentInput>({
     mutationFn: async (data) => {
       const response = await fetch('/api/students', {
         method: 'POST',
@@ -341,7 +343,7 @@ export function useCreateStudent() {
 export function useUpdateStudent() {
   const queryClient = useQueryClient();
 
-  return useMutation<ApiResponse<unknown>, Error, { id: number; data: Partial<Student> }>({
+  return useMutation<ApiResponse<unknown>, Error, { id: number; data: UpdateStudentInput }>({
     mutationFn: async ({ id, data }) => {
       const response = await fetch(`/api/students/${id}`, {
         method: 'PUT',
@@ -528,4 +530,62 @@ export function useDeleteScholarship() {
       toast.error(error.message || 'Failed to delete scholarship');
     },
   });
+}
+
+/**
+ * Hook to prefetch key data after successful login
+ * This hydrates the cache so subsequent page loads are instant
+ */
+export function usePrefetchData() {
+  const queryClient = useQueryClient();
+
+  const prefetchAll = useCallback(async () => {
+    // Prefetch dashboard stats
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboard.stats(),
+      queryFn: async () => {
+        const response = await fetch('/api/dashboard', { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to prefetch dashboard stats');
+        return response.json();
+      },
+      staleTime: 5 * 60 * 1000,
+    });
+
+    // Prefetch dashboard detailed data
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboard.detailed(),
+      queryFn: async () => {
+        const response = await fetch('/api/dashboard/detailed', { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to prefetch dashboard details');
+        return response.json();
+      },
+      staleTime: 5 * 60 * 1000,
+    });
+
+    // Prefetch students data (first page)
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.students.list({ page: 1, limit: 11 }),
+      queryFn: async () => {
+        const params = new URLSearchParams({ limit: '11', page: '1', archived: 'false' });
+        const response = await fetch(`/api/students?${params}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to prefetch students');
+        return response.json();
+      },
+      staleTime: 2 * 60 * 1000,
+    });
+
+    // Prefetch scholarships data (first page)
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.scholarships.list({ page: 1, limit: 10 }),
+      queryFn: async () => {
+        const params = new URLSearchParams({ limit: '10', page: '1' });
+        const response = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to prefetch scholarships');
+        return response.json();
+      },
+      staleTime: 2 * 60 * 1000,
+    });
+  }, [queryClient]);
+
+  return { prefetchAll };
 }

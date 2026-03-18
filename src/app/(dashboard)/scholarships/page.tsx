@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,13 +23,18 @@ import {
 } from '@/components/ui/table';
 import { Plus, Pencil, Archive, GraduationCap, ChevronLeft, ChevronRight, User, Search, Filter, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { toast } from 'sonner';
 import { ScholarshipForm } from '@/components/forms';
 import { ExportButton } from '@/components/shared';
-import type { CreateScholarshipInput, GrantType } from '@/types';
+import type { CreateScholarshipInput, GrantType, Scholarship, StudentScholarship } from '@/types';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS, GRADE_LEVEL_LABELS } from '@/types';
-import { clientCache } from '@/lib/cache';
+import {
+  useScholarships,
+  useScholarship,
+  useCreateScholarship,
+  useUpdateScholarship,
+  useDeleteScholarship,
+} from '@/hooks/use-queries';
 import {
  Select,
  SelectContent,
@@ -57,44 +62,14 @@ const getScholarshipColor = (scholarshipName: string): string => {
  return PASTEL_COLORS[index];
 };
 
-interface Scholarship {
- id: number;
- scholarshipName: string;
- sponsor: string;
- type: string;
- source: string;
- eligibleGradeLevels: string | null;
- eligiblePrograms: string | null;
- amount: number;
- amountSubsidy: number;
- percentSubsidy: number;
- requirements: string | null;
- status: string;
- grantType: string;
- coversTuition: boolean;
- coversMiscellaneous: boolean;
- coversLaboratory: boolean;
- coversOther: boolean;
- otherFeeName: string | null;
- tuitionFee: number;
- miscellaneousFee: number;
- laboratoryFee: number;
- otherFee: number;
+interface ScholarshipWithCount extends Scholarship {
  _count?: {
  students: number;
  };
 }
 
-interface ScholarshipDetail extends Scholarship {
- students: Array<{
- id: number;
- studentId: number;
- awardDate: string;
- startTerm: string;
- endTerm: string;
- grantAmount: number;
- grantType: string;
- scholarshipStatus: string;
+interface ScholarshipDetail extends ScholarshipWithCount {
+ students: Array<StudentScholarship & {
  student: {
  firstName: string;
  lastName: string;
@@ -120,7 +95,7 @@ interface ScholarshipCounts {
 export default function ScholarshipsPage() {
  const { user } = useAuth();
  const isAdmin = user?.role === 'ADMIN';
- const [scholarships, setScholarships] = useState<Scholarship[]>([]);
+ const [scholarships, setScholarships] = useState<ScholarshipWithCount[]>([]);
  const [loading, setLoading] = useState(true);
  const [isVisible, setIsVisible] = useState(false);
  const [search, setSearch] = useState('');
@@ -130,7 +105,7 @@ export default function ScholarshipsPage() {
  const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
  const [deletingScholarship, setDeletingScholarship] = useState<Scholarship | null>(null);
  const [submitting, setSubmitting] = useState(false);
- const [counts, setCounts] = useState<ScholarshipCounts>({ total: 0, internal: 0, external: 0 });
+ const [counts] = useState<ScholarshipCounts>({ total: 0, internal: 0, external: 0 });
  const [page, setPage] = useState(1);
  const [totalPages, setTotalPages] = useState(1);
  const [total, setTotal] = useState(0);
@@ -138,48 +113,50 @@ export default function ScholarshipsPage() {
  const [selectedScholarship, setSelectedScholarship] = useState<ScholarshipDetail | null>(null);
  const [loadingDetail, setLoadingDetail] = useState(false);
 
- const fetchCounts = useCallback(async () => {
- try {
- const res = await fetch('/api/scholarships?action=counts', { credentials: 'include' });
- const data = await res.json();
- if (data.success) {
- setCounts(data.data);
- }
- } catch (error) {
- console.error('Error fetching scholarship counts:', error);
- }
- }, []);
+ // TanStack Query hooks for data fetching
+ const { data: scholarshipsData, isLoading: scholarshipsLoading } = useScholarships(
+   {
+     search,
+     source: sourceFilter === 'all' ? undefined : sourceFilter,
+     page,
+     limit: 10,
+   }
+ );
 
- const fetchScholarships = useCallback(async () => {
- try {
- const params = new URLSearchParams();
- params.append('limit', '10');
- params.append('page', page.toString());
- if (search) params.append('search', search);
- if (sourceFilter && sourceFilter !== 'all') {
- params.append('source', sourceFilter);
- }
- const res = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
- const data = await res.json();
+ const { data: scholarshipDetail, isLoading: detailLoading } = useScholarship(
+   selectedScholarship?.id || 0,
+   { enabled: !!selectedScholarship?.id }
+ );
 
- if (data.success) {
- setScholarships(data.data);
- setTotal(data.total);
- setTotalPages(data.totalPages);
- }
- } catch (error) {
- console.error('Error fetching scholarships:', error);
- toast.error('Failed to load scholarships');
- } finally {
- setLoading(false);
- setIsVisible(true);
- }
- }, [sourceFilter, page, search]);
+ const createScholarshipMutation = useCreateScholarship();
+ const updateScholarshipMutation = useUpdateScholarship();
+ const deleteScholarshipMutation = useDeleteScholarship();
+
+ // Update state when TanStack Query data changes
+ useEffect(() => {
+   if (scholarshipsData) {
+     setScholarships((scholarshipsData.data || []) as ScholarshipWithCount[]);
+     setTotal(scholarshipsData.total || 0);
+     setTotalPages(scholarshipsData.totalPages || 1);
+   }
+ }, [scholarshipsData]);
 
  useEffect(() => {
- fetchCounts();
- fetchScholarships();
- }, [fetchScholarships, fetchCounts]);
+   setLoading(scholarshipsLoading);
+   if (!scholarshipsLoading) {
+     setIsVisible(true);
+   }
+ }, [scholarshipsLoading]);
+
+ useEffect(() => {
+   if (scholarshipDetail?.data && selectedScholarship) {
+     setSelectedScholarship(scholarshipDetail.data as ScholarshipDetail);
+   }
+ }, [scholarshipDetail, selectedScholarship]);
+
+ useEffect(() => {
+   setLoadingDetail(detailLoading);
+ }, [detailLoading]);
 
  useEffect(() => {
  // Reset to page 1 when filter changes
@@ -189,48 +166,10 @@ export default function ScholarshipsPage() {
  const handleCreate = async (data: CreateScholarshipInput) => {
  setSubmitting(true);
  try {
- const res = await fetch('/api/scholarships', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify(data),
- credentials: 'include',
- });
- const result = await res.json();
-
- if (result.success) {
- toast.success('Scholarship created successfully');
+ await createScholarshipMutation.mutateAsync(data);
  setDialogOpen(false);
- // Clear all cache to ensure fresh data
- clientCache.clear();
- // Clear sessionStorage to force dashboard refresh
- sessionStorage.removeItem('dashboardData');
- sessionStorage.removeItem('detailedStudents');
- // Trigger dashboard refresh event
- window.dispatchEvent(new Event('refreshDashboard'));
- // Refetch with fresh data - add cache-busting parameter
- const cacheBuster = Date.now();
- const params = new URLSearchParams();
- params.append('limit', '10');
- params.append('page', page.toString());
- if (search) params.append('search', search);
- if (sourceFilter && sourceFilter !== 'all') {
- params.append('source', sourceFilter);
- }
- params.append('_t', cacheBuster.toString());
- const freshUrl = `/api/scholarships?${params}`;
- const freshData = await fetch(freshUrl, { credentials: 'include' }).then(r => r.json());
- if (freshData.success) {
- setScholarships(freshData.data);
- setTotal(freshData.total);
- setTotalPages(freshData.totalPages);
- }
- fetchCounts();
- } else {
- toast.error(result.error || 'Failed to create scholarship');
- }
- } catch (error) {
- console.error('Error creating scholarship:', error);
- toast.error('Failed to create scholarship');
+ } catch {
+ // Error handling is already in mutation hook
  } finally {
  setSubmitting(false);
  }
@@ -242,48 +181,11 @@ export default function ScholarshipsPage() {
  setSubmitting(true);
 
  try {
- const res = await fetch(`/api/scholarships/${editingScholarship.id}`, {
- method: 'PUT',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify(data),
- credentials: 'include',
- });
- const result = await res.json();
-
- if (result.success) {
- toast.success('Scholarship updated successfully');
+ await updateScholarshipMutation.mutateAsync({ id: editingScholarship.id, data });
  setDialogOpen(false);
  setEditingScholarship(null);
- // Clear all cache to ensure fresh data
- clientCache.clear();
- // Clear sessionStorage to force dashboard refresh
- sessionStorage.removeItem('dashboardData');
- sessionStorage.removeItem('detailedStudents');
- // Trigger dashboard refresh event
- window.dispatchEvent(new Event('refreshDashboard'));
- // Refetch with fresh data - add cache-busting parameter
- const cacheBuster = Date.now();
- const params = new URLSearchParams();
- params.append('limit', '10');
- params.append('page', page.toString());
- if (sourceFilter && sourceFilter !== 'all') {
- params.append('source', sourceFilter);
- }
- params.append('_t', cacheBuster.toString());
- const freshUrl = `/api/scholarships?${params}`;
- const freshData = await fetch(freshUrl, { credentials: 'include' }).then(r => r.json());
- if (freshData.success) {
- setScholarships(freshData.data);
- setTotal(freshData.total);
- setTotalPages(freshData.totalPages);
- }
- fetchCounts();
- } else {
- toast.error(result.error || 'Failed to update scholarship');
- }
- } catch (error) {
- console.error('Error updating scholarship:', error);
- toast.error('Failed to update scholarship');
+ } catch {
+ // Error handling is already in mutation hook
  } finally {
  setSubmitting(false);
  }
@@ -295,48 +197,11 @@ export default function ScholarshipsPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`/api/scholarships/${deletingScholarship.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive' }),
-        credentials: 'include',
-      });
-      const result = await res.json();
-
-      if (result.success) {
-        toast.success('Scholarship archived successfully');
-        setDeleteDialogOpen(false);
-        setDeletingScholarship(null);
-        // Clear all cache to ensure fresh data
-        clientCache.clear();
-        // Clear sessionStorage to force dashboard refresh
-        sessionStorage.removeItem('dashboardData');
-        sessionStorage.removeItem('detailedStudents');
-        // Trigger dashboard refresh event
-        window.dispatchEvent(new Event('refreshDashboard'));
-        // Refetch with fresh data - add cache-busting parameter
-        const cacheBuster = Date.now();
-        const params = new URLSearchParams();
-        params.append('limit', '10');
-        params.append('page', page.toString());
-        if (sourceFilter && sourceFilter !== 'all') {
-          params.append('source', sourceFilter);
-        }
-        params.append('_t', cacheBuster.toString());
-        const freshUrl = `/api/scholarships?${params}`;
-        const freshData = await fetch(freshUrl, { credentials: 'include' }).then(r => r.json());
-        if (freshData.success) {
-          setScholarships(freshData.data);
-          setTotal(freshData.total);
-          setTotalPages(freshData.totalPages);
-        }
-        fetchCounts();
-      } else {
-        toast.error(result.error || 'Failed to archive scholarship');
-      }
-    } catch (error) {
-      console.error('Error archiving scholarship:', error);
-      toast.error('Failed to archive scholarship');
+      await deleteScholarshipMutation.mutateAsync(deletingScholarship.id);
+      setDeleteDialogOpen(false);
+      setDeletingScholarship(null);
+    } catch {
+      // Error handling is already in mutation hook
     } finally {
       setSubmitting(false);
     }
@@ -367,23 +232,11 @@ export default function ScholarshipsPage() {
  setDeletingScholarship(null);
  };
 
- const handleViewDetails = async (scholarshipId: number) => {
- setLoadingDetail(true);
+ const handleViewDetails = (scholarshipId: number) => {
+ setSelectedScholarship({ id: scholarshipId } as ScholarshipDetail);
  setDetailDialogOpen(true);
- try {
- const res = await fetch(`/api/scholarships/${scholarshipId}`, { credentials: 'include' });
- const json = await res.json();
- if (json.success) {
- setSelectedScholarship(json.data);
- } else {
- toast.error('Failed to load scholarship details');
- }
- } catch (error) {
- console.error('Error fetching scholarship details:', error);
- toast.error('Failed to load scholarship details');
- } finally {
- setLoadingDetail(false);
- }
+ setLoadingDetail(true);
+ // useScholarship hook will fetch automatically due to enabled: !!selectedScholarship?.id
  };
 
  if (loading) {
@@ -564,7 +417,7 @@ export default function ScholarshipsPage() {
  )}
  </TableCell>
  <TableCell>
- {scholarship._count?.students || 0} students
+ {(scholarship as ScholarshipWithCount)._count?.students || 0} students
  </TableCell>
  <TableCell>
  <Badge
@@ -688,11 +541,14 @@ export default function ScholarshipsPage() {
  <DialogTitle>Archive Scholarship</DialogTitle>
 <DialogDescription>
   Are you sure you want to archive &quot;{deletingScholarship?.scholarshipName}&quot;?
-  {deletingScholarship?._count?.students && deletingScholarship._count.students > 0 && (
+  {(() => {
+    const count = (deletingScholarship as ScholarshipWithCount)?._count?.students;
+    return count !== undefined && count > 0 && (
   <span className="block mt-2 text-destructive font-medium">
-  Warning: This scholarship has {deletingScholarship._count.students} student(s) assigned to it.
+  Warning: This scholarship has {count} student(s) assigned to it.
   </span>
-  )}
+  );
+  })()}
   </DialogDescription>
  </DialogHeader>
  <div className="flex justify-end gap-2 mt-4">

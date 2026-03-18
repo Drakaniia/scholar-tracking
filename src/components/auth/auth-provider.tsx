@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { usePrefetchData } from '@/hooks/use-queries';
 
 interface User {
   id: number;
@@ -67,9 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   });
   const [isLoading, setIsLoading] = useState(true);
-  const hasCheckedStorage = true;
   const pathname = usePathname();
   const router = useRouter();
+  const { prefetchAll } = usePrefetchData();
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     // First check sessionStorage - if we have cached user, assume valid
@@ -92,6 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = await response.json();
         setUser(userData.user);
         cacheUser(userData.user);
+
+        // Prefetch key data after successful authentication
+        prefetchAll().catch(err => {
+          console.warn('Failed to prefetch data:', err);
+        });
+
         return true;
       } else {
         setUser(null);
@@ -104,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cacheUser(null);
       return false;
     }
-  }, []);
+  }, [prefetchAll]);
 
   const logout = async () => {
     try {
@@ -142,17 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!hasCheckedStorage) {
-      return;
-    }
-
     let mounted = true;
     let isRedirecting = false;
 
     // Only verify with server if we don't have cached user
     const verifyAuth = async () => {
       const cachedUser = getCachedUser();
-      
+
       // If we have cached user, skip API call and just set loading to false
       if (cachedUser) {
         if (mounted) {
@@ -183,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [pathname, router, checkAuth, hasCheckedStorage]);
+  }, [pathname, router, checkAuth]);
 
   const isAuthenticated = !!user && !isLoading;
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,15 +32,42 @@ import {
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Plus, Search, Pencil, Archive, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { GRADE_LEVELS, GRADE_LEVEL_LABELS, GradeLevel, CreateStudentInput } from '@/types';
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS, CreateStudentInput, Student, StudentScholarship, Disbursement, StudentFees, GradeLevel, GrantType } from '@/types';
 import { StudentForm } from '@/components/forms/student-form';
 import { ExportButton } from '@/components/shared';
 import { ImportButton } from '@/components/shared/import-button';
 import { useAuth } from '@/components/auth/auth-provider';
-import { fetchWithCache, clientCache } from '@/lib/cache';
 import { StudentFeesManager } from '@/components/forms/student-fees-manager';
 import { useDebounce } from '@/hooks/use-debounce';
+import {
+  useStudents,
+  useStudent,
+  useCreateStudent,
+  useUpdateStudent,
+  useDeleteStudent,
+  useStudentFilterOptions,
+} from '@/hooks/use-queries';
+
+type StudentMutationData = {
+  id?: number;
+  lastName: string;
+  firstName: string;
+  middleInitial?: string;
+  program: string;
+  gradeLevel: GradeLevel;
+  yearLevel: string;
+  status: string;
+  birthDate?: Date | null;
+  scholarships?: Array<{
+    scholarshipId: number;
+    awardDate: Date;
+    startTerm: string;
+    endTerm: string;
+    grantAmount: number;
+    grantType?: GrantType;
+    scholarshipStatus: string;
+  }>;
+};
 
 // Pastel colors for scholarships
 const PASTEL_COLORS = [
@@ -60,77 +88,19 @@ const getScholarshipColor = (scholarshipName: string): string => {
  return PASTEL_COLORS[index];
 };
 
-interface Student {
-    id: number;
-    lastName: string;
-    firstName: string;
-    middleInitial: string | null;
-    program: string;
-    gradeLevel: GradeLevel;
-    yearLevel: string;
-    status: string;
-    birthDate?: string | null; // Add birth date field
-    scholarships: Array<{
-        id: number;
-        scholarshipId: number;
-        awardDate: string;
-        startTerm: string;
-        endTerm: string;
-        grantAmount: number;
-        scholarshipStatus: string;
-        scholarship: {
-            scholarshipName: string;
-            type: string;
-            source: string;
-        };
-    }>;
-}
-
 interface StudentWithScholarships extends Student {
- scholarships: Array<{
- id: number;
- scholarshipId: number;
- awardDate: string;
- startTerm: string;
- endTerm: string;
- grantAmount: number;
- scholarshipStatus: string;
- scholarship: {
- scholarshipName: string;
- type: string;
- source: string;
- };
- }>;
+ scholarships: StudentScholarship[];
 }
 
 interface StudentDetail extends Student {
- disbursements: Array<{
- id: number;
- amount: number;
- disbursementDate: string;
- term: string;
- method: string;
- scholarship: {
- scholarshipName: string;
- type: string;
- source: string;
- };
- }>;
- fees: Array<{
- tuitionFee: number;
- otherFee: number;
- miscellaneousFee: number;
- laboratoryFee: number;
- amountSubsidy: number;
- percentSubsidy: number;
- term: string;
- academicYear: string;
- }>;
+ disbursements: Disbursement[];
+ fees: StudentFees[];
 }
 
 export default function StudentsPage() {
  const { user } = useAuth();
  const isAdmin = user?.role === 'ADMIN';
+ const queryClient = useQueryClient();
  const [students, setStudents] = useState<Student[]>([]);
  const [loading, setLoading] = useState(true);
  const [search, setSearch] = useState('');
@@ -161,104 +131,82 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [hoveredScholarshipId, setHoveredScholarshipId] = useState<number | null>(null);
 
-  // Fetch filter counts based on current filters
-  const fetchFilterCounts = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
-      if (programFilter && programFilter !== 'all') params.append('program', programFilter);
-      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
-      if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
-
-      const res = await fetch(`/api/students/filter-options?${params}`, { credentials: 'include' });
-      const data = await res.json();
-
-      if (data.success) {
-        setGradeLevelCounts(data.data.gradeLevelCounts || {});
-        setProgramCounts(data.data.programCounts || {});
-        setStatusCounts(data.data.statusCounts || {});
-        setDynamicScholarshipCounts(data.data.scholarshipCounts || {});
-        setStudentsWithoutScholarship(data.data.studentsWithoutScholarship || 0);
-        setFilteredTotal(data.data.total || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching filter counts:', error);
+  // TanStack Query hooks for data fetching
+  const { data: studentsData, isLoading: studentsLoading } = useStudents(
+    {
+      search: debouncedSearch,
+      gradeLevel: gradeLevelFilter === 'all' ? undefined : gradeLevelFilter,
+      program: programFilter === 'all' ? undefined : programFilter,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      scholarshipId: scholarshipFilter === 'all' ? undefined : scholarshipFilter,
+      page,
+      limit: 11,
     }
-  }, [gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
-  const fetchStudents = useCallback(async () => {
- try {
- const params = new URLSearchParams();
- if (debouncedSearch) params.append('search', debouncedSearch);
- if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
- if (programFilter && programFilter !== 'all') params.append('program', programFilter);
- if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
- if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
- params.append('archived', 'false');
- params.append('limit', '11');
- params.append('page', page.toString());
+  );
 
- const url = `/api/students?${params}`;
- const json = await fetchWithCache<{
- success: boolean;
- data: Student[];
- total: number;
- totalPages: number;
- }>(
- url,
- { credentials: 'include' },
- 5 * 60 * 1000
- );
+  const { data: studentDetail, isLoading: detailLoading } = useStudent(
+    selectedStudent?.id || 0,
+    { enabled: !!selectedStudent?.id }
+  );
 
- if (json.success) {
- setStudents(json.data);
- setTotal(json.total);
- setTotalPages(json.totalPages);
- }
- } catch (error) {
- console.error('Error fetching students:', error);
- toast.error('Failed to fetch students');
- } finally {
- setLoading(false);
- }
- }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, page]);
+  const createStudentMutation = useCreateStudent();
+  const updateStudentMutation = useUpdateStudent();
+  const deleteStudentMutation = useDeleteStudent();
 
- useEffect(() => {
- fetchStudents();
- }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter, fetchStudents]);
+  const { data: filterOptionsData } = useStudentFilterOptions();
+
+  // Update state when TanStack Query data changes
+  useEffect(() => {
+    if (studentsData) {
+      setStudents((studentsData.data || []) as unknown as Student[]);
+      setTotal(studentsData.total || 0);
+      setTotalPages(studentsData.totalPages || 1);
+    }
+  }, [studentsData]);
+
+  useEffect(() => {
+    setLoading(studentsLoading);
+  }, [studentsLoading]);
+
+  useEffect(() => {
+    if (studentDetail?.data && selectedStudent) {
+      setSelectedStudent(studentDetail.data as unknown as StudentDetail);
+    }
+  }, [studentDetail, selectedStudent]);
+
+  useEffect(() => {
+    setLoadingDetail(detailLoading);
+  }, [detailLoading]);
+
+  useEffect(() => {
+    if (filterOptionsData) {
+      const data = filterOptionsData.data as {
+        programs: string[];
+        scholarships: Array<{ id: number; scholarshipName: string; _count?: { students: number } }>;
+        studentsWithoutScholarship: number;
+        gradeLevelCounts: Record<string, number>;
+        programCounts: Record<string, number>;
+        statusCounts: Record<string, number>;
+        filteredTotal: number;
+        dynamicScholarshipCounts: Record<string, number>;
+      };
+      setPrograms(data.programs || []);
+      setScholarships(data.scholarships || []);
+      setStudentsWithoutScholarship(data.studentsWithoutScholarship || 0);
+      setGradeLevelCounts(data.gradeLevelCounts || {});
+      setProgramCounts(data.programCounts || {});
+      setStatusCounts(data.statusCounts || {});
+      setFilteredTotal(data.filteredTotal || 0);
+      setDynamicScholarshipCounts(data.dynamicScholarshipCounts || {});
+    }
+  }, [filterOptionsData]);
 
  useEffect(() => {
  // Reset to page 1 when filters change
  setPage(1);
  }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
 
- useEffect(() => {
- // Fetch initial filter options using optimized combined endpoint
- const fetchInitialOptions = async () => {
- try {
- const [initialDataRes] = await Promise.all([
- fetch('/api/students/initial-data', { credentials: 'include' }),
- ]);
-
- const initialData = await initialDataRes.json();
-
- if (initialData.success) {
- setPrograms(initialData.data.programs || []);
- setScholarships(initialData.data.scholarships || []);
- setStudentsWithoutScholarship(initialData.data.studentsWithoutScholarship || 0);
- setTotal(initialData.data.totalStudents || 0);
- }
- } catch (error) {
- console.error('Error fetching initial data:', error);
- }
- };
-
- fetchInitialOptions();
- }, []);
-
- // Fetch filter counts whenever filters change
- useEffect(() => {
- fetchFilterCounts();
- }, [fetchFilterCounts]);
+ 
 
  const openDeleteDialog = (student: Student) => {
  setDeletingStudent(student);
@@ -283,83 +231,46 @@ const closeDeleteDialog = () => {
  const handleFormSubmit = async (data: CreateStudentInput) => {
  setSubmitting(true);
  try {
- const url = editingStudent
- ? `/api/students/${editingStudent.id}`
- : '/api/students';
- const method = editingStudent ? 'PUT' : 'POST';
+   const mutationData: StudentMutationData = {
+     lastName: data.lastName,
+     firstName: data.firstName,
+     middleInitial: data.middleInitial,
+     program: data.program,
+     gradeLevel: data.gradeLevel,
+     yearLevel: data.yearLevel,
+     status: data.status,
+     birthDate: data.birthDate || null,
+     scholarships: data.scholarships?.map(s => ({
+       scholarshipId: s.scholarshipId,
+       awardDate: s.awardDate,
+       startTerm: s.startTerm,
+       endTerm: s.endTerm,
+       grantAmount: s.grantAmount,
+       grantType: s.grantType,
+       scholarshipStatus: s.scholarshipStatus,
+     })),
+   };
 
- const res = await fetch(url, {
- method,
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify(data),
- credentials: 'include',
- });
-
- const json = await res.json();
- if (json.success) {
- toast.success(
- editingStudent
- ? 'Student updated successfully'
- : 'Student created successfully'
- );
- setDialogOpen(false);
- setEditingStudent(null);
- // Clear all cache completely
- clientCache.clear();
- // Clear sessionStorage to force dashboard refresh
- sessionStorage.removeItem('dashboardData');
- sessionStorage.removeItem('detailedStudents');
- // Trigger dashboard refresh event
- window.dispatchEvent(new Event('refreshDashboard'));
- // Refetch with fresh data - add cache-busting parameter
- const cacheBuster = Date.now();
- const params = new URLSearchParams();
- if (search) params.append('search', search);
- if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
- if (programFilter && programFilter !== 'all') params.append('program', programFilter);
- if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
- if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
- params.append('archived', 'false');
- params.append('limit', '11');
- params.append('page', page.toString());
- params.append('_t', cacheBuster.toString());
- 
- const url = `/api/students?${params}`;
- const freshData = await fetch(url, { credentials: 'include' }).then(r => r.json());
- if (freshData.success) {
- setStudents(freshData.data);
- setTotal(freshData.total);
- setTotalPages(freshData.totalPages);
- }
- } else {
- toast.error(json.error || 'Operation failed');
- }
- } catch (error) {
- console.error('Error saving student:', error);
- toast.error('Failed to save student');
+   if (editingStudent) {
+     await updateStudentMutation.mutateAsync({ id: editingStudent.id, data: mutationData });
+   } else {
+     await createStudentMutation.mutateAsync(mutationData);
+   }
+   setDialogOpen(false);
+   setEditingStudent(null);
+ } catch {
+   // Error handling is already in mutation hooks
  } finally {
- setSubmitting(false);
+   setSubmitting(false);
  }
  };
 
-const handleViewDetails = async (studentId: number) => {
-  setLoadingDetail(true);
+const handleViewDetails = (studentId: number) => {
+  setSelectedStudent({ id: studentId } as StudentDetail);
   setDetailDialogOpen(true);
   setShowFullDetails(false);
-  try {
-  const res = await fetch(`/api/students/${studentId}`, { credentials: 'include' });
-  const json = await res.json();
-  if (json.success) {
-  setSelectedStudent(json.data);
-  } else {
-  toast.error('Failed to load student details');
-  }
-  } catch (error) {
-  console.error('Error fetching student details:', error);
-  toast.error('Failed to load student details');
-  } finally {
-  setLoadingDetail(false);
-  }
+  setLoadingDetail(true);
+  // useStudent hook will fetch automatically due to enabled: !!selectedStudent?.id
   };
 
   const handleDelete = async () => {
@@ -368,49 +279,11 @@ const handleViewDetails = async (studentId: number) => {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`/api/students/${deletingStudent.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'archive' }),
-        credentials: 'include',
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast.success('Student archived successfully');
-        setDeleteDialogOpen(false);
-        setDeletingStudent(null);
-        // Clear all cache to ensure fresh data
-        clientCache.clear();
-        // Clear sessionStorage
-        sessionStorage.removeItem('dashboardData');
-        sessionStorage.removeItem('detailedStudents');
-        window.dispatchEvent(new Event('refreshDashboard'));
-        
-        // Directly fetch fresh data to ensure immediate update
-        const params = new URLSearchParams();
-        if (search) params.append('search', search);
-        if (gradeLevelFilter && gradeLevelFilter !== 'all') params.append('gradeLevel', gradeLevelFilter);
-        if (programFilter && programFilter !== 'all') params.append('program', programFilter);
-        if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
-        if (scholarshipFilter && scholarshipFilter !== 'all') params.append('scholarshipId', scholarshipFilter);
-        params.append('archived', 'false');
-        params.append('limit', '11');
-        params.append('page', page.toString());
-        params.append('_t', Date.now().toString()); // Cache buster
-        
-        const url = `/api/students?${params}`;
-        const freshData = await fetch(url, { credentials: 'include' }).then(r => r.json());
-        if (freshData.success) {
-          setStudents(freshData.data);
-          setTotal(freshData.total);
-          setTotalPages(freshData.totalPages);
-        }
-      } else {
-        toast.error(json.error || 'Archive failed');
-      }
-    } catch (error) {
-      console.error('Error archiving student:', error);
-      toast.error('Failed to archive student');
+      await deleteStudentMutation.mutateAsync(deletingStudent.id);
+      setDeleteDialogOpen(false);
+      setDeletingStudent(null);
+    } catch {
+      // Error handling is already in mutation hook
     } finally {
       setSubmitting(false);
     }
@@ -423,12 +296,11 @@ const handleViewDetails = async (studentId: number) => {
  <ExportButton endpoint="/api/export/students" filename="detailed-student-scholarship-report" />
  {isAdmin && (
  <ImportButton onImportComplete={() => {
- clientCache.invalidatePattern('/api/students');
- clientCache.invalidatePattern('/api/dashboard');
+ // Invalidate all queries to refresh data
+ queryClient.invalidateQueries();
  sessionStorage.removeItem('dashboardData');
  sessionStorage.removeItem('detailedStudents');
  window.dispatchEvent(new Event('refreshDashboard'));
- fetchStudents();
  }} />
  )}
  {isAdmin && (
@@ -652,25 +524,29 @@ const handleViewDetails = async (studentId: number) => {
 <TableCell>
   <div className="flex flex-wrap gap-1">
   {student.scholarships && student.scholarships.length > 0 ? (
-  student.scholarships.map((ss) => (
+  student.scholarships.map((ss) => {
+  const scholarship = ss.scholarship;
+  if (!scholarship) return null;
+
+  return (
   <Popover key={ss.id} open={ss.id === hoveredScholarshipId} onOpenChange={(open) => handleScholarshipHover(open ? ss.id : null)}>
   <PopoverTrigger asChild>
   <Badge
   variant="outline"
   style={{
-  backgroundColor: getScholarshipColor(ss.scholarship.scholarshipName),
+  backgroundColor: getScholarshipColor(scholarship.scholarshipName),
   color: '#374151',
-  borderColor: getScholarshipColor(ss.scholarship.scholarshipName),
+  borderColor: getScholarshipColor(scholarship.scholarshipName),
   }}
   className="cursor-default"
   onMouseEnter={() => handleScholarshipHover(ss.id)}
   onMouseLeave={() => handleScholarshipHover(null)}
   >
-  {ss.scholarship.scholarshipName}
+  {scholarship.scholarshipName}
   </Badge>
   </PopoverTrigger>
-  <PopoverContent 
-  className="w-64 p-3" 
+  <PopoverContent
+  className="w-64 p-3"
   align="start"
   sideOffset={4}
   avoidCollisions
@@ -679,10 +555,10 @@ const handleViewDetails = async (studentId: number) => {
   onMouseLeave={() => handleScholarshipHover(null)}
   >
   <div className="space-y-2">
-  <h4 className="font-semibold text-sm">{ss.scholarship.scholarshipName}</h4>
+  <h4 className="font-semibold text-sm">{scholarship.scholarshipName}</h4>
   <div className="flex justify-between items-center">
-  <Badge variant={ss.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="text-xs">
-  {ss.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+  <Badge variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="text-xs">
+  {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
   </Badge>
   <Badge variant={ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'} className="text-xs">
   {ss.scholarshipStatus}
@@ -691,7 +567,7 @@ const handleViewDetails = async (studentId: number) => {
   <div className="grid grid-cols-2 gap-1 text-xs">
   <div>
   <p className="text-muted-foreground">Type</p>
-  <p>{ss.scholarship.type}</p>
+  <p>{scholarship.type}</p>
   </div>
   <div>
   <p className="text-muted-foreground">Amount</p>
@@ -709,7 +585,8 @@ const handleViewDetails = async (studentId: number) => {
   </div>
   </PopoverContent>
   </Popover>
-  ))
+  );
+  })
   ) : (
   <span className="text-muted-foreground">None</span>
   )}
@@ -827,17 +704,21 @@ const handleViewDetails = async (studentId: number) => {
  <h3 className="text-lg font-semibold mb-4">Scholarships</h3>
  {selectedStudent.scholarships && selectedStudent.scholarships.length > 0 ? (
  <div className="space-y-4">
- {selectedStudent.scholarships.map((ss) => (
- <Card key={ss.id} className="border-2" style={{ borderColor: getScholarshipColor(ss.scholarship.scholarshipName) }}>
+ {selectedStudent.scholarships.map((ss) => {
+  const scholarship = ss.scholarship;
+  if (!scholarship) return null;
+
+  return (
+  <Card key={ss.id} className="border-2" style={{ borderColor: getScholarshipColor(scholarship.scholarshipName) }}>
  <CardContent className="p-4">
  <div className="flex justify-between items-start mb-3">
  <div>
- <h4 className="text-lg font-semibold">{ss.scholarship.scholarshipName}</h4>
- <p className="text-sm text-muted-foreground">{ss.scholarship.type}</p>
+ <h4 className="text-lg font-semibold">{scholarship.scholarshipName}</h4>
+ <p className="text-sm text-muted-foreground">{scholarship.type}</p>
  </div>
  <div className="flex gap-2">
- <Badge variant={ss.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
- {ss.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+ <Badge variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}>
+ {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
  </Badge>
  <Badge variant={ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'}>
  {ss.scholarshipStatus}
@@ -864,7 +745,8 @@ const handleViewDetails = async (studentId: number) => {
  </div>
  </CardContent>
  </Card>
- ))}
+  );
+ })}
  <div className="mt-4 p-4 bg-primary/10 rounded-lg">
  <p className="text-sm font-medium text-muted-foreground">Total Scholarship Amount</p>
  <p className="text-2xl font-bold">
@@ -934,20 +816,25 @@ const handleViewDetails = async (studentId: number) => {
  <div className="border-t border-gray-200 pt-4">
  <h3 className="text-lg font-semibold mb-4">Disbursement History</h3>
  <div className="space-y-2">
- {selectedStudent.disbursements.map((disbursement) => (
- <div key={disbursement.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+ {selectedStudent.disbursements.map((disbursement) => {
+  const scholarship = disbursement.scholarship;
+  if (!scholarship) return null;
+
+  return (
+  <div key={disbursement.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
  <div>
- <p className="font-medium">{disbursement.scholarship.scholarshipName}</p>
+ <p className="font-medium">{scholarship.scholarshipName}</p>
  <p className="text-sm text-muted-foreground">
  {disbursement.term} • {new Date(disbursement.disbursementDate).toLocaleDateString()} • {disbursement.method}
  </p>
- <Badge variant={disbursement.scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="mt-1">
- {disbursement.scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+ <Badge variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'} className="mt-1">
+ {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
  </Badge>
  </div>
  <p className="text-lg font-semibold">₱{disbursement.amount.toLocaleString()}</p>
  </div>
- ))}
+  );
+ })}
  </div>
  <div className="mt-4 p-3 bg-primary/10 rounded-lg">
  <p className="text-sm font-medium text-muted-foreground">Total Disbursed</p>
