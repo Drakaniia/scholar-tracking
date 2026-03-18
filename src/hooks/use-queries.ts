@@ -51,6 +51,7 @@ export const queryKeys = {
     list: (filters: ScholarshipFilters) => [...queryKeys.scholarships.lists(), filters] as const,
     details: () => [...queryKeys.scholarships.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.scholarships.details(), id] as const,
+    filterOptions: () => [...queryKeys.scholarships.all, 'filter-options'] as const,
   },
   
   // Users
@@ -70,6 +71,7 @@ interface StudentFilters {
   program?: string;
   status?: string;
   scholarshipId?: string;
+  archived?: boolean;
   page?: number;
   limit?: number;
 }
@@ -187,6 +189,12 @@ interface Scholarship {
   status: string;
 }
 
+interface ScholarshipCounts {
+  total: number;
+  internal: number;
+  external: number;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -294,11 +302,22 @@ export function useStudent(id: number, options?: Partial<UseQueryOptions<ApiResp
   });
 }
 
-export function useStudentFilterOptions(options?: Partial<UseQueryOptions<ApiResponse<StudentFilterOptions>, Error>>) {
+export function useStudentFilterOptions(
+  filters: StudentFilters = {},
+  options?: Partial<UseQueryOptions<ApiResponse<StudentFilterOptions>, Error>>
+) {
   return useQuery<ApiResponse<StudentFilterOptions>, Error>({
     queryKey: queryKeys.students.filterOptions(),
     queryFn: async () => {
-      const response = await fetch('/api/students/filter-options', { credentials: 'include' });
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          params.append(key, String(value));
+        }
+      });
+
+      const url = `/api/students/filter-options${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) {
         throw new Error('Failed to fetch filter options');
       }
@@ -399,6 +418,36 @@ export function useDeleteStudent() {
   });
 }
 
+export function useArchiveStudent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, action }: { id: number; action: 'archive' | 'unarchive' }) => {
+      const response = await fetch(`/api/students/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+        credentials: 'include',
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || `Failed to ${action} student`);
+      }
+      return json;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success(`Student ${variables.action}d successfully`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to archive student');
+    },
+  });
+}
+
 // ============================================
 // SCHOLARSHIP HOOKS
 // ============================================
@@ -442,6 +491,33 @@ export function useScholarship(id: number, options?: Partial<UseQueryOptions<Api
     enabled: !!id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
+    ...options,
+  });
+}
+
+export function useScholarshipFilterOptions(
+  filters: ScholarshipFilters = {},
+  options?: Partial<UseQueryOptions<ApiResponse<ScholarshipCounts>, Error>>
+) {
+  return useQuery<ApiResponse<ScholarshipCounts>, Error>({
+    queryKey: queryKeys.scholarships.filterOptions(),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          params.append(key, String(value));
+        }
+      });
+
+      const url = `/api/scholarships/filter-options${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch scholarship filter options');
+      }
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     ...options,
   });
 }

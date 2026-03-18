@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
  Table,
@@ -44,7 +44,7 @@ import {
   useStudent,
   useCreateStudent,
   useUpdateStudent,
-  useDeleteStudent,
+  useArchiveStudent,
   useStudentFilterOptions,
 } from '@/hooks/use-queries';
 
@@ -115,8 +115,8 @@ export default function StudentsPage() {
  const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null);
  const [loadingDetail, setLoadingDetail] = useState(false);
  const [showFullDetails, setShowFullDetails] = useState(false);
- const [page, setPage] = useState(1);
- const [totalPages, setTotalPages] = useState(1);
+   const [showArchived, setShowArchived] = useState(false);
+   const [page, setPage] = useState(1); const [totalPages, setTotalPages] = useState(1);
  const [total, setTotal] = useState(0);
  const [programs, setPrograms] = useState<string[]>([]);
  const [scholarships, setScholarships] = useState<Array<{ id: number; scholarshipName: string; _count?: { students: number } }>>([]);
@@ -139,6 +139,7 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
       program: programFilter === 'all' ? undefined : programFilter,
       status: statusFilter === 'all' ? undefined : statusFilter,
       scholarshipId: scholarshipFilter === 'all' ? undefined : scholarshipFilter,
+      archived: showArchived,
       page,
       limit: 11,
     }
@@ -151,9 +152,14 @@ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const createStudentMutation = useCreateStudent();
   const updateStudentMutation = useUpdateStudent();
-  const deleteStudentMutation = useDeleteStudent();
+  const archiveStudentMutation = useArchiveStudent();
 
-  const { data: filterOptionsData } = useStudentFilterOptions();
+  const { data: filterOptionsData } = useStudentFilterOptions({
+    gradeLevel: gradeLevelFilter,
+    program: programFilter,
+    status: statusFilter,
+    scholarshipId: scholarshipFilter,
+  });
 
   // Update state when TanStack Query data changes
   useEffect(() => {
@@ -279,7 +285,7 @@ const handleViewDetails = (studentId: number) => {
     setSubmitting(true);
 
     try {
-      await deleteStudentMutation.mutateAsync(deletingStudent.id);
+      await archiveStudentMutation.mutateAsync({ id: deletingStudent.id, action: 'archive' });
       setDeleteDialogOpen(false);
       setDeletingStudent(null);
     } catch {
@@ -467,7 +473,28 @@ const handleViewDetails = (studentId: number) => {
  <CardHeader>
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-3">
- <CardTitle className="text-foreground">All Students</CardTitle>
+ <div className="flex items-center gap-2">
+ <button
+ onClick={() => setShowArchived(false)}
+ className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+   !showArchived
+     ? 'bg-primary text-primary-foreground'
+     : 'bg-muted text-muted-foreground hover:bg-muted/80'
+ }`}
+ >
+ All Students
+ </button>
+ <button
+ onClick={() => setShowArchived(true)}
+ className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+   showArchived
+     ? 'bg-primary text-primary-foreground'
+     : 'bg-muted text-muted-foreground hover:bg-muted/80'
+ }`}
+ >
+ Archived Students
+ </button>
+ </div>
  <Badge variant="outline" className="text-sm">
  Total: {total}
  </Badge>
@@ -603,15 +630,27 @@ const handleViewDetails = (studentId: number) => {
  >
  <Pencil className="h-4 w-4" />
  </Button>
-<Button
-  variant="ghost"
-  size="icon"
-  onClick={() => openDeleteDialog(student)}
-  className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
-  title="Archive student"
-  >
-  <Archive className="h-4 w-4" />
-  </Button>
+ {!showArchived ? (
+ <Button
+ variant="ghost"
+ size="icon"
+ onClick={() => openDeleteDialog(student)}
+ className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
+ title="Archive student"
+ >
+ <Archive className="h-4 w-4" />
+ </Button>
+ ) : (
+ <Button
+ variant="ghost"
+ size="icon"
+ onClick={() => archiveStudentMutation.mutateAsync({ id: student.id, action: 'unarchive' })}
+ className="text-green-600 hover:text-green-700 cursor-pointer zoom-hover"
+ title="Unarchive student"
+ >
+ <Archive className="h-4 w-4" />
+ </Button>
+ )}
  </div>
  </TableCell>
  )}

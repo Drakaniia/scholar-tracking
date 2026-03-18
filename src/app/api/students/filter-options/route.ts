@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
             statusAgg,
             scholarshipAgg,
             totalResult,
+            scholarshipsData,
         ] = await Promise.all([
             // Get program counts
             prisma.student.groupBy({
@@ -81,13 +82,22 @@ export async function GET(request: NextRequest) {
             }),
             // Get total count
             prisma.student.count({ where }),
+            // Get all scholarships for the dropdown
+            prisma.scholarship.findMany({
+                where: { isArchived: false },
+                select: {
+                    id: true,
+                    scholarshipName: true,
+                },
+                orderBy: { scholarshipName: 'asc' },
+            }),
         ]);
 
         // Convert aggregation results to count maps
         const programCounts: Record<string, number> = {};
         const gradeLevelCounts: Record<string, number> = {};
         const statusCounts: Record<string, number> = {};
-        const scholarshipCounts: Record<string, number> = {};
+        const dynamicScholarshipCounts: Record<string, number> = {};
 
         programAgg.forEach(item => {
             if (item.program) {
@@ -109,7 +119,7 @@ export async function GET(request: NextRequest) {
 
         scholarshipAgg.forEach(item => {
             if (item.scholarshipId) {
-                scholarshipCounts[item.scholarshipId.toString()] = item._count.studentId;
+                dynamicScholarshipCounts[item.scholarshipId.toString()] = item._count.studentId;
             }
         });
 
@@ -139,9 +149,10 @@ export async function GET(request: NextRequest) {
                 programCounts,
                 gradeLevelCounts,
                 statusCounts,
-                scholarshipCounts,
+                dynamicScholarshipCounts,
+                scholarships: scholarshipsData,
                 studentsWithoutScholarship,
-                total: totalResult,
+                filteredTotal: totalResult,
             },
         }, {
             headers: {

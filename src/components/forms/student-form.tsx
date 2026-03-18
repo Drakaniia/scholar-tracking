@@ -404,7 +404,7 @@ export function StudentForm({
                     <Input
                         id="lastName"
                         {...form.register('lastName', { required: true })}
-                        placeholder="DELA CRUZ"
+                        placeholder="Enter last name"
                         className="h-10"
                         onChange={(e) => {
                             e.target.value = e.target.value.toUpperCase();
@@ -417,7 +417,7 @@ export function StudentForm({
                     <Input
                         id="firstName"
                         {...form.register('firstName', { required: true })}
-                        placeholder="JUAN"
+                        placeholder="Enter first name"
                         className="h-10"
                         onChange={(e) => {
                             e.target.value = e.target.value.toUpperCase();
@@ -430,7 +430,7 @@ export function StudentForm({
                     <Input
                         id="middleInitial"
                         {...form.register('middleInitial')}
-                        placeholder="S"
+                        placeholder="Enter middle initial"
                         maxLength={1}
                         className="h-10"
                         onChange={(e) => {
@@ -543,7 +543,7 @@ export function StudentForm({
                                     setCustomCourse(e.target.value);
                                     form.setValue('program', e.target.value);
                                 }}
-                                placeholder="Enter course name"
+                                placeholder="Enter custom course name"
                                 className="h-10"
                             />
                         </div>
@@ -592,7 +592,7 @@ export function StudentForm({
                                     const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
                                     form.setValue('program', `${courseValue} - ${e.target.value}`);
                                 }}
-                                placeholder="Enter major name"
+                                placeholder="Enter custom major name"
                                 className="h-10"
                             />
                         </div>
@@ -660,7 +660,7 @@ export function StudentForm({
                                     setCustomStrand(e.target.value);
                                     form.setValue('program', e.target.value);
                                 }}
-                                placeholder="Enter strand name"
+                                placeholder="Enter custom strand name"
                                 className="h-10"
                             />
                         </div>
@@ -670,7 +670,7 @@ export function StudentForm({
                         <Label htmlFor="specialization" className="text-sm font-medium">Specialization (Optional)</Label>
                         <Input
                             id="specialization"
-                            placeholder="Enter specialization"
+                            placeholder="Enter specialization area"
                             className="h-10"
                             onChange={(e) => {
                                 const strandValue = selectedStrand === 'Other' ? customStrand : selectedStrand;
@@ -856,7 +856,7 @@ export function StudentForm({
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">Start Term</Label>
                                             <Input
-                                                placeholder="1st Semester 2025-2026"
+                                                placeholder="Enter start term"
                                                 value={scholarship.startTerm}
                                                 onChange={(e) => updateScholarship(scholarship.scholarshipId, 'startTerm', e.target.value)}
                                                 className="h-9 text-sm"
@@ -865,7 +865,7 @@ export function StudentForm({
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">End Term</Label>
                                             <Input
-                                                placeholder="2nd Semester 2025-2026"
+                                                placeholder="Enter end term"
                                                 value={scholarship.endTerm}
                                                 onChange={(e) => updateScholarship(scholarship.scholarshipId, 'endTerm', e.target.value)}
                                                 className="h-9 text-sm"
@@ -876,7 +876,7 @@ export function StudentForm({
                                                 <Label className="text-xs text-muted-foreground">Grant Amount</Label>
                                                 <Input
                                                     type="number"
-                                                    placeholder="10000"
+                                                    placeholder="Enter grant amount"
                                                     value={scholarship.grantAmount}
                                                     onChange={(e) => updateScholarship(scholarship.scholarshipId, 'grantAmount', parseFloat(e.target.value))}
                                                     className="h-9 text-sm"
