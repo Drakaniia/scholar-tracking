@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Save, X, DollarSign, Percent, GraduationCap } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { queryKeys } from '@/hooks/use-queries';
 
 interface StudentFees {
     id: number;
@@ -50,6 +52,7 @@ interface StudentFeesManagerProps {
 }
 
 export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesManagerProps) {
+    const queryClient = useQueryClient();
     const [fees, setFees] = useState<StudentFees[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -179,6 +182,9 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                 await fetchFees();
                 setEditingId(null);
                 setEditData({});
+                // Invalidate dashboard queries so report page shows fresh data
+                queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+                queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(studentId) });
             }
         } catch (error) {
             console.error('Error updating fees:', error);
@@ -213,6 +219,9 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                     term: '1st Semester',
                     academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString(),
                 });
+                // Invalidate dashboard queries so report page shows fresh data
+                queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+                queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(studentId) });
             }
         } catch (error) {
             console.error('Error adding fees:', error);

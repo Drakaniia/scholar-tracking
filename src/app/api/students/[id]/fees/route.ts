@@ -143,6 +143,7 @@ export async function POST(
 
         // Invalidate cache
         queryOptimizer.invalidatePattern(`student-${studentId}-fees`);
+        queryOptimizer.invalidatePattern(`student-${studentId}`);
         queryOptimizer.invalidatePattern('students-list');
         queryOptimizer.invalidatePattern('dashboard');
 
@@ -206,6 +207,7 @@ export async function DELETE(
 
         // Invalidate cache
         queryOptimizer.invalidatePattern(`student-${studentId}-fees`);
+        queryOptimizer.invalidatePattern(`student-${studentId}`);
         queryOptimizer.invalidatePattern('students-list');
         queryOptimizer.invalidatePattern('dashboard');
 

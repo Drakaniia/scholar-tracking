@@ -368,6 +368,12 @@ async function updateStudentFees(
         laboratoryFee?: number;
     }
 ) {
+    // First, check if the student already has any fee records
+    const existingFees = await tx.studentFees.findFirst({
+        where: { studentId },
+        orderBy: { academicYear: 'desc' },
+    });
+
     // Get current academic year
     const currentAcademicYear = await tx.academicYear.findFirst({
         where: { isActive: true },
@@ -380,10 +386,18 @@ async function updateStudentFees(
     const academicYearId = currentAcademicYear?.id || null;
 
     // Calculate total fees
-    const totalFees = (feeData.tuitionFee || 0) +
-                     (feeData.otherFee || 0) +
-                     (feeData.miscellaneousFee || 0) +
-                     (feeData.laboratoryFee || 0);
+    // Use existing fee values when the request only provides partial fee updates.
+    // Using `|| 0` here would incorrectly force totals to 0 and then clamp `amountSubsidy` to 0.
+    const resolvedTuitionFee = feeData.tuitionFee ?? (existingFees ? Number(existingFees.tuitionFee) : 0);
+    const resolvedOtherFee = feeData.otherFee ?? (existingFees ? Number(existingFees.otherFee) : 0);
+    const resolvedMiscellaneousFee = feeData.miscellaneousFee ?? (existingFees ? Number(existingFees.miscellaneousFee) : 0);
+    const resolvedLaboratoryFee = feeData.laboratoryFee ?? (existingFees ? Number(existingFees.laboratoryFee) : 0);
+
+    const totalFees =
+        resolvedTuitionFee +
+        resolvedOtherFee +
+        resolvedMiscellaneousFee +
+        resolvedLaboratoryFee;
 
     // Calculate subsidies based on scholarships
     const studentScholarships = await tx.studentScholarship.findMany({
@@ -400,17 +414,8 @@ async function updateStudentFees(
     const amountSubsidy = Math.min(totalAmountSubsidy, totalFees);
     const percentSubsidy = totalFees > 0 ? Number(((amountSubsidy / totalFees) * 100).toFixed(2)) : 0;
 
-    // Check if fees exist for this term
-    const existingFees = await tx.studentFees.findFirst({
-        where: {
-            studentId,
-            term: `${term} ${academicYear}`,
-            academicYear,
-        },
-    });
-
     if (existingFees) {
-        // Update existing fees
+        // Update existing fees - use the existing term and academicYear to ensure we update the same record
         await tx.studentFees.update({
             where: { id: existingFees.id },
             data: {
@@ -428,10 +433,10 @@ async function updateStudentFees(
         await tx.studentFees.create({
             data: {
                 studentId,
-                tuitionFee: feeData.tuitionFee || 0,
-                otherFee: feeData.otherFee || 0,
-                miscellaneousFee: feeData.miscellaneousFee || 0,
-                laboratoryFee: feeData.laboratoryFee || 0,
+                tuitionFee: resolvedTuitionFee,
+                otherFee: resolvedOtherFee,
+                miscellaneousFee: resolvedMiscellaneousFee,
+                laboratoryFee: resolvedLaboratoryFee,
                 amountSubsidy,
                 percentSubsidy,
                 term: `${term} ${academicYear}`,
