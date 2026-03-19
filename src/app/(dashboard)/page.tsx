@@ -267,7 +267,7 @@ function DetailedView({
   const calculatePercentSubsidy = (fees: DetailedStudent['fees'][0]) => {
     if (!fees) return 0;
     const totalFees = calculateTotalFees(fees);
-    return totalFees > 0 ? (Number(fees.amountSubsidy) / totalFees) * 100 : 0;
+    return totalFees > 0 ? Number((Number(fees.amountSubsidy) / totalFees).toFixed(4)) : 0;
   };
 
   return (
@@ -353,7 +353,7 @@ function DetailedView({
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <Badge variant="secondary" className="bg-primary/10 text-primary">
-                                        {fees ? `${calculatePercentSubsidy(fees).toFixed(2)}%` : '-'}
+                                        {fees ? `${(calculatePercentSubsidy(fees) * 100).toFixed(2)}%` : '-'}
                                       </Badge>
                                     </TableCell>
                                   </TableRow>

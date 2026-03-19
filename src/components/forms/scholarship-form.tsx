@@ -90,7 +90,7 @@ export function ScholarshipForm({
     // Calculate percent subsidy from amount subsidy (amount / total fees)
     // Result is in decimal form (e.g., 0.1667 for 16.67%)
     const calculatedPercentSubsidy = totalFees > 0 ? (amountSubsidy / totalFees) : 0;
-    const percentSubsidyDisplay = (calculatedPercentSubsidy * 100).toFixed(2);
+    const percentSubsidyDisplay = calculatedPercentSubsidy.toFixed(4);
 
     const form = useForm<CreateScholarshipInput>({
         defaultValues: {
