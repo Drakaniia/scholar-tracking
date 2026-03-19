@@ -137,6 +137,17 @@ export async function PUT(
             'amountSubsidy', 'percentSubsidy'
         ];
 
+        const existingScholarship = await prisma.scholarship.findUnique({
+            where: { id: scholarshipId }
+        });
+
+        if (!existingScholarship) {
+            return NextResponse.json(
+                { success: false, error: 'Scholarship not found' },
+                { status: 404 }
+            );
+        }
+
         const prismaData: Record<string, unknown> = {};
         for (const field of allowedFields) {
             if (updateData[field] !== undefined) {
@@ -183,12 +194,18 @@ export async function PUT(
             );
         }
 
-        // If amountSubsidy or fee fields were updated, sync with existing student fees
-        const subsidyFieldsUpdated = updateData.amountSubsidy !== undefined ||
-            updateData.tuitionFee !== undefined ||
-            updateData.miscellaneousFee !== undefined ||
-            updateData.laboratoryFee !== undefined ||
-            updateData.otherFee !== undefined;
+        // If amountSubsidy or fee fields were updated, sync with existing student fees.
+        // Important: when only `amountSubsidy` changes, we should NOT overwrite existing
+        // student fee breakdown amounts (tuition/misc/lab/other), otherwise they can be reset to 0.
+        const feeAmountFieldsUpdated =
+            (updateData.tuitionFee !== undefined && Number(updateData.tuitionFee) !== Number(existingScholarship.tuitionFee || 0)) ||
+            (updateData.miscellaneousFee !== undefined && Number(updateData.miscellaneousFee) !== Number(existingScholarship.miscellaneousFee || 0)) ||
+            (updateData.laboratoryFee !== undefined && Number(updateData.laboratoryFee) !== Number(existingScholarship.laboratoryFee || 0)) ||
+            (updateData.otherFee !== undefined && Number(updateData.otherFee) !== Number(existingScholarship.otherFee || 0));
+
+        const subsidyFieldsUpdated =
+            (updateData.amountSubsidy !== undefined && Number(updateData.amountSubsidy) !== Number(existingScholarship.amountSubsidy || 0)) ||
+            feeAmountFieldsUpdated;
 
         if (subsidyFieldsUpdated) {
             try {
@@ -209,18 +226,9 @@ export async function PUT(
                 });
 
                 if (updatedScholarship && studentScholarships.length > 0) {
-                    const totalFees =
-                        Number(updatedScholarship.tuitionFee || 0) +
-                        Number(updatedScholarship.miscellaneousFee || 0) +
-                        Number(updatedScholarship.laboratoryFee || 0) +
-                        Number(updatedScholarship.otherFee || 0);
-
                     const amountSubsidy = updateData.amountSubsidy !== undefined
                         ? Number(updateData.amountSubsidy)
                         : Number(updatedScholarship.amountSubsidy || 0);
-
-                    // Calculate percentSubsidy as decimal (e.g., 0.1667 for 16.67%)
-                    const percentSubsidy = totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
 
                     // Update fees for all students with this scholarship
                     await Promise.all(
@@ -233,16 +241,42 @@ export async function PUT(
                             });
 
                             if (existingFees.length > 0) {
+                                const existingFee = existingFees[0];
+
+                                const totalFeesForPercent =
+                                    feeAmountFieldsUpdated
+                                        ? (Number(updatedScholarship.tuitionFee || 0) +
+                                           Number(updatedScholarship.miscellaneousFee || 0) +
+                                           Number(updatedScholarship.laboratoryFee || 0) +
+                                           Number(updatedScholarship.otherFee || 0))
+                                        : (Number(existingFee.tuitionFee || 0) +
+                                           Number(existingFee.miscellaneousFee || 0) +
+                                           Number(existingFee.laboratoryFee || 0) +
+                                           Number(existingFee.otherFee || 0));
+
+                                // Calculate percentSubsidy as decimal (e.g., 0.1667 for 16.67%)
+                                const percentSubsidy = totalFeesForPercent > 0
+                                    ? Number((amountSubsidy / totalFeesForPercent).toFixed(4))
+                                    : 0;
+
+                                const studentFeeUpdateData: Record<string, unknown> = {
+                                    amountSubsidy,
+                                    percentSubsidy,
+                                };
+
+                                // Only overwrite student fee breakdown amounts when scholarship fee amounts change.
+                                if (feeAmountFieldsUpdated) {
+                                    studentFeeUpdateData.tuitionFee = Number(updatedScholarship.tuitionFee || 0);
+                                    studentFeeUpdateData.miscellaneousFee = Number(updatedScholarship.miscellaneousFee || 0);
+                                    studentFeeUpdateData.laboratoryFee = Number(updatedScholarship.laboratoryFee || 0);
+                                    studentFeeUpdateData.otherFee = Number(updatedScholarship.otherFee || 0);
+                                }
+
                                 // Update existing fee record
                                 await prisma.studentFees.update({
                                     where: { id: existingFees[0].id },
                                     data: {
-                                        tuitionFee: Number(updatedScholarship.tuitionFee || 0),
-                                        miscellaneousFee: Number(updatedScholarship.miscellaneousFee || 0),
-                                        laboratoryFee: Number(updatedScholarship.laboratoryFee || 0),
-                                        otherFee: Number(updatedScholarship.otherFee || 0),
-                                        amountSubsidy,
-                                        percentSubsidy,
+                                        ...studentFeeUpdateData,
                                     },
                                 });
                             }
