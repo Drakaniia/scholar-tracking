@@ -1,8 +1,23 @@
 import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config';
 
-const prisma = new PrismaClient();
+// Create adapter for Prisma v7 with connection pooling
+// Use DIRECT_DATABASE_URL for direct PostgreSQL connection (pg adapter)
+const pool = new Pool({
+  connectionString: process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function main() {
   console.log('🌱 Starting seed...');

@@ -7,8 +7,9 @@ declare global {
 }
 
 // Create adapter for Prisma v7 with connection pooling
+// Use DIRECT_DATABASE_URL for native PostgreSQL connection (not Prisma Accelerate)
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
