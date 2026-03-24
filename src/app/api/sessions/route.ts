@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
 import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 // GET /api/sessions - List all active sessions (admin only)
 export async function GET() {
@@ -8,10 +9,7 @@ export async function GET() {
     const session = await getSession();
 
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const sessions = await prisma.session.findMany({
@@ -37,9 +35,6 @@ export async function GET() {
     return NextResponse.json({ success: true, data: sessions });
   } catch (error) {
     console.error('Error fetching sessions:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

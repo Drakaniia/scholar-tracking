@@ -1,6 +1,7 @@
 # ERD Generation Guide
 
 ## Overview
+
 The Entity Relationship Diagram (ERD) is generated using `prisma-erd-generator` which creates a visual representation of the database schema.
 
 ## Important Notes

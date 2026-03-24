@@ -1,8 +1,9 @@
 'use client';
 
+import { LucideIcon, TrendingDown, TrendingUp } from 'lucide-react';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface StatsCardProps {
   title: string;
@@ -59,19 +60,22 @@ export function StatsCard({
   const styles = VARIANTS[variant];
 
   return (
-    <Card className={cn('relative overflow-hidden transition-all hover:shadow-lg border-gray-200', className)}>
+    <Card
+      className={cn(
+        'relative overflow-hidden transition-all hover:shadow-lg border-gray-200',
+        className
+      )}
+    >
       {/* Enhanced gradient overlay */}
       <div
         className={cn(
-          "absolute inset-0 bg-gradient-to-br to-transparent pointer-events-none opacity-60",
+          'absolute inset-0 bg-gradient-to-br to-transparent pointer-events-none opacity-60',
           styles.gradient
         )}
       />
 
       <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground/80">
-          {title}
-        </CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground/80">{title}</CardTitle>
         <div
           className={cn(
             'flex h-9 w-9 items-center justify-center rounded-full shadow-sm',
@@ -79,7 +83,7 @@ export function StatsCard({
             iconClassName
           )}
         >
-          <Icon className={cn("h-4 w-4", styles.text)} />
+          <Icon className={cn('h-4 w-4', styles.text)} />
         </div>
       </CardHeader>
 

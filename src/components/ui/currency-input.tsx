@@ -1,10 +1,13 @@
 'use client';
 
 import * as React from 'react';
+
 import { cn } from '@/lib/utils';
 
-export interface CurrencyInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> {
+export interface CurrencyInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'value' | 'onChange'
+> {
   value: number;
   onChange: (value: number) => void;
   placeholder?: string;
@@ -40,7 +43,7 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      
+
       // Allow empty string
       if (inputValue === '') {
         setDisplayValue('');
@@ -50,7 +53,7 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
 
       // Remove all commas and validate numeric input
       const numericValue = inputValue.replace(/,/g, '');
-      
+
       // Allow: empty, digits, digits with decimal point
       if (/^\d*\.?\d*$/.test(numericValue)) {
         setDisplayValue(inputValue);
@@ -82,13 +85,13 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       ) {
         return;
       }
-      
+
       // Block comma key (we add commas automatically on blur)
       if (e.key === ',') {
         e.preventDefault();
         return;
       }
-      
+
       // Block everything else
       e.preventDefault();
     };

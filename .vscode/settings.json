@@ -1,4 +1,4 @@
 {
-    "typescript.autoClosingTags": false,
-    "codium.codeCompletion.enable": false
+  "typescript.autoClosingTags": false,
+  "codium.codeCompletion.enable": false
 }

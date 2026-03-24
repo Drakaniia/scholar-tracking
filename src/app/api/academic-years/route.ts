@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { verifyToken } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 
 interface AcademicYearData {
   year: string;
@@ -59,7 +60,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching academic years:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch academic years' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch academic years' },
+      { status: 500 }
+    );
   }
 }
 
@@ -87,7 +91,10 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!year || !startDate || !endDate || !semester) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
 
     // Check if year already exists
@@ -96,7 +103,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json({ success: false, error: 'Academic year already exists' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Academic year already exists' },
+        { status: 400 }
+      );
     }
 
     // If setting as active, deactivate other years
@@ -120,7 +130,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: academicYear });
   } catch (error) {
     console.error('Error creating academic year:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create academic year' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to create academic year' },
+      { status: 500 }
+    );
   }
 }
 
@@ -147,7 +160,10 @@ export async function PUT(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ success: false, error: 'Academic year ID required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Academic year ID required' },
+        { status: 400 }
+      );
     }
 
     const body: Partial<AcademicYearData> = await request.json();
@@ -175,7 +191,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, data: academicYear });
   } catch (error) {
     console.error('Error updating academic year:', error);
-    return NextResponse.json({ success: false, error: 'Failed to update academic year' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to update academic year' },
+      { status: 500 }
+    );
   }
 }
 
@@ -202,7 +221,10 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json({ success: false, error: 'Academic year ID required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Academic year ID required' },
+        { status: 400 }
+      );
     }
 
     const academicYear = await prisma.academicYear.findUnique({
@@ -214,15 +236,21 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!academicYear) {
-      return NextResponse.json({ success: false, error: 'Academic year not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Academic year not found' },
+        { status: 404 }
+      );
     }
 
     // Check if academic year is in use
     if (academicYear.studentFees.length > 0 || academicYear.disbursements.length > 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Cannot delete academic year that is in use by student fees or disbursements' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Cannot delete academic year that is in use by student fees or disbursements',
+        },
+        { status: 400 }
+      );
     }
 
     await prisma.academicYear.delete({
@@ -232,6 +260,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting academic year:', error);
-    return NextResponse.json({ success: false, error: 'Failed to delete academic year' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete academic year' },
+      { status: 500 }
+    );
   }
 }

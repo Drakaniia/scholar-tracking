@@ -1,14 +1,38 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useState } from 'react';
+
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+
+import {
+  Award,
+  CreditCard,
+  Download,
+  FileSpreadsheet,
+  Filter,
+  GraduationCap,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
+
 import backgroundImage from '@/assets/images/background2.jpg';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CustomPieChart } from '@/components/charts';
+import {
+  ChartCardSkeleton,
+  PieChartSkeleton,
+  RecentAwards,
+  RecentAwardsSkeleton,
+  ScholarshipChart,
+  StatsCard,
+  StatsGridSkeleton,
+  StudentsChart,
+  TabsSkeleton,
+} from '@/components/dashboard';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -24,32 +48,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Users,
-  GraduationCap,
-  Award,
-  FileSpreadsheet,
-  TrendingUp,
-  Download,
-  Filter,
-  CreditCard,
-} from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import {
-  StatsCard,
-  ScholarshipChart,
-  StudentsChart,
-  RecentAwards,
-  StatsGridSkeleton,
-  ChartCardSkeleton,
-  PieChartSkeleton,
-  RecentAwardsSkeleton,
-  TabsSkeleton,
-} from '@/components/dashboard';
-import { CustomPieChart } from '@/components/charts';
-import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDashboardDetailed, useDashboardStats } from '@/hooks/use-queries';
 import { prefetchEndpoints } from '@/lib/cache';
-import { useDashboardStats, useDashboardDetailed } from '@/hooks/use-queries';
+import { formatCurrency } from '@/lib/utils';
+import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
 interface DashboardData {
   stats: {
@@ -170,11 +173,12 @@ function StatsSection({ stats }: { stats: DashboardData['stats'] }) {
 
 // Charts Section Component
 function ChartsSection({ data }: { data: DashboardData }) {
-  const studentsChartData = data?.charts?.studentsByGradeLevel?.map(item => ({
-    name: GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel,
-    students: item._count.id,
-    withScholarship: Math.floor(item._count.id * 0.4),
-  })) || [];
+  const studentsChartData =
+    data?.charts?.studentsByGradeLevel?.map((item) => ({
+      name: GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel,
+      students: item._count.id,
+      withScholarship: Math.floor(item._count.id * 0.4),
+    })) || [];
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -197,8 +201,11 @@ function ChartsSection({ data }: { data: DashboardData }) {
 }
 
 // Secondary Charts Component
-function SecondaryChartsSection({ data, scholarshipSourceFilter }: { 
-  data: DashboardData; 
+function SecondaryChartsSection({
+  data,
+  scholarshipSourceFilter,
+}: {
+  data: DashboardData;
   scholarshipSourceFilter: string;
 }) {
   return (
@@ -217,9 +224,9 @@ function SecondaryChartsSection({ data, scholarshipSourceFilter }: {
           {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
             <CustomPieChart
               key={scholarshipSourceFilter}
-              data={data.charts.scholarshipsByType.map(item => ({
+              data={data.charts.scholarshipsByType.map((item) => ({
                 name: item.type,
-                value: item._count.id
+                value: item._count.id,
               }))}
             />
           ) : (
@@ -228,16 +235,19 @@ function SecondaryChartsSection({ data, scholarshipSourceFilter }: {
         </CardContent>
       </Card>
       <div className="lg:col-span-2">
-        <RecentAwards 
-          awards={data?.recentStudents?.slice(0, 5).map((student, index) => ({
-            id: student.id,
-            studentName: `${student.firstName} ${student.lastName}`,
-            scholarshipName: student.scholarships?.[0]?.scholarship?.scholarshipName || 'Scholarship Program',
-            type: student.scholarships?.[0]?.scholarship?.type || 'GRANT',
-            amount: 25000 + (index * 5000),
-            date: student.updatedAt || new Date().toLocaleDateString(),
-            status: 'active' as const,
-          })) || []}
+        <RecentAwards
+          awards={
+            data?.recentStudents?.slice(0, 5).map((student, index) => ({
+              id: student.id,
+              studentName: `${student.firstName} ${student.lastName}`,
+              scholarshipName:
+                student.scholarships?.[0]?.scholarship?.scholarshipName || 'Scholarship Program',
+              type: student.scholarships?.[0]?.scholarship?.type || 'GRANT',
+              amount: 25000 + index * 5000,
+              date: student.updatedAt || new Date().toLocaleDateString(),
+              status: 'active' as const,
+            })) || []
+          }
         />
       </div>
     </div>
@@ -247,21 +257,27 @@ function SecondaryChartsSection({ data, scholarshipSourceFilter }: {
 // Detailed View Component
 function DetailedView({
   detailedStudents,
-  router
+  router,
 }: {
   detailedStudents: DetailedStudent[];
   router: ReturnType<typeof useRouter>;
 }) {
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
     return detailedStudents.filter(
-      (s) => s.gradeLevel === gradeLevel && s.scholarships?.some(ss => ss.scholarship?.type === scholarshipType)
+      (s) =>
+        s.gradeLevel === gradeLevel &&
+        s.scholarships?.some((ss) => ss.scholarship?.type === scholarshipType)
     );
   };
 
   const calculateTotalFees = (fees: DetailedStudent['fees'][0]) => {
     if (!fees) return 0;
-    return Number(fees.tuitionFee) + Number(fees.otherFee) +
-      Number(fees.miscellaneousFee) + Number(fees.laboratoryFee);
+    return (
+      Number(fees.tuitionFee) +
+      Number(fees.otherFee) +
+      Number(fees.miscellaneousFee) +
+      Number(fees.laboratoryFee)
+    );
   };
 
   const calculatePercentSubsidy = (fees: DetailedStudent['fees'][0]) => {
@@ -278,13 +294,12 @@ function DetailedView({
             <FileSpreadsheet className="h-5 w-5 text-primary" />
             <div>
               <CardTitle className="text-foreground">Detailed Student Report</CardTitle>
-              <CardDescription>Complete breakdown by grade level and scholarship type</CardDescription>
+              <CardDescription>
+                Complete breakdown by grade level and scholarship type
+              </CardDescription>
             </div>
           </div>
-          <Button
-            onClick={() => router.push('/reports')}
-            variant="outline"
-          >
+          <Button onClick={() => router.push('/reports')} variant="outline">
             View Full Report
           </Button>
         </div>
@@ -308,7 +323,10 @@ function DetailedView({
               <TabsContent key={gradeLevel} value={gradeLevel}>
                 <div className="space-y-6">
                   {SCHOLARSHIP_TYPES.map((scholarshipType) => {
-                    const students = getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType);
+                    const students = getStudentsByGradeLevelAndScholarship(
+                      gradeLevel,
+                      scholarshipType
+                    );
                     if (students.length === 0) return null;
 
                     const previewStudents = students.slice(0, 3);
@@ -330,7 +348,9 @@ function DetailedView({
                                 <TableHead className="font-bold">M.I.</TableHead>
                                 <TableHead className="font-bold">Year Level</TableHead>
                                 <TableHead className="font-bold text-right">Total Fees</TableHead>
-                                <TableHead className="font-bold text-right">Amount Subsidy</TableHead>
+                                <TableHead className="font-bold text-right">
+                                  Amount Subsidy
+                                </TableHead>
                                 <TableHead className="font-bold text-right">% Subsidy</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -340,8 +360,13 @@ function DetailedView({
                                 const totalFees = fees ? calculateTotalFees(fees) : 0;
 
                                 return (
-                                  <TableRow key={student.id} className="hover:bg-muted/30 transition-colors">
-                                    <TableCell className="font-medium">{student.lastName}</TableCell>
+                                  <TableRow
+                                    key={student.id}
+                                    className="hover:bg-muted/30 transition-colors"
+                                  >
+                                    <TableCell className="font-medium">
+                                      {student.lastName}
+                                    </TableCell>
                                     <TableCell>{student.firstName}</TableCell>
                                     <TableCell>{student.middleInitial || '-'}</TableCell>
                                     <TableCell>{student.yearLevel}</TableCell>
@@ -352,8 +377,13 @@ function DetailedView({
                                       {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                      <Badge variant="secondary" className="bg-primary/10 text-primary">
-                                        {fees ? `${(calculatePercentSubsidy(fees) * 100).toFixed(2)}%` : '-'}
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-primary/10 text-primary"
+                                      >
+                                        {fees
+                                          ? `${(calculatePercentSubsidy(fees) * 100).toFixed(2)}%`
+                                          : '-'}
                                       </Badge>
                                     </TableCell>
                                   </TableRow>
@@ -361,8 +391,12 @@ function DetailedView({
                               })}
                               {students.length > 3 && (
                                 <TableRow>
-                                  <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
-                                    ... and {students.length - 3} more students. View full report for complete details.
+                                  <TableCell
+                                    colSpan={7}
+                                    className="text-center text-muted-foreground py-4"
+                                  >
+                                    ... and {students.length - 3} more students. View full report
+                                    for complete details.
                                   </TableCell>
                                 </TableRow>
                               )}
@@ -389,21 +423,18 @@ function DashboardContent() {
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>(
     searchParams.get('source') || 'all'
   );
-  
+
   // Use TanStack Query for data fetching
-  const { data: statsData, isLoading: statsLoading } = useDashboardStats(
-    scholarshipSourceFilter,
-    {
-      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    }
-  );
+  const { data: statsData, isLoading: statsLoading } = useDashboardStats(scholarshipSourceFilter, {
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
   const { data: detailedData, isLoading: detailedLoading } = useDashboardDetailed(
     scholarshipSourceFilter,
     {
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     }
   );
-  
+
   const isLoading = statsLoading || detailedLoading;
   const data = statsData?.data;
   const detailedStudents = detailedData?.data || [];
@@ -511,20 +542,19 @@ function DashboardContent() {
         <ChartsSection data={data} />
       </Suspense>
 
-      <Suspense fallback={
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <PieChartSkeleton />
-          <RecentAwardsSkeleton />
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <PieChartSkeleton />
+            <RecentAwardsSkeleton />
+          </div>
+        }
+      >
         <SecondaryChartsSection data={data} scholarshipSourceFilter={scholarshipSourceFilter} />
       </Suspense>
 
       <Suspense fallback={<TabsSkeleton />}>
-        <DetailedView
-          detailedStudents={detailedStudents}
-          router={router}
-        />
+        <DetailedView detailedStudents={detailedStudents} router={router} />
       </Suspense>
     </div>
   );
@@ -533,14 +563,16 @@ function DashboardContent() {
 // Export default with Suspense boundary at the top level
 export default function DashboardPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading dashboard...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-600">Loading dashboard...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <DashboardContent />
     </Suspense>
   );

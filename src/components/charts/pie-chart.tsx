@@ -1,6 +1,6 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface PieChartData {
   name: string;
@@ -55,7 +55,11 @@ export function CustomPieChart({ data, colors = THEME_COLORS }: CustomPieChartPr
           height={36}
           iconType="circle"
           iconSize={8}
-          formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontSize: '12px', marginLeft: '4px' }}>{value}</span>}
+          formatter={(value) => (
+            <span style={{ color: 'hsl(var(--foreground))', fontSize: '12px', marginLeft: '4px' }}>
+              {value}
+            </span>
+          )}
         />
       </PieChart>
     </ResponsiveContainer>

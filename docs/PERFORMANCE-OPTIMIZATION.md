@@ -3,6 +3,7 @@
 ## Problem Summary
 
 The application was experiencing slow loading times (17+ seconds) with Prisma retry warnings:
+
 ```
 prisma:warn Attempt 1/3 failed for querying: This request must be retried
 prisma:warn Retrying after 41ms
@@ -40,11 +41,13 @@ DATABASE_URL="prisma+postgres://...&connection_limit=10&pool_timeout=20&connect_
 ```
 
 **Parameters:**
+
 - `connection_limit=10`: Max 10 concurrent connections
 - `pool_timeout=20`: Wait 20s for connection from pool
 - `connect_timeout=10`: Fail connection after 10s
 
 **Benefits:**
+
 - Prevents connection pool exhaustion
 - Faster failure detection
 - Better resource utilization
@@ -55,34 +58,40 @@ Added slow query detection in production:
 
 ```typescript
 if (process.env.NODE_ENV === 'production') {
-    prisma.$extends({
-        query: {
-            $allModels: {
-                async $allOperations({ operation, model, args, query }) {
-                    const start = performance.now();
-                    try {
-                        const result = await query(args);
-                        const end = performance.now();
+  prisma.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ operation, model, args, query }) {
+          const start = performance.now();
+          try {
+            const result = await query(args);
+            const end = performance.now();
 
-                        // Log slow queries (over 500ms in production)
-                        if (end - start > 500) {
-                            console.warn(`Slow query detected: ${model}.${operation} took ${(end - start).toFixed(2)}ms`);
-                        }
+            // Log slow queries (over 500ms in production)
+            if (end - start > 500) {
+              console.warn(
+                `Slow query detected: ${model}.${operation} took ${(end - start).toFixed(2)}ms`
+              );
+            }
 
-                        return result;
-                    } catch (error) {
-                        const end = performance.now();
-                        console.error(`Query failed: ${model}.${operation} after ${(end - start).toFixed(2)}ms`, error);
-                        throw error;
-                    }
-                },
-            },
+            return result;
+          } catch (error) {
+            const end = performance.now();
+            console.error(
+              `Query failed: ${model}.${operation} after ${(end - start).toFixed(2)}ms`,
+              error
+            );
+            throw error;
+          }
         },
-    });
+      },
+    },
+  });
 }
 ```
 
 **Benefits:**
+
 - Identifies performance bottlenecks
 - Production-ready error logging
 - Graceful shutdown handling
@@ -90,23 +99,26 @@ if (process.env.NODE_ENV === 'production') {
 ### 3. Database-Level Aggregation (`src/app/api/students/filter-options/route.ts`)
 
 **Before (O(n) - fetches all records to memory):**
+
 ```typescript
 const students = await prisma.student.findMany({ where });
-students.forEach(student => {
-    programCounts[student.program] = (programCounts[student.program] || 0) + 1;
+students.forEach((student) => {
+  programCounts[student.program] = (programCounts[student.program] || 0) + 1;
 });
 ```
 
 **After (O(1) - database aggregation):**
+
 ```typescript
 const programAgg = await prisma.student.groupBy({
-    by: ['program'],
-    where,
-    _count: { id: true },
+  by: ['program'],
+  where,
+  _count: { id: true },
 });
 ```
 
 **Benefits:**
+
 - 17s → ~100-500ms (30-100x faster!)
 - Dramatically reduced memory usage
 - Scales with database size, not student count
@@ -114,11 +126,13 @@ const programAgg = await prisma.student.groupBy({
 ### 4. Combined Initial Data Endpoint (`src/app/api/students/initial-data/route.ts`)
 
 New endpoint that returns all initial data in one request:
+
 - Programs list
-- Scholarships list  
+- Scholarships list
 - Student counts
 
 **Before (3 separate requests):**
+
 ```typescript
 Promise.all([
   fetch('/api/students/filter-options'),
@@ -128,13 +142,13 @@ Promise.all([
 ```
 
 **After (1 combined request):**
+
 ```typescript
-Promise.all([
-  fetch('/api/students/initial-data'),
-]);
+Promise.all([fetch('/api/students/initial-data')]);
 ```
 
 **Benefits:**
+
 - 3 connections → 1 connection
 - Reduced network overhead
 - Faster initial page load
@@ -146,6 +160,7 @@ const debouncedSearch = useDebounce(search, 300);
 ```
 
 **Benefits:**
+
 - Prevents API call on every keystroke
 - Reduces server load by ~70% during typing
 - Better user experience (no lag while typing)
@@ -156,19 +171,20 @@ Created composite indexes for common query patterns:
 
 ```sql
 -- Optimized for filter queries
-CREATE INDEX students_filtered_list_idx 
+CREATE INDEX students_filtered_list_idx
 ON students(is_archived, grade_level, program, status);
 
 -- Optimized for scholarship joins
-CREATE INDEX student_scholarships_composite_idx 
+CREATE INDEX student_scholarships_composite_idx
 ON student_scholarships(student_id, scholarship_id, scholarship_status);
 
 -- Optimized for active scholarship queries
-CREATE INDEX scholarships_active_idx 
+CREATE INDEX scholarships_active_idx
 ON scholarships(status, is_archived);
 ```
 
 **Benefits:**
+
 - Index scan instead of sequential scan
 - 10-100x faster for filtered queries
 - Especially impactful on large datasets (10k+ students)
@@ -182,6 +198,7 @@ npm run db:add-indexes
 ```
 
 Or manually:
+
 ```bash
 npx tsx scripts/add-indexes.ts
 ```
@@ -202,13 +219,13 @@ npm run dev
 
 ## Expected Performance Improvements
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| `/api/students/filter-options` | 17.1s | ~0.3s | **57x faster** |
-| Initial page load | 17.2s | ~2s | **8.6x faster** |
-| Prisma retry warnings | Frequent | None | **Eliminated** |
-| Database connections | Unbounded | Limited to 10 | **Controlled** |
-| Memory usage (filter-options) | O(n) | O(1) | **Constant** |
+| Metric                         | Before    | After         | Improvement     |
+| ------------------------------ | --------- | ------------- | --------------- |
+| `/api/students/filter-options` | 17.1s     | ~0.3s         | **57x faster**  |
+| Initial page load              | 17.2s     | ~2s           | **8.6x faster** |
+| Prisma retry warnings          | Frequent  | None          | **Eliminated**  |
+| Database connections           | Unbounded | Limited to 10 | **Controlled**  |
+| Memory usage (filter-options)  | O(n)      | O(1)          | **Constant**    |
 
 ## Monitoring & Maintenance
 
@@ -219,15 +236,16 @@ Enable slow query logging in development:
 ```typescript
 // src/lib/prisma.ts
 const prisma = new PrismaClient({
-    log: process.env.NODE_ENV === 'development' 
-        ? ['error', 'warn', { emit: 'event', level: 'query' }] 
-        : ['error'],
+  log:
+    process.env.NODE_ENV === 'development'
+      ? ['error', 'warn', { emit: 'event', level: 'query' }]
+      : ['error'],
 });
 
 prisma.$on('query', (e) => {
-    if (e.duration > 500) {
-        console.warn(`Slow query: ${e.duration}ms`, e.query);
-    }
+  if (e.duration > 500) {
+    console.warn(`Slow query: ${e.duration}ms`, e.query);
+  }
 });
 ```
 
@@ -245,6 +263,7 @@ ANALYZE scholarships;
 ### Monitor Connection Pool
 
 Watch for connection pool warnings:
+
 - `prisma:warn Retrying after Xms` - indicates connection issues
 - `Error: Too many connections` - reduce `connection_limit`
 

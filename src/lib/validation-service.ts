@@ -18,45 +18,45 @@ export interface ValidationIssue {
  */
 export async function validateStudentGraduationConsistency(): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
-  
+
   // Find students marked as graduated but without graduation date
   const graduatedWithoutDate = await prisma.student.findMany({
     where: {
       graduationStatus: 'Graduated',
       graduatedAt: null,
     },
-    select: { id: true }
+    select: { id: true },
   });
-  
+
   for (const student of graduatedWithoutDate) {
     issues.push({
       entity: 'student',
       id: student.id,
       field: 'graduatedAt',
       issue: 'Student marked as graduated but has no graduation date',
-      severity: 'error'
+      severity: 'error',
     });
   }
-  
+
   // Find students with graduation date but not marked as graduated
   const datedWithoutStatus = await prisma.student.findMany({
     where: {
       graduatedAt: { not: null },
       graduationStatus: { not: 'Graduated' },
     },
-    select: { id: true }
+    select: { id: true },
   });
-  
+
   for (const student of datedWithoutStatus) {
     issues.push({
       entity: 'student',
       id: student.id,
       field: 'graduationStatus',
       issue: 'Student has graduation date but is not marked as graduated',
-      severity: 'warning'
+      severity: 'warning',
     });
   }
-  
+
   return issues;
 }
 
@@ -66,7 +66,7 @@ export async function validateStudentGraduationConsistency(): Promise<Validation
  */
 export async function validateGraduatedStudentScholarships(): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
-  
+
   // Find graduated students with active scholarships
   const graduatedWithActiveScholarships = await prisma.student.findMany({
     where: {
@@ -76,11 +76,11 @@ export async function validateGraduatedStudentScholarships(): Promise<Validation
       scholarships: {
         where: {
           scholarshipStatus: 'Active',
-        }
-      }
-    }
+        },
+      },
+    },
   });
-  
+
   for (const student of graduatedWithActiveScholarships) {
     if (student.scholarships.length > 0) {
       for (const scholarship of student.scholarships) {
@@ -89,12 +89,12 @@ export async function validateGraduatedStudentScholarships(): Promise<Validation
           id: scholarship.id,
           field: 'scholarshipStatus',
           issue: `Graduated student (${student.id}) still has active scholarship (${scholarship.scholarshipId})`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
   }
-  
+
   return issues;
 }
 
@@ -104,7 +104,7 @@ export async function validateGraduatedStudentScholarships(): Promise<Validation
  */
 export async function validateGraduatedStudentDisbursements(): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
-  
+
   // Find graduated students with future disbursements
   const graduatedWithFutureDisbursements = await prisma.student.findMany({
     where: {
@@ -114,11 +114,11 @@ export async function validateGraduatedStudentDisbursements(): Promise<Validatio
       disbursements: {
         where: {
           disbursementDate: { gte: new Date() }, // Future disbursements
-        }
-      }
-    }
+        },
+      },
+    },
   });
-  
+
   for (const student of graduatedWithFutureDisbursements) {
     if (student.disbursements.length > 0) {
       for (const disbursement of student.disbursements) {
@@ -127,12 +127,12 @@ export async function validateGraduatedStudentDisbursements(): Promise<Validatio
           id: disbursement.id,
           field: 'disbursementDate',
           issue: `Graduated student (${student.id}) still has future disbursement scheduled for ${disbursement.disbursementDate}`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
   }
-  
+
   return issues;
 }
 
@@ -143,21 +143,22 @@ export async function runAllValidations(): Promise<{
   totalIssues: number;
   issues: ValidationIssue[];
 }> {
-  const [graduationConsistency, scholarshipConsistency, disbursementConsistency] = await Promise.all([
-    validateStudentGraduationConsistency(),
-    validateGraduatedStudentScholarships(),
-    validateGraduatedStudentDisbursements()
-  ]);
-  
+  const [graduationConsistency, scholarshipConsistency, disbursementConsistency] =
+    await Promise.all([
+      validateStudentGraduationConsistency(),
+      validateGraduatedStudentScholarships(),
+      validateGraduatedStudentDisbursements(),
+    ]);
+
   const allIssues = [
     ...graduationConsistency,
     ...scholarshipConsistency,
-    ...disbursementConsistency
+    ...disbursementConsistency,
   ];
-  
+
   return {
     totalIssues: allIssues.length,
-    issues: allIssues
+    issues: allIssues,
   };
 }
 
@@ -171,47 +172,47 @@ export async function fixDataIntegrityIssues(): Promise<{
 }> {
   let fixedIssues = 0;
   const issues = await runAllValidations();
-  
+
   // Fix graduation status consistency issues
   for (const issue of issues.issues) {
     if (issue.entity === 'student' && issue.field === 'graduatedAt' && issue.severity === 'error') {
       // Set graduation date to current date for students marked as graduated but without date
       await prisma.student.update({
         where: { id: issue.id as number },
-        data: { graduatedAt: new Date() }
+        data: { graduatedAt: new Date() },
       });
       fixedIssues++;
     }
   }
-  
+
   // Fix graduated student scholarship issues
   for (const issue of issues.issues) {
     if (issue.entity === 'student_scholarship' && issue.severity === 'error') {
       // Update scholarship status to completed for graduated students
       await prisma.studentScholarship.update({
         where: { id: issue.id as number },
-        data: { scholarshipStatus: 'Completed' }
+        data: { scholarshipStatus: 'Completed' },
       });
       fixedIssues++;
     }
   }
-  
+
   // Fix graduated student disbursement issues
   for (const issue of issues.issues) {
     if (issue.entity === 'disbursement' && issue.severity === 'error') {
       // Delete future disbursements for graduated students
       await prisma.disbursement.delete({
-        where: { id: issue.id as number }
+        where: { id: issue.id as number },
       });
       fixedIssues++;
     }
   }
-  
+
   // Run validation again to see remaining issues
   const remaining = await runAllValidations();
-  
+
   return {
     fixedIssues,
-    remainingIssues: remaining.issues
+    remainingIssues: remaining.issues,
   };
 }

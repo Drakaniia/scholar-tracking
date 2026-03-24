@@ -1,13 +1,13 @@
-import { SignJWT, jwtVerify } from 'jose';
-import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { prisma } from './prisma';
-import type { User } from '@prisma/client';
 import type { NextRequest } from 'next/server';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback-secret-key'
-);
+import type { User } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import { SignJWT, jwtVerify } from 'jose';
+
+import { prisma } from './prisma';
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-key');
 
 export interface SessionUser {
   id: number;
@@ -124,7 +124,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
 export async function destroySession() {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth-token')?.value;
-  
+
   if (token) {
     const user = await verifyToken(token);
     if (user) {
@@ -134,7 +134,7 @@ export async function destroySession() {
       });
     }
   }
-  
+
   cookieStore.delete('auth-token');
 }
 
@@ -146,7 +146,7 @@ export async function checkAccountLockout(username: string): Promise<boolean> {
   });
 
   if (!user?.lockedUntil) return false;
-  
+
   return user.lockedUntil > new Date();
 }
 
@@ -168,9 +168,7 @@ export async function incrementFailedAttempts(username: string) {
     where: { id: user.id },
     data: {
       failedLoginAttempts: newAttempts,
-      lockedUntil: shouldLock 
-        ? new Date(Date.now() + lockoutDuration * 60 * 1000)
-        : null,
+      lockedUntil: shouldLock ? new Date(Date.now() + lockoutDuration * 60 * 1000) : null,
     },
   });
 }
@@ -203,7 +201,7 @@ export async function logAudit(
         where: { id: userId },
         select: { id: true },
       });
-      
+
       // If user doesn't exist, set userId to null to avoid foreign key constraint error
       if (!userExists) {
         console.warn(`User ID ${userId} not found in database, logging audit with null userId`);

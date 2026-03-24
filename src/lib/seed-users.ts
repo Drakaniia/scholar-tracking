@@ -1,5 +1,5 @@
-import { prisma } from './prisma';
 import { hashPassword } from './auth';
+import { prisma } from './prisma';
 
 export async function seedUsers() {
   console.log('🌱 Seeding users...');
@@ -16,7 +16,7 @@ export async function seedUsers() {
 
   // Create default admin user
   const adminPassword = await hashPassword('admin123');
-  
+
   const admin = await prisma.user.create({
     data: {
       username: 'admin',
@@ -33,7 +33,7 @@ export async function seedUsers() {
 
   // Create sample staff user
   const staffPassword = await hashPassword('staff123');
-  
+
   const staff = await prisma.user.create({
     data: {
       username: 'staff',

@@ -6,18 +6,18 @@ ScholarTrack is a comprehensive web-based scholarship management system built wi
 
 ### Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript |
-| **Database** | PostgreSQL (via Prisma ORM) |
-| **Authentication** | JWT + HTTP-only cookies (jose + bcryptjs) |
-| **UI Library** | React 19 + shadcn/ui + Radix UI |
-| **Styling** | Tailwind CSS v4 |
-| **State Management** | TanStack Query (React Query) |
-| **Charts** | Recharts |
-| **Testing** | Vitest |
-| **Deployment** | Vercel |
+| Category             | Technology                                |
+| -------------------- | ----------------------------------------- |
+| **Framework**        | Next.js 16 (App Router)                   |
+| **Language**         | TypeScript                                |
+| **Database**         | PostgreSQL (via Prisma ORM)               |
+| **Authentication**   | JWT + HTTP-only cookies (jose + bcryptjs) |
+| **UI Library**       | React 19 + shadcn/ui + Radix UI           |
+| **Styling**          | Tailwind CSS v4                           |
+| **State Management** | TanStack Query (React Query)              |
+| **Charts**           | Recharts                                  |
+| **Testing**          | Vitest                                    |
+| **Deployment**       | Vercel                                    |
 
 ### Core Features
 
@@ -143,28 +143,28 @@ npm start
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server (port 8080) |
-| `npm run build` | Generate Prisma client + production build |
-| `npm start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run test` | Run Vitest tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run db:push` | Push Prisma schema to database |
-| `npm run db:seed` | Seed database with initial data |
-| `npm run db:studio` | Open Prisma Studio |
-| `npm run erd:generate` | Generate ERD visualization |
-| `npm run erd:view` | Open ERD in browser |
+| Command                | Description                               |
+| ---------------------- | ----------------------------------------- |
+| `npm run dev`          | Start development server (port 8080)      |
+| `npm run build`        | Generate Prisma client + production build |
+| `npm start`            | Start production server                   |
+| `npm run lint`         | Run ESLint                                |
+| `npm run typecheck`    | TypeScript type checking                  |
+| `npm run test`         | Run Vitest tests                          |
+| `npm run test:watch`   | Run tests in watch mode                   |
+| `npm run db:push`      | Push Prisma schema to database            |
+| `npm run db:seed`      | Seed database with initial data           |
+| `npm run db:studio`    | Open Prisma Studio                        |
+| `npm run erd:generate` | Generate ERD visualization                |
+| `npm run erd:view`     | Open ERD in browser                       |
 
 ## Default Credentials
 
 After seeding the database:
 
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `admin123` | ADMIN |
+| Username | Password   | Role  |
+| -------- | ---------- | ----- |
+| `admin`  | `admin123` | ADMIN |
 
 ⚠️ **Security Note**: Change default credentials immediately in production.
 
@@ -197,7 +197,7 @@ After seeding the database:
 
 - **TypeScript**: Strict mode enabled
 - **Formatting**: Consistent with existing codebase patterns
-- **Naming**: 
+- **Naming**:
   - Components: PascalCase
   - Files: kebab-case for routes, PascalCase for components
   - Functions/variables: camelCase
@@ -272,13 +272,13 @@ npm run erd:view
 
 ### Common Issues
 
-| Issue | Solution |
-|-------|----------|
-| Port 8080 in use | Change port in `package.json` dev script |
-| Prisma client not generated | Run `npx prisma generate` |
-| Database connection error | Verify `DATABASE_URL` in `.env` |
-| Auth not working | Clear cookies, ensure JWT_SECRET matches |
-| Build fails | Run `npm run typecheck` to identify TS errors |
+| Issue                       | Solution                                      |
+| --------------------------- | --------------------------------------------- |
+| Port 8080 in use            | Change port in `package.json` dev script      |
+| Prisma client not generated | Run `npx prisma generate`                     |
+| Database connection error   | Verify `DATABASE_URL` in `.env`               |
+| Auth not working            | Clear cookies, ensure JWT_SECRET matches      |
+| Build fails                 | Run `npm run typecheck` to identify TS errors |
 
 ## Documentation
 

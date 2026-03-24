@@ -1,4 +1,5 @@
 # ScholarTrack System Manual
+
 ## Scholarship Tracking System - Complete User Guide
 
 **Version:** 1.0.0  
@@ -43,11 +44,11 @@ ScholarTrack is a comprehensive web-based scholarship tracking system designed t
 
 ### 1.3 User Roles
 
-| Role | Permissions | Description |
-|------|-------------|-------------|
-| **ADMIN** | Full access | Complete system control, user management |
-| **STAFF** | Read/Write | Manage students and scholarships |
-| **VIEWER** | Read-only | View reports and data only |
+| Role       | Permissions | Description                              |
+| ---------- | ----------- | ---------------------------------------- |
+| **ADMIN**  | Full access | Complete system control, user management |
+| **STAFF**  | Read/Write  | Manage students and scholarships         |
+| **VIEWER** | Read-only   | View reports and data only               |
 
 ---
 
@@ -56,12 +57,14 @@ ScholarTrack is a comprehensive web-based scholarship tracking system designed t
 ### 2.1 Hardware Requirements
 
 **Minimum:**
+
 - Processor: Intel Core i3 or equivalent
 - RAM: 4 GB
 - Storage: 10 GB available space
 - Internet: Broadband connection (1 Mbps+)
 
 **Recommended:**
+
 - Processor: Intel Core i5 or higher
 - RAM: 8 GB or more
 - Storage: 20 GB SSD
@@ -70,25 +73,27 @@ ScholarTrack is a comprehensive web-based scholarship tracking system designed t
 ### 2.2 Software Requirements
 
 **Client Side:**
+
 - Modern web browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
 - JavaScript enabled
 - Cookies enabled
 - Screen resolution: 1366x768 or higher
 
 **Server Side (For Administrators):**
+
 - Node.js 18.x or higher
 - PostgreSQL 14.x or higher
 - npm or yarn package manager
 
 ### 2.3 Supported Browsers
 
-| Browser | Minimum Version | Status |
-|---------|----------------|--------|
-| Google Chrome | 90+ | ✅ Fully Supported |
-| Mozilla Firefox | 88+ | ✅ Fully Supported |
-| Safari | 14+ | ✅ Fully Supported |
-| Microsoft Edge | 90+ | ✅ Fully Supported |
-| Internet Explorer | Any | ❌ Not Supported |
+| Browser           | Minimum Version | Status             |
+| ----------------- | --------------- | ------------------ |
+| Google Chrome     | 90+             | ✅ Fully Supported |
+| Mozilla Firefox   | 88+             | ✅ Fully Supported |
+| Safari            | 14+             | ✅ Fully Supported |
+| Microsoft Edge    | 90+             | ✅ Fully Supported |
+| Internet Explorer | Any             | ❌ Not Supported   |
 
 ---
 
@@ -128,6 +133,7 @@ npm run dev
 ### 3.3 Default Credentials
 
 **Administrator Account:**
+
 - Username: `admin`
 - Password: `admin123`
 
@@ -197,6 +203,7 @@ npm run dev
 ### 4.6 Forgot Password
 
 If you forget your password, contact an administrator who can:
+
 - Reset your password
 - Create a new temporary password for you
 - Deactivate your account if needed
@@ -238,24 +245,29 @@ The dashboard provides a comprehensive overview of the system:
 ### 5.2 Statistics Cards
 
 **Total Students**
+
 - Shows the total number of students in the system
 - Displays count of students with scholarships
 
 **Active Scholarships**
+
 - Number of currently active scholarship programs
 - Total scholarship programs available
 
 **Total Awarded**
+
 - Total amount of scholarship funds awarded
 - Displayed in Philippine Peso (₱)
 
 **Total Disbursed**
+
 - Total amount of funds disbursed to students
 - Tracks actual payments made
 
 ### 5.3 Navigation Menu
 
 **Main Menu Items:**
+
 - 🏠 **Dashboard**: System overview and statistics
 - 👥 **Students**: Student management module
 - 🎓 **Scholarships**: Scholarship program management
@@ -275,6 +287,7 @@ The dashboard provides a comprehensive overview of the system:
 ### 6.1 Viewing Students
 
 **To view the student list:**
+
 1. Click "Students" in the navigation menu
 2. The student list will display with the following columns:
    - Student No.
@@ -329,6 +342,7 @@ The dashboard provides a comprehensive overview of the system:
 4. The student record will be permanently removed
 
 ⚠️ **Warning**: Deleting a student will also remove:
+
 - Associated fee records
 - Disbursement history
 - This action cannot be undone!
@@ -350,21 +364,25 @@ The dashboard provides a comprehensive overview of the system:
 ### 6.6 Searching and Filtering
 
 **Search Options:**
+
 - Search by name
 - Search by student number
 - Search by program
 
 **Filter Options:**
+
 - Filter by grade level
 - Filter by scholarship status
 - Filter by active/inactive status
 
 **To use search:**
+
 1. Enter search term in the search box
 2. Results update automatically
 3. Clear search to view all students
 
 **To use filters:**
+
 1. Click the filter dropdown
 2. Select desired filter criteria
 3. Click "Apply" to filter results
@@ -377,6 +395,7 @@ The dashboard provides a comprehensive overview of the system:
 ### 7.1 Viewing Scholarships
 
 **To view scholarships:**
+
 1. Click "Scholarships" in the navigation menu
 2. View the list with columns:
    - Scholarship Name
@@ -390,16 +409,19 @@ The dashboard provides a comprehensive overview of the system:
 ### 7.2 Scholarship Types
 
 **PAED (Private Education Assistance)**
+
 - Sponsored by private education institutions
 - Typically covers tuition and fees
 - May have specific eligibility requirements
 
 **CHED (Commission on Higher Education)**
+
 - Government-funded scholarships
 - For college students
 - Merit-based or need-based
 
 **LGU (Local Government Unit)**
+
 - Funded by local government
 - For residents of specific areas
 - Various eligibility criteria
@@ -441,6 +463,7 @@ The dashboard provides a comprehensive overview of the system:
 4. Confirm deletion
 
 ⚠️ **Warning**: If students are assigned to this scholarship:
+
 - You'll see a warning with the student count
 - Consider reassigning students first
 - Deletion will remove scholarship assignments
@@ -448,6 +471,7 @@ The dashboard provides a comprehensive overview of the system:
 ### 7.6 Viewing Scholarship Details
 
 **To view details:**
+
 1. Click on the scholarship name
 2. View comprehensive information:
    - Full description
@@ -468,12 +492,14 @@ The dashboard provides a comprehensive overview of the system:
 ### 8.2 Report Types
 
 **Detailed Student Scholarship Report**
+
 - Organized by grade level
 - Grouped by scholarship type
 - Shows complete fee breakdown
 - Includes subsidy calculations
 
 **Report Sections:**
+
 - Grade School students
 - Junior High students
 - Senior High students
@@ -483,24 +509,25 @@ The dashboard provides a comprehensive overview of the system:
 
 Each report includes:
 
-| Column | Description |
-|--------|-------------|
-| Student No. | Unique student identifier |
-| Last Name | Student's surname |
-| First Name | Student's given name |
-| M.I. | Middle initial |
-| Year Level | Current year/grade |
-| Tuition Fee | Tuition amount |
-| Other Fees | Additional fees |
-| Miscellaneous | Misc. charges |
-| Laboratory | Lab fees |
-| Total Fees | Sum of all fees |
-| Subsidy Amount | Scholarship amount |
-| % Subsidy | Percentage covered |
+| Column         | Description               |
+| -------------- | ------------------------- |
+| Student No.    | Unique student identifier |
+| Last Name      | Student's surname         |
+| First Name     | Student's given name      |
+| M.I.           | Middle initial            |
+| Year Level     | Current year/grade        |
+| Tuition Fee    | Tuition amount            |
+| Other Fees     | Additional fees           |
+| Miscellaneous  | Misc. charges             |
+| Laboratory     | Lab fees                  |
+| Total Fees     | Sum of all fees           |
+| Subsidy Amount | Scholarship amount        |
+| % Subsidy      | Percentage covered        |
 
 ### 8.4 Viewing Reports by Grade Level
 
 **To view specific grade level:**
+
 1. Click the grade level tab:
    - Grade School
    - Junior High
@@ -512,16 +539,19 @@ Each report includes:
 ### 8.5 Understanding Report Calculations
 
 **Total Fees Calculation:**
+
 ```
 Total Fees = Tuition + Other Fees + Miscellaneous + Laboratory
 ```
 
 **Subsidy Percentage Calculation:**
+
 ```
 % Subsidy = (Subsidy Amount / Total Fees) × 100
 ```
 
 **Example:**
+
 - Total Fees: ₱50,000
 - Subsidy Amount: ₱30,000
 - % Subsidy: 60%
@@ -533,6 +563,7 @@ Total Fees = Tuition + Other Fees + Miscellaneous + Laboratory
 ### 9.1 Export Options
 
 ScholarTrack supports three export formats:
+
 - **PDF**: For printing and sharing
 - **Excel (XLSX)**: For data analysis
 - **CSV**: For importing to other systems
@@ -553,6 +584,7 @@ ScholarTrack supports three export formats:
 ### 9.3 Export File Contents
 
 **Student Export includes:**
+
 - All student information
 - Scholarship assignments
 - Fee breakdowns
@@ -560,6 +592,7 @@ ScholarTrack supports three export formats:
 - Organized by grade level and scholarship type
 
 **Scholarship Export includes:**
+
 - Scholarship details
 - Sponsor information
 - Amount and type
@@ -599,11 +632,13 @@ ScholarTrack supports three export formats:
 ### 10.1 Prisma Studio
 
 **Accessing Prisma Studio:**
+
 ```bash
 npx prisma studio
 ```
 
 **Features:**
+
 - Visual database browser
 - Edit records directly
 - View relationships
@@ -611,6 +646,7 @@ npx prisma studio
 - Export individual tables
 
 **Use Cases:**
+
 - Quick data inspection
 - Manual data corrections
 - Testing database queries
@@ -619,11 +655,13 @@ npx prisma studio
 ### 10.2 Database ERD Visualization
 
 **Viewing the ERD:**
+
 ```bash
 npm run erd:view
 ```
 
 **Features:**
+
 - Interactive diagram
 - Zoom controls
 - Table relationships
@@ -631,6 +669,7 @@ npm run erd:view
 - Forest theme visualization
 
 **Regenerating ERD:**
+
 ```bash
 npm run erd:generate
 ```
@@ -638,16 +677,19 @@ npm run erd:generate
 ### 10.3 Database Backup
 
 **Manual Backup:**
+
 ```bash
 pg_dump -U username -d scholarship_db > backup.sql
 ```
 
 **Restore from Backup:**
+
 ```bash
 psql -U username -d scholarship_db < backup.sql
 ```
 
 **Recommended Backup Schedule:**
+
 - Daily: Automated backups
 - Weekly: Full database export
 - Monthly: Archive backups
@@ -655,6 +697,7 @@ psql -U username -d scholarship_db < backup.sql
 ### 10.4 Database Maintenance
 
 **Regular Tasks:**
+
 1. Monitor database size
 2. Check for orphaned records
 3. Verify data integrity
@@ -662,6 +705,7 @@ psql -U username -d scholarship_db < backup.sql
 5. Vacuum and analyze tables
 
 **PostgreSQL Maintenance:**
+
 ```bash
 # Vacuum database
 VACUUM ANALYZE;
@@ -670,7 +714,7 @@ VACUUM ANALYZE;
 SELECT pg_size_pretty(pg_database_size('scholarship_db'));
 
 # Check table sizes
-SELECT 
+SELECT
   schemaname,
   tablename,
   pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
@@ -688,6 +732,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Cannot login**
 
 **Solutions:**
+
 1. Verify username and password
 2. Check Caps Lock is off
 3. Clear browser cache and cookies
@@ -698,6 +743,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Session expires too quickly**
 
 **Solutions:**
+
 1. Check system time is correct
 2. Ensure cookies are enabled
 3. Don't use incognito/private mode
@@ -708,6 +754,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Data not loading**
 
 **Solutions:**
+
 1. Refresh the page (F5)
 2. Check internet connection
 3. Clear browser cache
@@ -717,6 +764,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Images not displaying**
 
 **Solutions:**
+
 1. Check internet connection
 2. Disable ad blockers
 3. Clear browser cache
@@ -727,6 +775,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Export fails or downloads empty file**
 
 **Solutions:**
+
 1. Check if data exists to export
 2. Try a different export format
 3. Disable popup blockers
@@ -736,6 +785,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: PDF formatting issues**
 
 **Solutions:**
+
 1. Use landscape orientation
 2. Adjust zoom level
 3. Try printing to PDF instead
@@ -746,6 +796,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: System is slow**
 
 **Solutions:**
+
 1. Close unnecessary browser tabs
 2. Clear browser cache
 3. Check internet speed
@@ -758,6 +809,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Data not saving**
 
 **Solutions:**
+
 1. Check required fields are filled
 2. Verify data format is correct
 3. Check for duplicate entries
@@ -767,6 +819,7 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 **Problem: Missing data**
 
 **Solutions:**
+
 1. Check filters are not hiding data
 2. Verify search terms
 3. Check if data was deleted
@@ -837,11 +890,13 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 ### 13.1 Contact Information
 
 **System Administrator:**
+
 - Email: admin@scholarship.edu
 - Phone: (Contact your institution)
 - Office Hours: Monday-Friday, 8:00 AM - 5:00 PM
 
 **Technical Support:**
+
 - Email: support@scholarship.edu
 - Response Time: Within 24 hours
 - Emergency: Contact system administrator directly
@@ -849,6 +904,7 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 ### 13.2 Reporting Issues
 
 **When reporting an issue, please include:**
+
 1. Your username (not password!)
 2. Date and time of the issue
 3. What you were trying to do
@@ -857,6 +913,7 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 6. Steps to reproduce the issue
 
 **Issue Priority Levels:**
+
 - **Critical**: System down, cannot login
 - **High**: Major feature not working
 - **Medium**: Minor feature issue
@@ -865,6 +922,7 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 ### 13.3 Feature Requests
 
 **To request a new feature:**
+
 1. Email your request to support
 2. Describe the feature in detail
 3. Explain the business need
@@ -874,6 +932,7 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 ### 13.4 Training and Documentation
 
 **Available Resources:**
+
 - This System Manual
 - Video tutorials (coming soon)
 - Quick reference guides
@@ -881,6 +940,7 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 - API documentation (for developers)
 
 **Training Sessions:**
+
 - New user orientation
 - Advanced features training
 - Administrator training
@@ -889,12 +949,14 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 ### 13.5 System Updates
 
 **Update Schedule:**
+
 - Minor updates: Monthly
 - Major updates: Quarterly
 - Security patches: As needed
 - Maintenance windows: Announced 1 week in advance
 
 **Update Notifications:**
+
 - Email notifications to all users
 - In-system announcements
 - Changelog available in documentation
@@ -903,36 +965,40 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 
 ## Appendix A: Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl + S` | Save current form |
-| `Esc` | Close dialog/modal |
-| `Ctrl + F` | Focus search box |
-| `+` or `=` | Zoom in (ERD viewer) |
-| `-` | Zoom out (ERD viewer) |
-| `0` | Reset zoom (ERD viewer) |
+| Shortcut   | Action                  |
+| ---------- | ----------------------- |
+| `Ctrl + S` | Save current form       |
+| `Esc`      | Close dialog/modal      |
+| `Ctrl + F` | Focus search box        |
+| `+` or `=` | Zoom in (ERD viewer)    |
+| `-`        | Zoom out (ERD viewer)   |
+| `0`        | Reset zoom (ERD viewer) |
 
 ---
 
 ## Appendix B: Data Validation Rules
 
 ### Student Number Format
+
 - Pattern: `YYYY-NNN` (e.g., 2024-001)
 - Must be unique
 - Required field
 
 ### Name Fields
+
 - Minimum 2 characters
 - Maximum 50 characters
 - Letters, spaces, and hyphens only
 - Required fields
 
 ### Amount Fields
+
 - Must be positive numbers
 - Maximum 2 decimal places
 - Currency: Philippine Peso (₱)
 
 ### Date Fields
+
 - Format: MM/DD/YYYY
 - Must be valid dates
 - Award date cannot be in the future
@@ -941,16 +1007,16 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 
 ## Appendix C: System Limits
 
-| Item | Limit |
-|------|-------|
-| Maximum students | Unlimited |
-| Maximum scholarships | Unlimited |
-| Session timeout | 8 hours |
-| File upload size | 10 MB |
-| Export records | 50,000 per file |
-| Concurrent users | 100 |
-| Password attempts | 5 before lockout |
-| Lockout duration | 15 minutes |
+| Item                 | Limit            |
+| -------------------- | ---------------- |
+| Maximum students     | Unlimited        |
+| Maximum scholarships | Unlimited        |
+| Session timeout      | 8 hours          |
+| File upload size     | 10 MB            |
+| Export records       | 50,000 per file  |
+| Concurrent users     | 100              |
+| Password attempts    | 5 before lockout |
+| Lockout duration     | 15 minutes       |
 
 ---
 
@@ -978,9 +1044,9 @@ A: There's no hard limit, but very large exports (10,000+ records) may take long
 
 **Revision History:**
 
-| Version | Date | Changes | Author |
-|---------|------|---------|--------|
-| 1.0.0 | Jan 27, 2026 | Initial release | Dev Team |
+| Version | Date         | Changes         | Author   |
+| ------- | ------------ | --------------- | -------- |
+| 1.0.0   | Jan 27, 2026 | Initial release | Dev Team |
 
 ---
 

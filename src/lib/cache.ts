@@ -36,7 +36,7 @@ class ClientCache {
       this.maxSize = config.maxSize || this.maxSize;
       this.maxEntries = config.maxEntries || this.maxEntries;
     }
-    
+
     // Cleanup expired entries every 2 minutes (less frequent)
     if (typeof window !== 'undefined') {
       setInterval(() => this.cleanup(), 2 * 60 * 1000);
@@ -76,9 +76,8 @@ class ClientCache {
     // Check if we need to evict based on size
     if (this.currentSize + newEntrySize > this.maxSize) {
       // Sort by hits (LRU) and remove least used
-      const entries = Array.from(this.cache.entries())
-        .sort((a, b) => a[1].hits - b[1].hits);
-      
+      const entries = Array.from(this.cache.entries()).sort((a, b) => a[1].hits - b[1].hits);
+
       for (const [key, entry] of entries) {
         if (this.currentSize + newEntrySize <= this.maxSize) break;
         this.currentSize -= entry.size;
@@ -89,12 +88,11 @@ class ClientCache {
     // Check if we need to evict based on entry count
     if (this.cache.size >= this.maxEntries) {
       // Sort by hits and timestamp (LRU)
-      const entries = Array.from(this.cache.entries())
-        .sort((a, b) => {
-          if (a[1].hits !== b[1].hits) return a[1].hits - b[1].hits;
-          return a[1].timestamp - b[1].timestamp;
-        });
-      
+      const entries = Array.from(this.cache.entries()).sort((a, b) => {
+        if (a[1].hits !== b[1].hits) return a[1].hits - b[1].hits;
+        return a[1].timestamp - b[1].timestamp;
+      });
+
       const toRemove = this.cache.size - this.maxEntries + 1;
       for (let i = 0; i < toRemove && i < entries.length; i++) {
         const [key, entry] = entries[i];
@@ -112,7 +110,7 @@ class ClientCache {
     if (!entry) return null;
 
     const now = Date.now();
-    
+
     // If expired, remove from cache
     if (now > entry.expiresAt) {
       this.currentSize -= entry.size;
@@ -230,22 +228,23 @@ export async function fetchWithCache<T>(
         clientCache['revalidationQueue'].add(cacheKey);
 
         // Use requestIdleCallback for better performance (fallback to setTimeout)
-        const scheduleRevalidation = typeof requestIdleCallback !== 'undefined'
-          ? requestIdleCallback
-          : (cb: () => void) => setTimeout(cb, 0);
+        const scheduleRevalidation =
+          typeof requestIdleCallback !== 'undefined'
+            ? requestIdleCallback
+            : (cb: () => void) => setTimeout(cb, 0);
 
         scheduleRevalidation(() => {
           const revalidationPromise = fetch(url, { ...options, credentials: 'include' })
-            .then(res => {
+            .then((res) => {
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               return res.json();
             })
-            .then(data => {
+            .then((data) => {
               if (data.success) {
                 clientCache.set(cacheKey, data, ttl);
               }
             })
-            .catch(err => console.warn('Background revalidation failed:', err))
+            .catch((err) => console.warn('Background revalidation failed:', err))
             .finally(() => {
               clientCache['revalidationQueue'].delete(cacheKey);
               clientCache['revalidationInProgress'].delete(cacheKey);
@@ -267,13 +266,13 @@ export async function fetchWithCache<T>(
 
   // Fetch fresh data
   const fetchPromise = fetch(url, { ...options, credentials: 'include' })
-    .then(response => {
+    .then((response) => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response.json();
     })
-    .then(data => {
+    .then((data) => {
       if (data.success) {
         clientCache.set(cacheKey, data, ttl);
       }
@@ -325,8 +324,8 @@ export async function mutateCache(
  * Useful for preloading data when user lands on dashboard
  */
 export async function prefetchEndpoints(endpoints: string[]): Promise<void> {
-  const promises = endpoints.map(endpoint =>
-    fetchWithCache(endpoint, { credentials: 'include' }, 5 * 60 * 1000).catch(err => {
+  const promises = endpoints.map((endpoint) =>
+    fetchWithCache(endpoint, { credentials: 'include' }, 5 * 60 * 1000).catch((err) => {
       console.warn(`Failed to prefetch ${endpoint}:`, err);
     })
   );
@@ -353,12 +352,12 @@ export function generateCacheKey(url: string, options?: RequestInit): string {
   if (!options || Object.keys(options).length === 0) {
     return url;
   }
-  
+
   // Only include relevant options in cache key
   const relevantOptions = {
     method: options.method,
     body: options.body,
   };
-  
+
   return `${url}:${JSON.stringify(relevantOptions)}`;
 }

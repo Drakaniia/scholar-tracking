@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getSession, logAudit } from '@/lib/auth';
+
 import { z } from 'zod';
+
+import { getSession, logAudit } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 const updateUserSchema = z.object({
   role: z.enum(['ADMIN', 'STAFF', 'VIEWER']).optional(),
@@ -12,28 +14,19 @@ const updateUserSchema = z.object({
 });
 
 // PUT /api/users/[id] - Update user (admin only)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    
+
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const { id } = await params;
     const userId = parseInt(id);
 
     if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
 
     const body = await request.json();
@@ -41,10 +34,7 @@ export async function PUT(
 
     // Prevent admin from changing their own role
     if (userId === session.id && validatedData.role) {
-      return NextResponse.json(
-        { error: 'Cannot change your own role' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
     }
 
     // Check if email is being changed and if it already exists
@@ -57,10 +47,7 @@ export async function PUT(
       });
 
       if (existingEmail) {
-        return NextResponse.json(
-          { error: 'Email already exists' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
       }
     }
 
@@ -79,7 +66,8 @@ export async function PUT(
     });
 
     // Get client IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ipAddress =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Log audit
@@ -96,7 +84,7 @@ export async function PUT(
     return NextResponse.json({ success: true, data: updatedUser });
   } catch (error) {
     console.error('Error updating user:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid input data', details: error.issues },
@@ -104,10 +92,7 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -118,30 +103,21 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession();
-    
+
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const { id } = await params;
     const userId = parseInt(id);
 
     if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: 'Invalid user ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
 
     // Prevent self-deletion
     if (userId === session.id) {
-      return NextResponse.json(
-        { error: 'Cannot delete your own account' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
     }
 
     // Check if user exists
@@ -151,10 +127,7 @@ export async function DELETE(
     });
 
     if (!userToDelete) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     // Prevent deletion of last admin
@@ -164,10 +137,7 @@ export async function DELETE(
       });
 
       if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: 'Cannot delete the last admin user' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Cannot delete the last admin user' }, { status: 400 });
       }
     }
 
@@ -177,7 +147,8 @@ export async function DELETE(
     });
 
     // Get client IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ipAddress =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Log audit
@@ -191,16 +162,13 @@ export async function DELETE(
       userAgent
     );
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'User deleted successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'User deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting user:', error);
-    
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

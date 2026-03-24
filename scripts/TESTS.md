@@ -27,6 +27,7 @@ npm run test:api
 ```
 
 **Prerequisites:**
+
 - Development server must be running (`npm run dev`)
 - Default admin credentials: `admin` / `admin123`
 
@@ -44,6 +45,7 @@ npm run test:api
 The tests cover:
 
 ### Unit Tests
+
 - ✅ GET endpoint - successful retrieval
 - ✅ GET endpoint - 404 for not found
 - ✅ GET endpoint - error handling
@@ -58,6 +60,7 @@ The tests cover:
 - ✅ PATCH endpoint - unauthorized access (403)
 
 ### Integration Tests
+
 - ✅ Authentication flow
 - ✅ Full CRUD operations
 - ✅ Partial updates (the fix for the 500 error)

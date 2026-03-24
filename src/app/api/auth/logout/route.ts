@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, destroySession, logAudit } from '@/lib/auth';
+
+import { destroySession, getSession, logAudit } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getSession();
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ipAddress =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Always destroy session first to ensure logout succeeds
@@ -29,9 +31,6 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       console.error('Failed to destroy session:', e);
     }
-    return NextResponse.json(
-      { success: false, error: 'Logout failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Logout failed' }, { status: 500 });
   }
 }

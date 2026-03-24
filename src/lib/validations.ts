@@ -1,76 +1,73 @@
 // Validation schemas and helpers
-
-import { CreateStudentInput, CreateScholarshipInput } from '@/types';
+import { CreateScholarshipInput, CreateStudentInput } from '@/types';
 
 export function validateStudent(data: Partial<CreateStudentInput>): string[] {
-    const errors: string[] = [];
+  const errors: string[] = [];
 
-    if (!data.lastName?.trim()) {
-        errors.push('Last name is required');
-    }
+  if (!data.lastName?.trim()) {
+    errors.push('Last name is required');
+  }
 
-    if (!data.firstName?.trim()) {
-        errors.push('First name is required');
-    }
+  if (!data.firstName?.trim()) {
+    errors.push('First name is required');
+  }
 
-    if (!data.program?.trim()) {
-        errors.push('Program is required');
-    }
+  if (!data.program?.trim()) {
+    errors.push('Program is required');
+  }
 
-    if (!data.yearLevel) {
-        errors.push('Year level is required');
-    }
+  if (!data.yearLevel) {
+    errors.push('Year level is required');
+  }
 
-    return errors;
+  return errors;
 }
 
-export function validateScholarship(
-    data: Partial<CreateScholarshipInput>
-): string[] {
-    const errors: string[] = [];
+export function validateScholarship(data: Partial<CreateScholarshipInput>): string[] {
+  const errors: string[] = [];
 
-    if (!data.scholarshipName?.trim()) {
-        errors.push('Scholarship name is required');
-    }
+  if (!data.scholarshipName?.trim()) {
+    errors.push('Scholarship name is required');
+  }
 
-    if (!data.sponsor?.trim()) {
-        errors.push('Sponsor is required');
-    }
+  if (!data.sponsor?.trim()) {
+    errors.push('Sponsor is required');
+  }
 
-    if (!data.type) {
-        errors.push('Scholarship type is required');
-    }
+  if (!data.type) {
+    errors.push('Scholarship type is required');
+  }
 
-    if (data.amount === undefined || data.amount <= 0) {
-        errors.push('Amount must be greater than 0');
-    }
+  if (data.amount === undefined || data.amount <= 0) {
+    errors.push('Amount must be greater than 0');
+  }
 
-    return errors;
+  return errors;
 }
 
 export function isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 }
 
 export function isValidPhoneNumber(phone: string): boolean {
-    // Philippine phone number format
-    const phoneRegex = /^(09|\+639)\d{9}$/;
-    return phoneRegex.test(phone.replace(/\s/g, ''));
+  // Philippine phone number format
+  const phoneRegex = /^(09|\+639)\d{9}$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
 }
 
 export function getGradeLevelForStudent(studentGradeLevel: string): string[] {
-    // Map the student grade level to the corresponding valid levels
-    switch (studentGradeLevel.toUpperCase()) {
-        case 'GRADE_SCHOOL':
-            return ['GRADE_SCHOOL', 'ELEMENTARY'];
-        case 'JUNIOR_HIGH':
-            return ['JUNIOR_HIGH', 'JUNIOR HIGH SCHOOL', 'GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10'];
-        case 'SENIOR_HIGH':
-            return ['SENIOR_HIGH', 'SENIOR HIGH SCHOOL', 'GRADE 11', 'GRADE 12', 'SHS'];
-        case 'COLLEGE':
-            return ['COLLEGE', 'UNIVERSITY', 'TERTIARY'];
-        default:
-            return [studentGradeLevel.toUpperCase()];
-    }
+  // Map the student grade level to the corresponding valid levels
+  switch (studentGradeLevel.toUpperCase()) {
+    case 'GRADE_SCHOOL':
+      return ['GRADE_SCHOOL', 'ELEMENTARY'];
+    case 'JUNIOR_HIGH':
+      return ['JUNIOR_HIGH', 'JUNIOR HIGH SCHOOL', 'GRADE 7', 'GRADE 8', 'GRADE 9', 'GRADE 10'];
+    case 'SENIOR_HIGH':
+      return ['SENIOR_HIGH', 'SENIOR HIGH SCHOOL', 'GRADE 11', 'GRADE 12', 'SHS'];
+    case 'COLLEGE':
+      return ['COLLEGE', 'UNIVERSITY', 'TERTIARY'];
+    default:
+      return [studentGradeLevel.toUpperCase()];
+  }
 }

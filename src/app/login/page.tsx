@@ -1,20 +1,23 @@
 'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { BorderBeam } from "@/components/ui/border-beam";
-import logoImage from "@/assets/images/logo.webp";
-import backgroundImage from "@/assets/images/background2.jpg";
+import { useState } from 'react';
+
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { toast } from 'sonner';
+
+import backgroundImage from '@/assets/images/background2.jpg';
+import logoImage from '@/assets/images/logo.webp';
+import { BorderBeam } from '@/components/ui/border-beam';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const LoginPage = () => {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,7 +47,7 @@ const LoginPage = () => {
         if (result.user) {
           sessionStorage.setItem('scholartrack_user', JSON.stringify(result.user));
         }
-        
+
         // Redirect directly to dashboard
         router.push('/');
       } else {
@@ -62,19 +65,13 @@ const LoginPage = () => {
     <div className="min-h-screen relative overflow-hidden">
       {/* Background image */}
       <div className="absolute inset-0 h-full w-full">
-        <Image
-          src={backgroundImage}
-          alt="Background"
-          fill
-          className="object-cover"
-          priority
-        />
+        <Image src={backgroundImage} alt="Background" fill className="object-cover" priority />
       </div>
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header with logo and text */}
-        <header className="p-6 flex items-center gap-4 shadow-lg" style={{ background: "#0e442c" }}>
+        <header className="p-6 flex items-center gap-4 shadow-lg" style={{ background: '#0e442c' }}>
           <div className="h-16 w-16 relative">
             <Image
               src={logoImage}
@@ -85,10 +82,10 @@ const LoginPage = () => {
               priority
             />
           </div>
-        <div className="text-white">
-          <h1 className="text-xl font-bold">De La Salle John Bosco College</h1>
-          <p className="text-sm opacity-90">Automated Scholarship Record Management System</p>
-        </div>
+          <div className="text-white">
+            <h1 className="text-xl font-bold">De La Salle John Bosco College</h1>
+            <p className="text-sm opacity-90">Automated Scholarship Record Management System</p>
+          </div>
         </header>
 
         {/* Main content */}
@@ -96,29 +93,28 @@ const LoginPage = () => {
           <div className="w-full max-w-5xl flex flex-col gap-8">
             {/* Left side - Glassmorphism form */}
             <div className="w-full max-w-2xl">
-                <div
-                  className="rounded-3xl p-12 shadow-2xl border relative overflow-hidden backdrop-blur-md min-h-[480px]"
-                  style={{
-                    background: "rgba(255, 255, 255, 0.15)",
-                    borderColor: "rgba(255, 255, 255, 0.3)",
-                    boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.3)"
-                  }}
-                >
-                  <BorderBeam
-                    size={300}
-                    duration={4}
-                    delay={0}
-                    colorFrom="#22c55e"
-                    colorTo="#14b8a6"
-                    reverse
-                  />
-                  
-                  {/* Welcome Message */}
-                  <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-gray-700 mb-2">Welcome back!</h2>
-                    <p className="text-gray-600">Please login to get started.
-                    </p>
-                  </div>
+              <div
+                className="rounded-3xl p-12 shadow-2xl border relative overflow-hidden backdrop-blur-md min-h-[480px]"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                <BorderBeam
+                  size={300}
+                  duration={4}
+                  delay={0}
+                  colorFrom="#22c55e"
+                  colorTo="#14b8a6"
+                  reverse
+                />
+
+                {/* Welcome Message */}
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold text-gray-700 mb-2">Welcome back!</h2>
+                  <p className="text-gray-600">Please login to get started.</p>
+                </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-5 flex flex-col flex-1">
@@ -134,8 +130,8 @@ const LoginPage = () => {
                         onChange={(e) => setUsername(e.target.value)}
                         className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30 backdrop-blur-sm"
                         style={{
-                          background: "rgba(255, 255, 255, 0.2)",
-                          backdropFilter: "blur(10px)"
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          backdropFilter: 'blur(10px)',
                         }}
                         disabled={isLoading}
                         required
@@ -149,14 +145,14 @@ const LoginPage = () => {
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-600" />
                       <Input
-                        type={showPassword ? "text" : "password"}
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-11 h-12 rounded-xl text-gray-800 placeholder:text-gray-500 border-white/30 backdrop-blur-sm"
                         style={{
-                          background: "rgba(255, 255, 255, 0.2)",
-                          backdropFilter: "blur(10px)"
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          backdropFilter: 'blur(10px)',
                         }}
                         disabled={isLoading}
                         required
@@ -173,7 +169,7 @@ const LoginPage = () => {
                   </div>
 
                   {/* Submit button */}
-                  <div className="mt-auto" style={{ marginTop: "2.25rem" }}>
+                  <div className="mt-auto" style={{ marginTop: '2.25rem' }}>
                     <Button
                       type="submit"
                       variant="gradient"
@@ -186,19 +182,18 @@ const LoginPage = () => {
                           Please wait...
                         </>
                       ) : (
-                        "Login"
+                        'Login'
                       )}
                     </Button>
                   </div>
                 </form>
               </div>
             </div>
-
           </div>
         </main>
 
         {/* Footer */}
-        <footer className="w-full py-2" style={{ background: "#0e442c" }}>
+        <footer className="w-full py-2" style={{ background: '#0e442c' }}>
           <p className="text-center text-white text-sm">
             @2026 De La Salle John Bosco College | All Rights Reserved
           </p>

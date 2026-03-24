@@ -1,11 +1,13 @@
 # Role-Based Access Control (RBAC) Guide
 
 ## Overview
+
 The Scholarship Tracking System now includes role-based access control to manage user permissions and restrict certain actions based on user roles.
 
 ## User Roles
 
 ### 1. ADMIN
+
 - Full access to all features
 - Can view, create, edit, and delete students and scholarships
 - Can access the Settings page to manage users
@@ -13,12 +15,14 @@ The Scholarship Tracking System now includes role-based access control to manage
 - Cannot change their own role (security measure)
 
 ### 2. STAFF
+
 - Read-only access to students and scholarships
 - Can view all data but cannot create, edit, or delete records
 - Cannot access the Settings page
 - Cannot manage users
 
 ### 3. VIEWER
+
 - Read-only access (same as STAFF)
 - Intended for stakeholders who only need to view reports
 
@@ -27,12 +31,14 @@ The Scholarship Tracking System now includes role-based access control to manage
 After running the seed script, two default accounts are created:
 
 ### Admin Account
+
 - **Username:** `admin`
 - **Password:** `admin123`
 - **Role:** ADMIN
 - **Email:** admin@scholartrack.com
 
 ### User Account
+
 - **Username:** `user`
 - **Password:** `user123`
 - **Role:** STAFF
@@ -41,6 +47,7 @@ After running the seed script, two default accounts are created:
 ## Features
 
 ### Settings Page (Admin Only)
+
 - Located at `/settings`
 - Only visible to users with ADMIN role
 - Displays all system users in a table
@@ -51,12 +58,14 @@ After running the seed script, two default accounts are created:
   - See user creation dates
 
 ### Role-Based UI
+
 - **Add Student/Scholarship buttons:** Only visible to ADMIN users
 - **Edit/Delete actions:** Only visible to ADMIN users
 - **Settings menu item:** Only visible to ADMIN users in the sidebar
 - **Export functionality:** Available to all users
 
 ### Security Features
+
 - Admins cannot change their own role
 - API endpoints validate user roles before allowing operations
 - Session-based authentication with JWT tokens
@@ -65,6 +74,7 @@ After running the seed script, two default accounts are created:
 ## Testing the RBAC System
 
 ### Test as Admin
+
 1. Login with `admin` / `admin123`
 2. Verify you can see:
    - Settings button in sidebar
@@ -74,6 +84,7 @@ After running the seed script, two default accounts are created:
 4. Verify the change is reflected
 
 ### Test as Regular User
+
 1. Login with `user` / `user123`
 2. Verify you CANNOT see:
    - Settings button in sidebar
@@ -85,6 +96,7 @@ After running the seed script, two default accounts are created:
    - Navigate between pages
 
 ### Test Role Change
+
 1. Login as `admin`
 2. Go to Settings
 3. Change `user` role from STAFF to ADMIN
@@ -94,11 +106,14 @@ After running the seed script, two default accounts are created:
 ## API Endpoints
 
 ### User Management
+
 - `GET /api/users` - List all users (Admin only)
 - `PUT /api/users/[id]` - Update user role/status (Admin only)
 
 ### Protected Endpoints
+
 All student and scholarship modification endpoints check for ADMIN role:
+
 - `POST /api/students` - Create student (Admin only)
 - `PUT /api/students/[id]` - Update student (Admin only)
 - `DELETE /api/students/[id]` - Delete student (Admin only)
@@ -109,6 +124,7 @@ All student and scholarship modification endpoints check for ADMIN role:
 ## Database Schema
 
 The User model includes:
+
 ```prisma
 model User {
   id                  Int       @id @default(autoincrement())
@@ -139,16 +155,19 @@ model User {
 ## Troubleshooting
 
 ### Cannot see Settings page
+
 - Verify you're logged in as an admin user
 - Check the user's role in the database
 - Clear browser cache and cookies
 
 ### Cannot edit/delete records
+
 - Verify your user role is ADMIN
 - Check if you're properly authenticated
 - Review browser console for errors
 
 ### Role change not taking effect
+
 - Logout and login again to refresh the session
 - Verify the role was actually changed in the database
 - Check for any API errors in the browser console

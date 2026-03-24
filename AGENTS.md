@@ -6,19 +6,19 @@ ScholarTrack is a comprehensive web-based scholarship management system built wi
 
 ### Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript |
-| **Database** | PostgreSQL (via Prisma ORM v7) |
-| **Authentication** | JWT + HTTP-only cookies (jose + bcryptjs) |
-| **UI Library** | React 19 + shadcn/ui + Radix UI |
-| **Styling** | Tailwind CSS v4 |
-| **State Management** | TanStack Query (React Query v5) |
-| **Charts** | Recharts |
-| **Testing** | Vitest |
-| **Deployment** | Vercel |
-| **Animation** | GSAP, Motion, OGL |
+| Category             | Technology                                |
+| -------------------- | ----------------------------------------- |
+| **Framework**        | Next.js 16 (App Router)                   |
+| **Language**         | TypeScript                                |
+| **Database**         | PostgreSQL (via Prisma ORM v7)            |
+| **Authentication**   | JWT + HTTP-only cookies (jose + bcryptjs) |
+| **UI Library**       | React 19 + shadcn/ui + Radix UI           |
+| **Styling**          | Tailwind CSS v4                           |
+| **State Management** | TanStack Query (React Query v5)           |
+| **Charts**           | Recharts                                  |
+| **Testing**          | Vitest                                    |
+| **Deployment**       | Vercel                                    |
+| **Animation**        | GSAP, Motion, OGL                         |
 
 ### Core Features
 
@@ -140,6 +140,7 @@ SESSION_DURATION_HOURS=8
 ```
 
 **Note**: The DATABASE_URL now includes connection pool parameters for Prisma Accelerate:
+
 - `connection_limit=10`: Maximum concurrent connections
 - `pool_timeout=20`: Time to wait for connection from pool (in seconds)
 - `connect_timeout=10`: Time to fail connection attempt (in seconds)
@@ -181,32 +182,32 @@ npm start
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server (port 8080, webpack) |
-| `npm run build` | Generate Prisma client + production build |
-| `npm start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run test` | Run Vitest tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:api` | Test scholarship API endpoints |
-| `npm run db:push` | Push Prisma schema to database |
-| `npm run db:seed` | Seed database with initial data |
-| `npm run db:studio` | Open Prisma Studio |
-| `npm run db:add-indexes` | Apply performance indexes |
-| `npm run erd:generate` | Generate ERD visualization |
-| `npm run erd:view` | Open ERD in browser |
-| `npm run clean` | Clean node_modules and .next, reinstall |
+| Command                  | Description                                   |
+| ------------------------ | --------------------------------------------- |
+| `npm run dev`            | Start development server (port 8080, webpack) |
+| `npm run build`          | Generate Prisma client + production build     |
+| `npm start`              | Start production server                       |
+| `npm run lint`           | Run ESLint                                    |
+| `npm run typecheck`      | TypeScript type checking                      |
+| `npm run test`           | Run Vitest tests                              |
+| `npm run test:watch`     | Run tests in watch mode                       |
+| `npm run test:api`       | Test scholarship API endpoints                |
+| `npm run db:push`        | Push Prisma schema to database                |
+| `npm run db:seed`        | Seed database with initial data               |
+| `npm run db:studio`      | Open Prisma Studio                            |
+| `npm run db:add-indexes` | Apply performance indexes                     |
+| `npm run erd:generate`   | Generate ERD visualization                    |
+| `npm run erd:view`       | Open ERD in browser                           |
+| `npm run clean`          | Clean node_modules and .next, reinstall       |
 
 ## Default Credentials
 
 After seeding the database:
 
-| Username | Password | Role | Email |
-|----------|----------|------|-------|
-| `admin` | `admin123` | ADMIN | admin@scholartrack.com |
-| `user` | `user123` | STAFF | user@scholartrack.com |
+| Username | Password   | Role  | Email                  |
+| -------- | ---------- | ----- | ---------------------- |
+| `admin`  | `admin123` | ADMIN | admin@scholartrack.com |
+| `user`   | `user123`  | STAFF | user@scholartrack.com  |
 
 ⚠️ **Security Note**: Change default credentials immediately in production.
 
@@ -240,12 +241,14 @@ After seeding the database:
 ### New Schema Features
 
 #### Student Model Enhancements
+
 - `graduatedAt`: DateTime field for graduation date
 - `graduationStatus`: Track student graduation status (Active, Graduated, Withdrew)
 - `isArchived`: Boolean flag for archiving graduated students
 - `termType`: Term type (SEMESTER, TRIMESTER, QUARTER)
 
 #### Scholarship Model Enhancements
+
 - `eligiblePrograms`: Filter scholarships by eligible programs
 - `grantType`: Type of grant (FULL, TUITION_ONLY, MISC_ONLY, LAB_ONLY, NONE)
 - `coversTuition/coversMiscellaneous/coversLaboratory/coversOther`: Fee coverage flags
@@ -253,6 +256,7 @@ After seeding the database:
 - `amountSubsidy/percentSubsidy`: Subsidy calculations
 
 #### AcademicYear Model (New)
+
 - `year`: Academic year identifier (e.g., "2025-2026")
 - `semester`: Semester (1ST, 2ND, SUMMER)
 - `startDate/endDate`: Academic year date range
@@ -264,7 +268,7 @@ After seeding the database:
 
 - **TypeScript**: Strict mode enabled
 - **Formatting**: Consistent with existing codebase patterns
-- **Naming**: 
+- **Naming**:
   - Components: PascalCase
   - Files: kebab-case for routes, PascalCase for components
   - Functions/variables: camelCase
@@ -407,11 +411,11 @@ For detailed RBAC guide, see `docs/RBAC-GUIDE.md`
 
 ### Performance Metrics
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Filter options API | 17.1s | ~0.3s | 57x faster |
-| Initial page load | 17.2s | ~2s | 8.6x faster |
-| Memory usage (filter) | O(n) | O(1) | Constant |
+| Metric                | Before | After | Improvement |
+| --------------------- | ------ | ----- | ----------- |
+| Filter options API    | 17.1s  | ~0.3s | 57x faster  |
+| Initial page load     | 17.2s  | ~2s   | 8.6x faster |
+| Memory usage (filter) | O(n)   | O(1)  | Constant    |
 
 For detailed performance guide, see `docs/PERFORMANCE-OPTIMIZATION.md`
 
@@ -420,6 +424,7 @@ For detailed performance guide, see `docs/PERFORMANCE-OPTIMIZATION.md`
 ### Query Hooks
 
 All data fetching is centralized in `src/hooks/use-queries.ts`:
+
 - `useDashboardStats()` - Dashboard statistics
 - `useStudents(params)` - Student listing with filters
 - `useStudent(id)` - Single student details
@@ -431,16 +436,18 @@ All data fetching is centralized in `src/hooks/use-queries.ts`:
 ### Query Keys
 
 Centralized query keys for easy invalidation:
+
 ```typescript
-queryKeys.students.lists()
-queryKeys.students.detail(id)
-queryKeys.scholarships.list({ type: 'CHED' })
-queryKeys.dashboard.stats()
+queryKeys.students.lists();
+queryKeys.students.detail(id);
+queryKeys.scholarships.list({ type: 'CHED' });
+queryKeys.dashboard.stats();
 ```
 
 ### Automatic Cache Invalidation
 
 Mutations automatically invalidate related queries:
+
 ```typescript
 const createStudent = useCreateStudent();
 createStudent.mutate(data); // Automatically invalidates student queries
@@ -452,30 +459,33 @@ For detailed TanStack Query guide, see `docs/TANSTACK-QUERY-GUIDE.md`
 
 ### Common Issues
 
-| Issue | Solution |
-|-------|----------|
-| Port 8080 in use | Change port in `package.json` dev script |
-| Prisma client not generated | Run `npx prisma generate` |
-| Database connection error | Verify `DATABASE_URL` in `.env`, check connection pool parameters |
-| Auth not working | Clear cookies, ensure JWT_SECRET matches |
-| Build fails | Run `npm run typecheck` to identify TS errors |
-| Slow queries | Run `npm run db:add-indexes` to apply performance indexes |
-| Prisma retry warnings | Check DATABASE_URL parameters, reduce `connection_limit` |
+| Issue                       | Solution                                                          |
+| --------------------------- | ----------------------------------------------------------------- |
+| Port 8080 in use            | Change port in `package.json` dev script                          |
+| Prisma client not generated | Run `npx prisma generate`                                         |
+| Database connection error   | Verify `DATABASE_URL` in `.env`, check connection pool parameters |
+| Auth not working            | Clear cookies, ensure JWT_SECRET matches                          |
+| Build fails                 | Run `npm run typecheck` to identify TS errors                     |
+| Slow queries                | Run `npm run db:add-indexes` to apply performance indexes         |
+| Prisma retry warnings       | Check DATABASE_URL parameters, reduce `connection_limit`          |
 
 ### Performance Issues
 
 **Queries still slow after indexing?**
+
 1. Run `ANALYZE` to update database statistics
 2. Check if index is being used: `EXPLAIN ANALYZE <query>`
 3. Verify index covers all filter columns
 4. Monitor slow query logs in console
 
 **Connection pool exhaustion?**
+
 1. Reduce `connection_limit` in DATABASE_URL
 2. Check Prisma Accelerate dashboard
 3. Verify network connectivity to database
 
 **Memory issues?**
+
 1. Reduce cache TTL in `query-optimizer.ts`
 2. Decrease `maxEntries` in QueryOptimizer
 3. Monitor with `queryOptimizer.getStats()`

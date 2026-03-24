@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -44,14 +44,14 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --animate-shine: shine var(--duration) infinite linear;
   @keyframes shine {
-  0% {
-    background-position: 0% 0%;
+    0% {
+      background-position: 0% 0%;
     }
-  50% {
-    background-position: 100% 100%;
+    50% {
+      background-position: 100% 100%;
     }
-  to {
-    background-position: 0% 0%;
+    to {
+      background-position: 0% 0%;
     }
   }
 }
@@ -114,15 +114,15 @@
     @apply bg-background text-foreground;
   }
 
-  [data-slot="card"] {
+  [data-slot='card'] {
     @apply text-card-foreground;
   }
 
-  [data-slot="card"] * {
+  [data-slot='card'] * {
     color: inherit;
   }
 
-  [data-slot="card"] .text-muted-foreground {
+  [data-slot='card'] .text-muted-foreground {
     @apply text-muted-foreground;
   }
 }
@@ -174,13 +174,13 @@ body.login-page-body {
 }
 
 /* Smooth page transitions */
-[data-slot="page-transition"],
+[data-slot='page-transition'],
 .page-transition-container {
   will-change: opacity;
 }
 
 /* Card hover effects */
-[data-slot="card"]:hover {
+[data-slot='card']:hover {
   transition: box-shadow 0.2s ease-in-out;
 }
 

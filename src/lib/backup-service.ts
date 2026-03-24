@@ -1,5 +1,5 @@
-import prisma from './prisma';
 import { logAudit } from './auth';
+import prisma from './prisma';
 
 /**
  * Backup service for creating and managing data backups before critical operations
@@ -22,7 +22,11 @@ export interface BackupRecord {
  * @param userId The ID of the user performing the operation
  * @param context Context for the operation (e.g., 'GRADUATION', 'MANUAL_REMOVAL')
  */
-export async function createScholarshipBackup(studentId: number, userId?: number, context: string = 'GRADUATION'): Promise<number> {
+export async function createScholarshipBackup(
+  studentId: number,
+  userId?: number,
+  context: string = 'GRADUATION'
+): Promise<number> {
   // Get the student's active scholarships
   const scholarships = await prisma.studentScholarship.findMany({
     where: {
@@ -39,7 +43,7 @@ export async function createScholarshipBackup(studentId: number, userId?: number
   }
 
   // Create backup records for each scholarship
-  const backupRecords = scholarships.map(scholarship => ({
+  const backupRecords = scholarships.map((scholarship) => ({
     tableName: 'student_scholarships',
     recordId: scholarship.id,
     operation: 'DELETE' as const,
@@ -60,32 +64,22 @@ export async function createScholarshipBackup(studentId: number, userId?: number
         type: scholarship.scholarship.type,
         source: scholarship.scholarship.source,
         amount: scholarship.scholarship.amount.toString(), // Convert Decimal to string for JSON
-      }
+      },
     },
     performedBy: userId || null,
     operationContext: context,
   }));
 
   // Insert all backup records
-  await prisma.$transaction(
-    backupRecords.map(record => 
-      prisma.backup.create({ data: record })
-    )
-  );
+  await prisma.$transaction(backupRecords.map((record) => prisma.backup.create({ data: record })));
 
   // Log audit for the backup creation
-  await logAudit(
-    userId || null,
-    'SCHOLARSHIP_BACKUP_CREATED',
-    'BACKUP',
-    undefined,
-    {
-      studentId,
-      scholarshipCount: scholarships.length,
-      context,
-      backupTime: new Date().toISOString()
-    }
-  );
+  await logAudit(userId || null, 'SCHOLARSHIP_BACKUP_CREATED', 'BACKUP', undefined, {
+    studentId,
+    scholarshipCount: scholarships.length,
+    context,
+    backupTime: new Date().toISOString(),
+  });
 
   return scholarships.length;
 }
@@ -96,7 +90,11 @@ export async function createScholarshipBackup(studentId: number, userId?: number
  * @param userId The ID of the user performing the operation
  * @param context Context for the operation (e.g., 'GRADUATION', 'MANUAL_CANCELLATION')
  */
-export async function createDisbursementBackup(studentId: number, userId?: number, context: string = 'GRADUATION'): Promise<number> {
+export async function createDisbursementBackup(
+  studentId: number,
+  userId?: number,
+  context: string = 'GRADUATION'
+): Promise<number> {
   // Get future disbursements for the student
   const disbursements = await prisma.disbursement.findMany({
     where: {
@@ -113,7 +111,7 @@ export async function createDisbursementBackup(studentId: number, userId?: numbe
   }
 
   // Create backup records for each disbursement
-  const backupRecords = disbursements.map(disbursement => ({
+  const backupRecords = disbursements.map((disbursement) => ({
     tableName: 'disbursements',
     recordId: disbursement.id,
     operation: 'DELETE' as const, // Since we're cancelling future disbursements, we're effectively deleting them
@@ -133,32 +131,22 @@ export async function createDisbursementBackup(studentId: number, userId?: numbe
         sponsor: disbursement.scholarship.sponsor,
         type: disbursement.scholarship.type,
         amount: disbursement.scholarship.amount.toString(), // Convert Decimal to string for JSON
-      }
+      },
     },
     performedBy: userId || null,
     operationContext: context,
   }));
 
   // Insert all backup records
-  await prisma.$transaction(
-    backupRecords.map(record => 
-      prisma.backup.create({ data: record })
-    )
-  );
+  await prisma.$transaction(backupRecords.map((record) => prisma.backup.create({ data: record })));
 
   // Log audit for the backup creation
-  await logAudit(
-    userId || null,
-    'DISBURSEMENT_BACKUP_CREATED',
-    'BACKUP',
-    undefined,
-    {
-      studentId,
-      disbursementCount: disbursements.length,
-      context,
-      backupTime: new Date().toISOString()
-    }
-  );
+  await logAudit(userId || null, 'DISBURSEMENT_BACKUP_CREATED', 'BACKUP', undefined, {
+    studentId,
+    disbursementCount: disbursements.length,
+    context,
+    backupTime: new Date().toISOString(),
+  });
 
   return disbursements.length;
 }
@@ -169,7 +157,11 @@ export async function createDisbursementBackup(studentId: number, userId?: numbe
  * @param userId The ID of the user performing the operation
  * @param context Context for the operation (e.g., 'GRADUATION', 'MANUAL_UPDATE')
  */
-export async function createStudentBackup(studentId: number, userId?: number, context: string = 'GRADUATION'): Promise<number> {
+export async function createStudentBackup(
+  studentId: number,
+  userId?: number,
+  context: string = 'GRADUATION'
+): Promise<number> {
   // Get the student record
   const student = await prisma.student.findUnique({
     where: { id: studentId },
@@ -208,17 +200,11 @@ export async function createStudentBackup(studentId: number, userId?: number, co
   await prisma.backup.create({ data: backupRecord });
 
   // Log audit for the backup creation
-  await logAudit(
-    userId || null,
-    'STUDENT_BACKUP_CREATED',
-    'BACKUP',
-    undefined,
-    {
-      studentId,
-      context,
-      backupTime: new Date().toISOString()
-    }
-  );
+  await logAudit(userId || null, 'STUDENT_BACKUP_CREATED', 'BACKUP', undefined, {
+    studentId,
+    context,
+    backupTime: new Date().toISOString(),
+  });
 
   return 1;
 }
@@ -243,7 +229,11 @@ export async function validateBackupTables(): Promise<boolean> {
  * @param userId The ID of the user performing the operation
  * @param context Context for the operation
  */
-export async function createComprehensiveBackup(studentId: number, userId?: number, context: string = 'GRADUATION'): Promise<{
+export async function createComprehensiveBackup(
+  studentId: number,
+  userId?: number,
+  context: string = 'GRADUATION'
+): Promise<{
   studentBackup: number;
   scholarshipBackup: number;
   disbursementBackup: number;
