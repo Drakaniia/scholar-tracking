@@ -1,17 +1,19 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
-import { Providers } from "@/components/providers";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+
+import { Providers } from '@/components/providers';
+import { Toaster } from '@/components/ui/sonner';
+
+import './globals.css';
 
 const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
+  subsets: ['latin'],
+  variable: '--font-sans',
 });
 
 export const metadata: Metadata = {
-  title: "ScholarTrack - Scholarship Tracking System",
-  description: "Manage, monitor, and streamline all scholarship-related activities for students",
+  title: 'ScholarTrack - Scholarship Tracking System',
+  description: 'Manage, monitor, and streamline all scholarship-related activities for students',
 };
 
 export default function RootLayout({

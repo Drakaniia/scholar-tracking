@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getSession, hashPassword, verifyPassword, logAudit } from '@/lib/auth';
+
 import { z } from 'zod';
+
+import { getSession, hashPassword, logAudit, verifyPassword } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -14,10 +16,7 @@ export async function POST(request: NextRequest) {
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -30,23 +29,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     // Verify current password
-    const isValidPassword = await verifyPassword(
-      validatedData.currentPassword,
-      user.passwordHash
-    );
+    const isValidPassword = await verifyPassword(validatedData.currentPassword, user.passwordHash);
 
     if (!isValidPassword) {
-      return NextResponse.json(
-        { error: 'Current password is incorrect' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
     }
 
     // Hash new password
@@ -55,14 +45,15 @@ export async function POST(request: NextRequest) {
     // Update password
     await prisma.user.update({
       where: { id: session.id },
-      data: { 
+      data: {
         passwordHash: newPasswordHash,
         passwordChangedAt: new Date(),
       },
     });
 
     // Get client IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ipAddress =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Log audit
@@ -76,9 +67,9 @@ export async function POST(request: NextRequest) {
       userAgent
     );
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Password changed successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Password changed successfully',
     });
   } catch (error) {
     console.error('Error changing password:', error);
@@ -90,9 +81,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

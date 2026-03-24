@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getSession, logAudit } from '@/lib/auth';
+
 import { z } from 'zod';
+
+import { getSession, logAudit } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').optional(),
@@ -15,10 +17,7 @@ export async function GET() {
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -37,19 +36,13 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
     console.error('Error fetching profile:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -59,10 +52,7 @@ export async function PUT(request: NextRequest) {
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -78,10 +68,7 @@ export async function PUT(request: NextRequest) {
       });
 
       if (existingEmail) {
-        return NextResponse.json(
-          { error: 'Email already exists' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
       }
     }
 
@@ -100,7 +87,8 @@ export async function PUT(request: NextRequest) {
     });
 
     // Get client IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ipAddress =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Log audit
@@ -125,9 +113,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

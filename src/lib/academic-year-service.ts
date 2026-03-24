@@ -1,7 +1,8 @@
-import prisma from './prisma';
 import { GradeLevel, YEAR_LEVELS } from '@/types';
+
 import { logAudit } from './auth';
 import { createStudentBackup } from './backup-service';
+import prisma from './prisma';
 
 /**
  * Gets the next year level for a student based on their current grade level and year level
@@ -9,24 +10,29 @@ import { createStudentBackup } from './backup-service';
  * @param yearLevel The student's current year level
  * @returns Object with nextYearLevel and isGraduating flags
  */
-export function getNextYearLevel(gradeLevel: string, yearLevel: string): { nextYearLevel: string | null; isGraduating: boolean } {
+export function getNextYearLevel(
+  gradeLevel: string,
+  yearLevel: string
+): { nextYearLevel: string | null; isGraduating: boolean } {
   const gradeLevelEnum = gradeLevel as GradeLevel;
   const yearLevels = YEAR_LEVELS[gradeLevelEnum];
-  
+
   if (!yearLevels || yearLevels.length === 0) {
     return { nextYearLevel: null, isGraduating: false };
   }
 
-  const currentIndex = yearLevels.findIndex(level => level.toUpperCase() === yearLevel.toUpperCase());
-  
+  const currentIndex = yearLevels.findIndex(
+    (level) => level.toUpperCase() === yearLevel.toUpperCase()
+  );
+
   // If not found or already at last year level
   if (currentIndex === -1 || currentIndex === yearLevels.length - 1) {
     return { nextYearLevel: null, isGraduating: true };
   }
 
-  return { 
-    nextYearLevel: yearLevels[currentIndex + 1], 
-    isGraduating: currentIndex === yearLevels.length - 2 // Next level will be graduation
+  return {
+    nextYearLevel: yearLevels[currentIndex + 1],
+    isGraduating: currentIndex === yearLevels.length - 2, // Next level will be graduation
   };
 }
 
@@ -36,7 +42,7 @@ export function getNextYearLevel(gradeLevel: string, yearLevel: string): { nextY
  */
 export async function getActiveAcademicYear() {
   const now = new Date();
-  
+
   const activeYear = await prisma.academicYear.findFirst({
     where: {
       isActive: true,
@@ -56,7 +62,7 @@ export async function getActiveAcademicYear() {
  */
 export async function autoPromoteStudents(userId?: number) {
   const activeAcademicYear = await getActiveAcademicYear();
-  
+
   if (!activeAcademicYear) {
     return {
       success: false,
@@ -83,7 +89,10 @@ export async function autoPromoteStudents(userId?: number) {
 
   for (const student of students) {
     try {
-      const { nextYearLevel, isGraduating } = getNextYearLevel(student.gradeLevel, student.yearLevel);
+      const { nextYearLevel, isGraduating } = getNextYearLevel(
+        student.gradeLevel,
+        student.yearLevel
+      );
 
       if (isGraduating || !nextYearLevel) {
         // Student has graduated
@@ -114,19 +123,13 @@ export async function autoPromoteStudents(userId?: number) {
 
         // Create audit log
         await createStudentBackup(student.id, userId, 'GRADUATION');
-        await logAudit(
-          userId || null,
-          'AUTO_GRADUATE_STUDENT',
-          'STUDENT',
-          student.id,
-          {
-            studentName: `${student.firstName} ${student.lastName}`,
-            gradeLevel: student.gradeLevel,
-            yearLevel: student.yearLevel,
-            academicYear: activeAcademicYear.year,
-            reason: 'Automatic graduation based on academic year',
-          }
-        );
+        await logAudit(userId || null, 'AUTO_GRADUATE_STUDENT', 'STUDENT', student.id, {
+          studentName: `${student.firstName} ${student.lastName}`,
+          gradeLevel: student.gradeLevel,
+          yearLevel: student.yearLevel,
+          academicYear: activeAcademicYear.year,
+          reason: 'Automatic graduation based on academic year',
+        });
 
         graduatedCount++;
       } else {
@@ -139,20 +142,14 @@ export async function autoPromoteStudents(userId?: number) {
         });
 
         // Create audit log
-        await logAudit(
-          userId || null,
-          'AUTO_PROMOTE_STUDENT',
-          'STUDENT',
-          student.id,
-          {
-            studentName: `${student.firstName} ${student.lastName}`,
-            previousYearLevel: student.yearLevel,
-            newYearLevel: nextYearLevel,
-            gradeLevel: student.gradeLevel,
-            academicYear: activeAcademicYear.year,
-            reason: 'Automatic promotion based on academic year',
-          }
-        );
+        await logAudit(userId || null, 'AUTO_PROMOTE_STUDENT', 'STUDENT', student.id, {
+          studentName: `${student.firstName} ${student.lastName}`,
+          previousYearLevel: student.yearLevel,
+          newYearLevel: nextYearLevel,
+          gradeLevel: student.gradeLevel,
+          academicYear: activeAcademicYear.year,
+          reason: 'Automatic promotion based on academic year',
+        });
 
         promotedCount++;
       }
@@ -167,20 +164,14 @@ export async function autoPromoteStudents(userId?: number) {
   }
 
   // Log the auto-promotion operation
-  await logAudit(
-    userId || null,
-    'AUTO_PROMOTE_STUDENTS',
-    'SYSTEM',
-    undefined,
-    {
-      academicYear: activeAcademicYear.year,
-      semester: activeAcademicYear.semester,
-      promotedCount,
-      graduatedCount,
-      errorCount,
-      errors: errors.length > 0 ? errors : undefined,
-    }
-  );
+  await logAudit(userId || null, 'AUTO_PROMOTE_STUDENTS', 'SYSTEM', undefined, {
+    academicYear: activeAcademicYear.year,
+    semester: activeAcademicYear.semester,
+    promotedCount,
+    graduatedCount,
+    errorCount,
+    errors: errors.length > 0 ? errors : undefined,
+  });
 
   return {
     success: true,
@@ -240,16 +231,10 @@ export async function promoteStudent(studentId: number, userId?: number) {
       },
     });
 
-    await logAudit(
-      userId || null,
-      'MANUAL_GRADUATE_STUDENT',
-      'STUDENT',
-      student.id,
-      {
-        studentName: `${student.firstName} ${student.lastName}`,
-        reason: 'Manual graduation',
-      }
-    );
+    await logAudit(userId || null, 'MANUAL_GRADUATE_STUDENT', 'STUDENT', student.id, {
+      studentName: `${student.firstName} ${student.lastName}`,
+      reason: 'Manual graduation',
+    });
 
     return updated;
   } else {
@@ -261,18 +246,12 @@ export async function promoteStudent(studentId: number, userId?: number) {
       },
     });
 
-    await logAudit(
-      userId || null,
-      'MANUAL_PROMOTE_STUDENT',
-      'STUDENT',
-      student.id,
-      {
-        studentName: `${student.firstName} ${student.lastName}`,
-        previousYearLevel: student.yearLevel,
-        newYearLevel: nextYearLevel,
-        reason: 'Manual promotion',
-      }
-    );
+    await logAudit(userId || null, 'MANUAL_PROMOTE_STUDENT', 'STUDENT', student.id, {
+      studentName: `${student.firstName} ${student.lastName}`,
+      previousYearLevel: student.yearLevel,
+      newYearLevel: nextYearLevel,
+      reason: 'Manual promotion',
+    });
 
     return updated;
   }

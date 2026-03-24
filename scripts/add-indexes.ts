@@ -3,7 +3,6 @@
  * Script to add optimized database indexes
  * Run with: npx tsx scripts/add-indexes.ts
  */
-
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

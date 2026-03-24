@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { getSession } from '@/lib/auth';
 import { isStudentEligibleForDisbursement } from '@/lib/graduation-service';
 
@@ -6,12 +7,9 @@ import { isStudentEligibleForDisbursement } from '@/lib/graduation-service';
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    
+
     if (!session || (session.role !== 'ADMIN' && session.role !== 'STAFF')) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -26,14 +24,11 @@ export async function GET(request: NextRequest) {
 
     const id = parseInt(studentId);
     if (isNaN(id)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid student ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Invalid student ID' }, { status: 400 });
     }
 
     const isEligible = await isStudentEligibleForDisbursement(id);
-    
+
     return NextResponse.json({
       success: true,
       data: {

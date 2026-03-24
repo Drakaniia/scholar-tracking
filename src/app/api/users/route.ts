@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getSession, hashPassword, logAudit } from '@/lib/auth';
-import { z } from 'zod';
+
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
+
+import { getSession, hashPassword, logAudit } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 const createUserSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -20,14 +22,11 @@ export async function GET(request: NextRequest) {
     const session = await getSession();
 
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
-    
+
     // Pagination
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '25');
@@ -91,10 +90,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching users:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -104,10 +100,7 @@ export async function POST(request: NextRequest) {
     const session = await getSession();
 
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -119,10 +112,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUsername) {
-      return NextResponse.json(
-        { error: 'Username already exists' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
     }
 
     // Check if email already exists
@@ -131,10 +121,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingEmail) {
-      return NextResponse.json(
-        { error: 'Email already exists' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
     }
 
     // Hash password
@@ -164,7 +151,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Get client IP and user agent for audit log
-    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ipAddress =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Log audit
@@ -189,9 +177,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

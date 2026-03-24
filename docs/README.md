@@ -12,6 +12,7 @@ This folder contains the automatically generated Entity Relationship Diagram for
 ### How to View
 
 #### Option 1: Open in Browser (Recommended)
+
 ```bash
 # Open the HTML viewer
 start docs/index.html
@@ -21,12 +22,14 @@ xdg-open docs/index.html  # Linux
 ```
 
 #### Option 2: View SVG Directly
+
 ```bash
 # Open the SVG file
 start docs/ERD.svg
 ```
 
 #### Option 3: Use npm script
+
 ```bash
 npm run erd:view
 ```
@@ -58,6 +61,7 @@ generator erd {
 ```
 
 Available themes:
+
 - `default` - Clean white background
 - `forest` - Green theme (current)
 - `dark` - Dark mode

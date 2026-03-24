@@ -1,7 +1,8 @@
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+
 import { autoPromoteStudents } from '@/lib/academic-year-service';
 import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
@@ -34,17 +35,23 @@ export async function POST() {
         data: result,
       });
     } else {
-      return NextResponse.json({
-        success: false,
-        error: result.error,
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error,
+        },
+        { status: 400 }
+      );
     }
   } catch (error) {
     console.error('Error in auto-promote students:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to promote students' 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to promote students',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -83,8 +90,11 @@ export async function GET() {
       },
     });
 
-    const promotionPreview = students.map(student => {
-      const { nextYearLevel, isGraduating } = getNextYearLevel(student.gradeLevel, student.yearLevel);
+    const promotionPreview = students.map((student) => {
+      const { nextYearLevel, isGraduating } = getNextYearLevel(
+        student.gradeLevel,
+        student.yearLevel
+      );
       return {
         ...student,
         nextYearLevel: isGraduating ? 'Graduated' : nextYearLevel,
@@ -102,6 +112,9 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Error fetching promotion preview:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch promotion preview' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch promotion preview' },
+      { status: 500 }
+    );
   }
 }

@@ -1,7 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+
 import { usePathname, useRouter } from 'next/navigation';
+
 import { usePrefetchData } from '@/hooks/use-queries';
 
 interface User {
@@ -95,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         cacheUser(userData.user);
 
         // Prefetch key data after successful authentication
-        prefetchAll().catch(err => {
+        prefetchAll().catch((err) => {
           console.warn('Failed to prefetch data:', err);
         });
 
@@ -125,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cacheUser(null);
       setUser(null);
       router.push('/login');
-      
+
       if (!data.success && !response.ok) {
         console.error('Logout failed:', data.error);
       }
@@ -191,7 +193,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = !!user && !isLoading;
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated, logout, checkAuth, setUserFromStorage }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isAuthenticated, logout, checkAuth, setUserFromStorage }}
+    >
       {children}
     </AuthContext.Provider>
   );

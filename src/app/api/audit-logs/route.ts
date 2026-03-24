@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+
 import { Prisma } from '@prisma/client';
+
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 // GET /api/audit-logs - List audit logs with filtering (admin only)
 export async function GET(request: NextRequest) {
@@ -9,10 +11,7 @@ export async function GET(request: NextRequest) {
     const session = await getSession();
 
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -87,9 +86,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching audit logs:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -16,7 +16,7 @@ class QueryOptimizer {
 
   constructor() {
     this.queryCache = new Map();
-    
+
     // Cleanup expired entries every 3 minutes
     setInterval(() => this.cleanup(), 3 * 60 * 1000);
   }
@@ -41,7 +41,7 @@ class QueryOptimizer {
     if (!entry) return null;
 
     const now = Date.now();
-    
+
     // If expired, remove from cache
     if (now > entry.expiresAt) {
       this.queryCache.delete(key);
@@ -102,11 +102,7 @@ class QueryOptimizer {
   /**
    * Execute query with caching
    */
-  async executeWithCache<T>(
-    key: string,
-    queryFn: () => Promise<T>,
-    ttl?: number
-  ): Promise<T> {
+  async executeWithCache<T>(key: string, queryFn: () => Promise<T>, ttl?: number): Promise<T> {
     // Try to get from cache
     const cached = this.get<T>(key);
     if (cached !== null) {
@@ -140,32 +136,30 @@ export const queryOptimizer = new QueryOptimizer();
 /**
  * Generate cache key for queries
  */
-export function generateQueryKey(
-  operation: string,
-  params?: Record<string, unknown>
-): string {
+export function generateQueryKey(operation: string, params?: Record<string, unknown>): string {
   if (!params || Object.keys(params).length === 0) {
     return operation;
   }
-  
+
   // Sort keys for consistent cache keys
   const sortedParams = Object.keys(params)
     .sort()
-    .reduce((acc, key) => {
-      acc[key] = params[key];
-      return acc;
-    }, {} as Record<string, unknown>);
-  
+    .reduce(
+      (acc, key) => {
+        acc[key] = params[key];
+        return acc;
+      },
+      {} as Record<string, unknown>
+    );
+
   return `${operation}:${JSON.stringify(sortedParams)}`;
 }
 
 /**
  * Batch query executor - executes multiple queries in parallel
  */
-export async function executeBatchQueries<T>(
-  queries: Array<() => Promise<T>>
-): Promise<T[]> {
-  return Promise.all(queries.map(query => query()));
+export async function executeBatchQueries<T>(queries: Array<() => Promise<T>>): Promise<T[]> {
+  return Promise.all(queries.map((query) => query()));
 }
 
 /**
@@ -176,21 +170,22 @@ export async function batchQueries<T extends Record<string, () => Promise<unknow
   queries: T
 ): Promise<{ [K in keyof T]: Awaited<ReturnType<T[K]>> }> {
   const keys = Object.keys(queries) as Array<keyof T>;
-  const promises = keys.map(key => queries[key]());
+  const promises = keys.map((key) => queries[key]());
   const results = await Promise.all(promises);
-  
-  return keys.reduce((acc, key, index) => {
-    acc[key] = results[index] as Awaited<ReturnType<T[typeof key]>>;
-    return acc;
-  }, {} as { [K in keyof T]: Awaited<ReturnType<T[K]>> });
+
+  return keys.reduce(
+    (acc, key, index) => {
+      acc[key] = results[index] as Awaited<ReturnType<T[typeof key]>>;
+      return acc;
+    },
+    {} as { [K in keyof T]: Awaited<ReturnType<T[K]>> }
+  );
 }
 
 /**
  * Optimized select fields helper
  */
-export function selectFields<T extends Record<string, boolean>>(
-  fields: T
-): T {
+export function selectFields<T extends Record<string, boolean>>(fields: T): T {
   return fields;
 }
 
@@ -200,7 +195,7 @@ export function selectFields<T extends Record<string, boolean>>(
 export function getPaginationParams(page: number, limit: number) {
   const skip = (page - 1) * limit;
   const take = limit;
-  
+
   return { page, limit, skip, take };
 }
 
@@ -212,24 +207,26 @@ export function buildSearchWhere(
   searchFields: string[],
   additionalFilters?: Record<string, unknown>
 ): Record<string, unknown> {
-  const searchCondition = searchTerm ? {
-    OR: searchFields.map(field => ({
-      [field]: {
-        contains: searchTerm,
-        mode: 'insensitive' as const,
-      },
-    })),
-  } : {};
-  
+  const searchCondition = searchTerm
+    ? {
+        OR: searchFields.map((field) => ({
+          [field]: {
+            contains: searchTerm,
+            mode: 'insensitive' as const,
+          },
+        })),
+      }
+    : {};
+
   if (!additionalFilters) {
     return searchCondition;
   }
-  
+
   // Merge search condition with additional filters
   if (Object.keys(searchCondition).length === 0) {
     return additionalFilters;
   }
-  
+
   return {
     AND: [searchCondition, additionalFilters],
   };

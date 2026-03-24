@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -93,10 +92,10 @@ model StudentScholarship {
   startTerm         String      @map("start_term")
   endTerm           String      @map("end_term")
   grantAmount       Decimal     @map("grant_amount") @db.Decimal(10, 2)
-  grantType         String      @default("FULL") @map("grant_type") // FULL, TUITION_ONLY, MISC_ONLY, LAB_ONLY, NONE
   scholarshipStatus String      @map("scholarship_status")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
+  grantType         String      @default("FULL") @map("grant_type")
   scholarship       Scholarship @relation(fields: [scholarshipId], references: [id])
   student           Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
@@ -109,33 +108,34 @@ model StudentScholarship {
 }
 
 model Scholarship {
-  type                String
-  amount              Decimal              @db.Decimal(10, 2)
-  createdAt           DateTime             @default(now()) @map("created_at")
-  requirements        String?
-  id                  Int                  @id @default(autoincrement()) @map("scholarship_id")
-  scholarshipName     String               @map("scholarship_name")
-  sponsor             String
-  status              String
-  updatedAt           DateTime             @updatedAt @map("updated_at")
-  source              String               @default("INTERNAL")
-  eligibleGradeLevels String               @map("eligible_grade_levels")
-  isArchived          Boolean              @default(false) @map("is_archived")
-  eligiblePrograms    String?              @map("eligible_programs")
-  grantType           String               @default("FULL") @map("grant_type") // FULL, TUITION_ONLY, MISC_ONLY, LAB_ONLY, NONE
-  coversTuition       Boolean              @default(false) @map("covers_tuition")
-  coversMiscellaneous Boolean              @default(false) @map("covers_miscellaneous")
-  coversLaboratory    Boolean              @default(false) @map("covers_laboratory")
-  coversOther         Boolean              @default(false) @map("covers_other")
-  otherFeeName        String?              @map("other_fee_name")
-  tuitionFee          Decimal              @default(0) @map("tuition_fee") @db.Decimal(10, 2)
-  miscellaneousFee    Decimal              @default(0) @map("miscellaneous_fee") @db.Decimal(10, 2)
-  laboratoryFee       Decimal              @default(0) @map("laboratory_fee") @db.Decimal(10, 2)
-  otherFee            Decimal              @default(0) @map("other_fee") @db.Decimal(10, 2)
-  amountSubsidy       Decimal              @default(0) @map("amount_subsidy") @db.Decimal(10, 2)
-  percentSubsidy      Decimal              @default(0) @map("percent_subsidy") @db.Decimal(5, 2)
-  disbursements       Disbursement[]
-  students            StudentScholarship[]
+  type                 String
+  amount               Decimal              @db.Decimal(10, 2)
+  createdAt            DateTime             @default(now()) @map("created_at")
+  requirements         String?
+  id                   Int                  @id @default(autoincrement()) @map("scholarship_id")
+  scholarshipName      String               @map("scholarship_name")
+  sponsor              String
+  status               String
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  source               String               @default("INTERNAL")
+  eligibleGradeLevels  String               @map("eligible_grade_levels")
+  isArchived           Boolean              @default(false) @map("is_archived")
+  eligiblePrograms     String?              @map("eligible_programs")
+  coversLaboratory     Boolean              @default(false) @map("covers_laboratory")
+  coversMiscellaneous  Boolean              @default(false) @map("covers_miscellaneous")
+  coversTuition        Boolean              @default(false) @map("covers_tuition")
+  grantType            String               @default("FULL") @map("grant_type")
+  amountSubsidy        Decimal              @default(0) @map("amount_subsidy") @db.Decimal(10, 2)
+  percentSubsidy       Decimal              @default(0) @map("percent_subsidy") @db.Decimal(5, 2)
+  coversOther          Boolean              @default(false) @map("covers_other")
+  laboratoryFee        Decimal              @default(0) @map("laboratory_fee") @db.Decimal(10, 2)
+  miscellaneousFee     Decimal              @default(0) @map("miscellaneous_fee") @db.Decimal(10, 2)
+  otherFee             Decimal              @default(0) @map("other_fee") @db.Decimal(10, 2)
+  otherFeeName         String?              @map("other_fee_name")
+  tuitionFee           Decimal              @default(0) @map("tuition_fee") @db.Decimal(10, 2)
+  eligible_year_levels String?
+  disbursements        Disbursement[]
+  students             StudentScholarship[]
 
   @@index([type])
   @@index([source])
@@ -146,40 +146,40 @@ model Scholarship {
 }
 
 model Disbursement {
-  id               Int         @id @default(autoincrement()) @map("disbursement_id")
-  disbursementDate DateTime    @map("disbursement_date")
-  amount           Decimal     @db.Decimal(10, 2)
+  id               Int           @id @default(autoincrement()) @map("disbursement_id")
+  disbursementDate DateTime      @map("disbursement_date")
+  amount           Decimal       @db.Decimal(10, 2)
   term             String
   method           String
-  createdAt        DateTime    @default(now()) @map("created_at")
-  updatedAt        DateTime    @updatedAt @map("updated_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
   remarks          String?
-  scholarshipId    Int         @map("scholarship_id")
-  studentId        Int         @map("student_id")
-  academicYearId   Int?        @map("academic_year_id")
-  scholarship      Scholarship @relation(fields: [scholarshipId], references: [id])
-  student          Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  scholarshipId    Int           @map("scholarship_id")
+  studentId        Int           @map("student_id")
+  academicYearId   Int?          @map("academic_year_id")
   academicYearRel  AcademicYear? @relation(fields: [academicYearId], references: [id])
+  scholarship      Scholarship   @relation(fields: [scholarshipId], references: [id])
+  student          Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("disbursements")
 }
 
 model StudentFees {
-  id               Int      @id @default(autoincrement()) @map("fees_id")
-  studentId        Int      @map("student_id")
-  tuitionFee       Decimal  @map("tuition_fee") @db.Decimal(10, 2)
-  otherFee         Decimal  @map("other_fee") @db.Decimal(10, 2)
-  miscellaneousFee Decimal  @map("miscellaneous_fee") @db.Decimal(10, 2)
-  laboratoryFee    Decimal  @map("laboratory_fee") @db.Decimal(10, 2)
-  amountSubsidy    Decimal  @map("amount_subsidy") @db.Decimal(10, 2)
-  percentSubsidy   Decimal  @map("percent_subsidy") @db.Decimal(5, 2) // Computed: (amountSubsidy / totalFees) * 100
+  id               Int           @id @default(autoincrement()) @map("fees_id")
+  studentId        Int           @map("student_id")
+  tuitionFee       Decimal       @map("tuition_fee") @db.Decimal(10, 2)
+  otherFee         Decimal       @map("other_fee") @db.Decimal(10, 2)
+  miscellaneousFee Decimal       @map("miscellaneous_fee") @db.Decimal(10, 2)
+  laboratoryFee    Decimal       @map("laboratory_fee") @db.Decimal(10, 2)
+  amountSubsidy    Decimal       @map("amount_subsidy") @db.Decimal(10, 2)
+  percentSubsidy   Decimal       @map("percent_subsidy") @db.Decimal(5, 2)
   term             String
-  academicYear     String   @map("academic_year")
-  academicYearId   Int?     @map("academic_year_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear     String        @map("academic_year")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  academicYearId   Int?          @map("academic_year_id")
   academicYearRel  AcademicYear? @relation(fields: [academicYearId], references: [id])
+  student          Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, term, academicYear])
   @@map("student_fees")
@@ -203,18 +203,17 @@ model Backup {
 }
 
 model AcademicYear {
-  id            Int      @id @default(autoincrement()) @map("academic_year_id")
-  year          String   @unique @map("year") // "2025-2026"
-  startDate     DateTime @map("start_date")
-  endDate       DateTime @map("end_date")
-  semester      String   @default("1ST") @map("semester") // 1ST, 2ND, SUMMER
-  isActive      Boolean  @default(false) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
-  studentFees   StudentFees[]
+  id            Int            @id @default(autoincrement()) @map("academic_year_id")
+  year          String         @unique @map("year")
+  startDate     DateTime       @map("start_date")
+  endDate       DateTime       @map("end_date")
+  semester      String         @default("1ST") @map("semester")
+  isActive      Boolean        @default(false) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
   disbursements Disbursement[]
-  
+  studentFees   StudentFees[]
+
   @@index([isActive])
   @@index([year])
   @@map("academic_years")

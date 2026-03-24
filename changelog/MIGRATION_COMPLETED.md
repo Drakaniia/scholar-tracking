@@ -9,14 +9,17 @@
 ## What Was Done
 
 ### 1. Database Schema Update
+
 - Added `eligible_grade_levels` column to the `scholarships` table
 - Column type: TEXT (stores comma-separated values)
 - Column is required (NOT NULL)
 
 ### 2. Data Migration
+
 All 36 existing scholarship records were updated with appropriate grade levels:
 
 #### Internal Scholarships
+
 - Employees Ward (BED/SHS) → JUNIOR_HIGH,SENIOR_HIGH
 - Employees Ward (HIED) → COLLEGE
 - Academic Scholar (BED/SHS) → JUNIOR_HIGH,SENIOR_HIGH
@@ -28,6 +31,7 @@ All 36 existing scholarship records were updated with appropriate grade levels:
 - Faculty & Staff → GRADE_SCHOOL,JUNIOR_HIGH,SENIOR_HIGH,COLLEGE
 
 #### External Scholarships - Basic Education
+
 - PAEB (GS/JHS) → GRADE_SCHOOL,JUNIOR_HIGH
 - Alumni (BED) → GRADE_SCHOOL,JUNIOR_HIGH,SENIOR_HIGH
 - Yearbook (BED) → GRADE_SCHOOL,JUNIOR_HIGH,SENIOR_HIGH
@@ -42,6 +46,7 @@ All 36 existing scholarship records were updated with appropriate grade levels:
 - Anonymous/SHS → SENIOR_HIGH
 
 #### External Scholarships - Higher Education
+
 - UTFI (HIED) → COLLEGE
 - OLSSEF (HIED) → COLLEGE
 - Alay ng Probinsya → COLLEGE
@@ -58,11 +63,14 @@ All 36 existing scholarship records were updated with appropriate grade levels:
 - UAQTEA (DIPLOMA PROGRAM) → COLLEGE
 
 ### 3. Prisma Client Regenerated
+
 - Prisma Client updated to v6.19.2
 - New field is now available in TypeScript types
 
 ### 4. Database Indexes Created
+
 Additional indexes were created for performance:
+
 - `scholarships_type_idx`
 - `scholarships_source_idx`
 - `scholarships_status_idx`
@@ -76,6 +84,7 @@ Additional indexes were created for performance:
 ## Verification
 
 Run this command to verify:
+
 ```bash
 npx prisma migrate status
 ```
@@ -87,6 +96,7 @@ Expected output: "Database schema is up to date!"
 1. ✅ Migration applied
 2. ✅ Prisma Client regenerated
 3. ⏭️ Restart your development server:
+
    ```bash
    npm run dev
    ```
@@ -99,11 +109,13 @@ Expected output: "Database schema is up to date!"
 ## Rollback (If Needed)
 
 If you need to rollback this migration:
+
 ```bash
 npx prisma migrate resolve --rolled-back 20260305041021_add_eligible_grade_levels_field
 ```
 
 Then manually remove the column:
+
 ```sql
 ALTER TABLE scholarships DROP COLUMN eligible_grade_levels;
 ```

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+
 import { getSession } from '@/lib/auth';
 import { initializeScheduler } from '@/lib/scheduler';
 
@@ -6,16 +7,13 @@ import { initializeScheduler } from '@/lib/scheduler';
 export async function POST() {
   try {
     const session = await getSession();
-    
+
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
     await initializeScheduler();
-    
+
     return NextResponse.json({
       success: true,
       message: 'Scheduler started successfully',

@@ -1,26 +1,22 @@
 /**
  * TanStack Query Hooks for ScholarTrack
- * 
+ *
  * Usage:
  * 1. Wrap your app with TanStackProvider (already done in providers.tsx)
  * 2. Import and use hooks in your components
- * 
+ *
  * Example:
  * ```tsx
  * const { data: students, isLoading } = useStudents({ page: 1, limit: 10 });
  * const { mutate: deleteStudent } = useDeleteStudent();
  * ```
  */
-
 import { useCallback } from 'react';
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  UseQueryOptions,
-} from '@tanstack/react-query';
+
+import { UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { StudentFilterOptions, CreateStudentInput, UpdateStudentInput } from '@/types';
+
+import type { CreateStudentInput, StudentFilterOptions, UpdateStudentInput } from '@/types';
 
 // ============================================
 // QUERY KEYS (Centralized for consistency)
@@ -33,7 +29,7 @@ export const queryKeys = {
     stats: (source?: string) => [...queryKeys.dashboard.all, 'stats', source] as const,
     detailed: (source?: string) => [...queryKeys.dashboard.all, 'detailed', source] as const,
   },
-  
+
   // Students
   students: {
     all: ['students'] as const,
@@ -43,7 +39,7 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.students.details(), id] as const,
     filterOptions: () => [...queryKeys.students.all, 'filter-options'] as const,
   },
-  
+
   // Scholarships
   scholarships: {
     all: ['scholarships'] as const,
@@ -53,7 +49,7 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.scholarships.details(), id] as const,
     filterOptions: () => [...queryKeys.scholarships.all, 'filter-options'] as const,
   },
-  
+
   // Users
   users: {
     all: ['users'] as const,
@@ -285,7 +281,10 @@ export function useStudents(
   });
 }
 
-export function useStudent(id: number, options?: Partial<UseQueryOptions<ApiResponse<StudentDetail>, Error>>) {
+export function useStudent(
+  id: number,
+  options?: Partial<UseQueryOptions<ApiResponse<StudentDetail>, Error>>
+) {
   return useQuery<ApiResponse<StudentDetail>, Error>({
     queryKey: queryKeys.students.detail(id),
     queryFn: async () => {
@@ -478,7 +477,10 @@ export function useScholarships(
   });
 }
 
-export function useScholarship(id: number, options?: Partial<UseQueryOptions<ApiResponse<Scholarship>, Error>>) {
+export function useScholarship(
+  id: number,
+  options?: Partial<UseQueryOptions<ApiResponse<Scholarship>, Error>>
+) {
   return useQuery<ApiResponse<Scholarship>, Error>({
     queryKey: queryKeys.scholarships.detail(id),
     queryFn: async () => {

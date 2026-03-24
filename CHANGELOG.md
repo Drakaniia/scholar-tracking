@@ -5,18 +5,20 @@
 ### Major Changes
 
 #### 1. Removed Student Number Field
+
 - **Student Form**: Removed the `studentNo` field from the Add/Edit Student form
 - **Database Schema**: Removed `studentNo` column from the `students` table
 - **Rationale**: Simplified student creation process by removing manual student number entry
 - **Validation**: Updated validation rules to remove studentNo requirement
 
 #### 2. Multiple Scholarships Per Student
-- **Database Schema**: 
+
+- **Database Schema**:
   - Created new `student_scholarships` junction table to support many-to-many relationship
   - Students can now have multiple scholarships (both internal and external)
   - Each scholarship assignment tracks: award date, start/end terms, grant amount, and status
 
-- **Seed Data**: 
+- **Seed Data**:
   - All 15 students now have 2 scholarships each
   - Mix of Internal and External scholarships
   - Examples include students with:
@@ -25,6 +27,7 @@
     - Various scholarship combinations
 
 #### 3. Updated Students Page UI
+
 - **Primary View**: When clicking a student, scholarships are displayed FIRST
   - Each scholarship shown in a colored card with:
     - Scholarship name and type
@@ -42,15 +45,18 @@
   - All hidden by default to prioritize scholarship view
 
 #### 4. Updated Table View
+
 - Removed "Student No." column
 - "Scholarships" column now shows multiple scholarship badges
 - Each scholarship displayed with consistent color coding
 
 ### Database Migration
+
 - Migration: `20260205090627_init_with_multiple_scholarships`
 - Successfully applied and seeded with test data
 
 ### Files Modified
+
 1. `prisma/schema.prisma` - Updated schema with junction table
 2. `prisma/seed.ts` - New seed with multiple scholarships per student
 3. `src/components/forms/student-form.tsx` - Removed studentNo field
@@ -66,6 +72,7 @@
 13. `src/types/index.ts` - Updated type definitions
 
 ### Testing
+
 - ✅ Migration successful
 - ✅ Seed data created successfully
 - ✅ TypeScript compilation successful
@@ -76,7 +83,9 @@
 - ✅ Export functionality updated
 
 ### Next Steps
+
 Users can now:
+
 1. View students with multiple scholarships
 2. See scholarship details as the primary information
 3. Expand to view full student details when needed
