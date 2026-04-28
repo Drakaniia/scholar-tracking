@@ -19,7 +19,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio --schema=prisma/schema.prisma",
     "db:add-indexes": "npx tsx scripts/add-indexes.ts",
-    "erd:generate": "prisma generate --schema=prisma/schema-with-erd.prisma",
+    "erd:generate": "PRISMA_SCHEMA=prisma/schema-with-erd.prisma prisma generate",
     "erd:view": "start docs/index.html",
     "clean": "rm -rf node_modules .next && npm install"
   },

@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Ignore generated Prisma files
     'generated/**',
     'node_modules/**',
+    // Ignore Vercel output directory
+    '.vercel/**',
   ]),
 ]);
 
