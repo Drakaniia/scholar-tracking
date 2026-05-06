@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { Prisma } from '@prisma/client';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -21,20 +22,43 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get('format') || 'xlsx';
+    const sourceFilter = searchParams.get('source') || '';
+
+    // Build where clause - include all students, filter by scholarship source if specified
+    const whereClause: Prisma.StudentWhereInput = {};
+
+    // Only filter by scholarship if a source is specified
+    if (sourceFilter) {
+      whereClause.scholarships = {
+        some: {
+          scholarship: {
+            source: sourceFilter,
+          },
+        },
+      };
+    }
+    // If no source filter, don't add scholarships filter - include all students
 
     // Fetch detailed student data with fees
     const students = await prisma.student.findMany({
-      where: {
-        scholarships: {
-          some: {},
-        },
-      },
+      where: whereClause,
       include: {
-        scholarships: {
-          include: {
-            scholarship: true,
-          },
-        },
+        scholarships: sourceFilter
+          ? {
+              where: {
+                scholarship: {
+                  source: sourceFilter,
+                },
+              },
+              include: {
+                scholarship: true,
+              },
+            }
+          : {
+              include: {
+                scholarship: true,
+              },
+            },
         fees: {
           orderBy: { createdAt: 'desc' },
           take: 1,
