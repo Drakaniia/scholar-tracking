@@ -58,9 +58,8 @@ export async function GET(request: NextRequest) {
               },
             },
         fees: {
-          // Prefer the latest edited fee record (users may update subsidies/fees without creating a new row)
-          orderBy: { updatedAt: 'desc' },
-          take: 1,
+          // Fetch all fee records to enable annual aggregation in reports
+          orderBy: [{ academicYear: 'desc' }, { term: 'asc' }],
         },
       },
     });

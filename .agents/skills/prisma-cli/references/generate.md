@@ -24,15 +24,15 @@ bunx --bun prisma generate
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--schema` | Custom path to your Prisma schema |
-| `--config` | Custom path to your Prisma config file |
-| `--sql` | Generate typed sql module |
-| `--watch` | Watch the Prisma schema and rerun after a change |
-| `--generator` | Generator to use (may be provided multiple times) |
-| `--no-hints` | Hides the hint messages but still outputs errors and warnings |
-| `--require-models` | Do not allow generating a client without models |
+| Option             | Description                                                   |
+| ------------------ | ------------------------------------------------------------- |
+| `--schema`         | Custom path to your Prisma schema                             |
+| `--config`         | Custom path to your Prisma config file                        |
+| `--sql`            | Generate typed sql module                                     |
+| `--watch`          | Watch the Prisma schema and rerun after a change              |
+| `--generator`      | Generator to use (may be provided multiple times)             |
+| `--no-hints`       | Hides the hint messages but still outputs errors and warnings |
+| `--require-models` | Do not allow generating a client without models               |
 
 ## Examples
 
@@ -87,7 +87,7 @@ generator client {
 - Import Prisma Client from your generated output path, for example:
 
 ```typescript
-import { PrismaClient } from '../generated/prisma/client'
+import { PrismaClient } from '../generated/prisma/client';
 ```
 
 ### Compiler Build Tuning
@@ -161,13 +161,13 @@ generated/
 Import the client:
 
 ```typescript
-import { PrismaClient, Prisma } from '../generated/prisma/client'
+import { Prisma, PrismaClient } from '../generated/prisma/client';
 ```
 
 Import browser-safe types:
 
 ```typescript
-import { Prisma } from '../generated/prisma/browser'
-import { Role } from '../generated/prisma/enums'
-import type { UserModel } from '../generated/prisma/models/User'
+import { Prisma } from '../generated/prisma/browser';
+import { Role } from '../generated/prisma/enums';
+import type { UserModel } from '../generated/prisma/models/User';
 ```

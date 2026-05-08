@@ -55,6 +55,13 @@ export const queryKeys = {
     all: ['users'] as const,
     lists: () => [...queryKeys.users.all, 'list'] as const,
   },
+
+  // Academic Years
+  academicYears: {
+    all: ['academicYears'] as const,
+    lists: () => [...queryKeys.academicYears.all, 'list'] as const,
+    active: () => [...queryKeys.academicYears.all, 'active'] as const,
+  },
 };
 
 // ============================================
@@ -666,4 +673,57 @@ export function usePrefetchData() {
   }, [queryClient]);
 
   return { prefetchAll };
+}
+
+// ============================================
+// ACADEMIC YEARS
+// ============================================
+
+interface AcademicYear {
+  id: number;
+  year: string;
+  startDate: string;
+  endDate: string;
+  semester: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
+// Get all academic years
+export function useAcademicYears() {
+  return useQuery<ApiResponse<AcademicYear[]>, Error>({
+    queryKey: queryKeys.academicYears.lists(),
+    queryFn: async () => {
+      const response = await fetch('/api/academic-years?limit=100', { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch academic years');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// Get active academic year
+export function useActiveAcademicYear() {
+  return useQuery<ApiResponse<AcademicYear | null>, Error>({
+    queryKey: queryKeys.academicYears.active(),
+    queryFn: async () => {
+      const response = await fetch('/api/academic-years?action=active', { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch active academic year');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 }

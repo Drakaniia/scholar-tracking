@@ -17,13 +17,13 @@ prisma db push [options]
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--force-reset` | Force a reset of the database before push |
-| `--accept-data-loss` | Ignore data loss warnings |
-| `--schema` | Custom path to your Prisma schema |
-| `--config` | Custom path to your Prisma config file |
-| `--url` | Override the datasource URL from the Prisma config file |
+| Option               | Description                                             |
+| -------------------- | ------------------------------------------------------- |
+| `--force-reset`      | Force a reset of the database before push               |
+| `--accept-data-loss` | Ignore data loss warnings                               |
+| `--schema`           | Custom path to your Prisma schema                       |
+| `--config`           | Custom path to your Prisma config file                  |
+| `--url`              | Override the datasource URL from the Prisma config file |
 
 ### Follow-up Command
 
@@ -75,14 +75,14 @@ prisma generate
 
 ## Comparison with migrate dev
 
-| Feature | db push | migrate dev |
-|---------|---------|-------------|
-| Creates migration files | No | Yes |
-| Tracks history | No | Yes |
-| Requires shadow database | No | Yes |
-| Speed | Faster | Slower |
-| Rollback capability | No | Yes |
-| Best for | Prototyping | Development |
+| Feature                  | db push     | migrate dev |
+| ------------------------ | ----------- | ----------- |
+| Creates migration files  | No          | Yes         |
+| Tracks history           | No          | Yes         |
+| Requires shadow database | No          | Yes         |
+| Speed                    | Faster      | Slower      |
+| Rollback capability      | No          | Yes         |
+| Best for                 | Prototyping | Development |
 
 ## MongoDB Workflow
 
@@ -126,7 +126,7 @@ If `db push` can't apply changes safely:
 ```
 Error: The following changes cannot be applied:
   - Removing field `email` would cause data loss
-  
+
 Use --accept-data-loss to proceed
 ```
 

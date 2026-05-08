@@ -1,8 +1,8 @@
-import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config';
+import { Pool } from 'pg';
 
 // Create adapter for Prisma v7 with connection pooling
 // Use DIRECT_DATABASE_URL for direct PostgreSQL connection (pg adapter)

@@ -50,62 +50,66 @@ const commentSchema = z.object({
 
 ```typescript
 // schemas/common.ts
-import { z } from 'zod'
+import { z } from 'zod';
 
 // Reusable ID types
-export const uuid = z.string().uuid()
-export type UUID = z.infer<typeof uuid>
+export const uuid = z.string().uuid();
+export type UUID = z.infer<typeof uuid>;
 
 // Timestamps
 export const timestamps = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
-})
+});
 
 // Base entity with ID
-export const baseEntity = z.object({
-  id: uuid,
-}).merge(timestamps)
+export const baseEntity = z
+  .object({
+    id: uuid,
+  })
+  .merge(timestamps);
 
-export type BaseEntity = z.infer<typeof baseEntity>
+export type BaseEntity = z.infer<typeof baseEntity>;
 
 // Pagination
 export const paginationParams = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-})
+});
 ```
 
 ```typescript
 // schemas/user.ts
-import { z } from 'zod'
-import { baseEntity, uuid } from './common'
+import { z } from 'zod';
+
+import { baseEntity, uuid } from './common';
 
 export const userSchema = baseEntity.extend({
   email: z.string().email(),
   name: z.string().min(1),
-})
+});
 
-export type User = z.infer<typeof userSchema>
+export type User = z.infer<typeof userSchema>;
 ```
 
 ```typescript
 // schemas/order.ts
-import { z } from 'zod'
-import { baseEntity, uuid } from './common'
+import { z } from 'zod';
+
+import { baseEntity, uuid } from './common';
 
 const orderItemSchema = z.object({
   productId: uuid,
   quantity: z.number().int().positive(),
-})
+});
 
 export const orderSchema = baseEntity.extend({
   userId: uuid,
   items: z.array(orderItemSchema).min(1),
   total: z.number().positive(),
-})
+});
 
-export type Order = z.infer<typeof orderSchema>
+export type Order = z.infer<typeof orderSchema>;
 ```
 
 **Organizing schema modules:**
@@ -120,17 +124,18 @@ schemas/
 ```
 
 ```typescript
-// schemas/index.ts
-export * from './common'
-export * from './user'
-export * from './order'
-export * from './product'
-
 // Usage
-import { userSchema, orderSchema, uuid, type User } from '@/schemas'
+import { type User, orderSchema, userSchema, uuid } from '@/schemas';
+
+// schemas/index.ts
+export * from './common';
+export * from './user';
+export * from './order';
+export * from './product';
 ```
 
 **When NOT to use this pattern:**
+
 - One-off schemas used only in a single file
 - When schemas look similar but have different semantics (don't over-abstract)
 

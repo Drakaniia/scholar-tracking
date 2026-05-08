@@ -11,7 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { queryKeys } from '@/hooks/use-queries';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { queryKeys, useAcademicYears } from '@/hooks/use-queries';
 import { formatCurrency } from '@/lib/utils';
 
 interface StudentFees {
@@ -79,6 +86,18 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
     amountSubsidy: 0,
   });
 
+  // Fetch academic years for dropdown
+  const { data: academicYearsData } = useAcademicYears();
+  const academicYears = academicYearsData?.data || [];
+
+  // Semester options
+  const SEMESTER_OPTIONS = [
+    { value: '1st Semester', label: '1st Semester' },
+    { value: '2nd Semester', label: '2nd Semester' },
+    { value: 'Summer', label: 'Summer' },
+    { value: 'Midyear', label: 'Midyear' },
+  ];
+
   // Calculate total fees
   const calculateTotalFees = (fee: Partial<StudentFees>) => {
     return (
@@ -87,6 +106,54 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
       Number(fee.laboratoryFee || 0) +
       Number(fee.otherFee || 0)
     );
+  };
+
+  // Aggregate fees by academic year
+  const aggregateFeesByYear = () => {
+    const feesByYear: Record<
+      string,
+      {
+        tuitionFee: number;
+        miscellaneousFee: number;
+        laboratoryFee: number;
+        otherFee: number;
+        amountSubsidy: number;
+        semesterCount: number;
+        semesters: string[];
+      }
+    > = {};
+
+    fees.forEach((fee) => {
+      const year = fee.academicYear;
+      if (!feesByYear[year]) {
+        feesByYear[year] = {
+          tuitionFee: 0,
+          miscellaneousFee: 0,
+          laboratoryFee: 0,
+          otherFee: 0,
+          amountSubsidy: 0,
+          semesterCount: 0,
+          semesters: [],
+        };
+      }
+      feesByYear[year].tuitionFee += Number(fee.tuitionFee);
+      feesByYear[year].miscellaneousFee += Number(fee.miscellaneousFee);
+      feesByYear[year].laboratoryFee += Number(fee.laboratoryFee);
+      feesByYear[year].otherFee += Number(fee.otherFee);
+      feesByYear[year].amountSubsidy += Number(fee.amountSubsidy);
+      feesByYear[year].semesterCount += 1;
+      feesByYear[year].semesters.push(fee.term);
+    });
+
+    return feesByYear;
+  };
+
+  // Calculate pending semesters for an academic year
+  const getPendingSemesters = (year: string, recordedSemesters: string[]) => {
+    // Expected semesters (typically 2 for most schools)
+    const expectedSemesters = ['1st Semester', '2nd Semester'];
+    const pending = expectedSemesters.filter((sem) => !recordedSemesters.includes(sem));
+    return pending;
   };
 
   // Calculate percent subsidy (as percentage, e.g., 16.67 for 16.67%)
@@ -372,6 +439,115 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
         </Card>
       )}
 
+      {/* Annual Fee Summary by Academic Year */}
+      {fees.length > 0 &&
+        (() => {
+          const feesByYear = aggregateFeesByYear();
+          const sortedYears = Object.keys(feesByYear).sort().reverse();
+
+          return sortedYears.map((year) => {
+            const yearData = feesByYear[year];
+            const totalFees =
+              yearData.tuitionFee +
+              yearData.miscellaneousFee +
+              yearData.laboratoryFee +
+              yearData.otherFee;
+            const efcPercent = totalFees > 0 ? (yearData.amountSubsidy / totalFees) * 100 : 0;
+            const pendingSemesters = getPendingSemesters(year, yearData.semesters);
+
+            return (
+              <Card
+                key={year}
+                className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-blue-600" />
+                      <CardTitle className="text-base text-blue-800">
+                        Annual Summary - {year}
+                      </CardTitle>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-white text-blue-700 border-blue-300">
+                        {yearData.semesterCount} semester{yearData.semesterCount > 1 ? 's' : ''}
+                      </Badge>
+                      {pendingSemesters.length > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="bg-yellow-50 text-yellow-700 border-yellow-300"
+                        >
+                          {pendingSemesters.length} pending
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-xs text-blue-600">
+                      <div className="flex items-center justify-between">
+                        <span>Recorded: {yearData.semesters.join(' • ')}</span>
+                        {pendingSemesters.length > 0 && (
+                          <span className="text-yellow-600">
+                            Pending: {pendingSemesters.join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-4 pt-2 border-t border-blue-200">
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Tuition</p>
+                        <p className="text-sm font-semibold text-blue-800">
+                          ₱{yearData.tuitionFee.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Misc</p>
+                        <p className="text-sm font-semibold text-blue-800">
+                          ₱{yearData.miscellaneousFee.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Lab</p>
+                        <p className="text-sm font-semibold text-blue-800">
+                          ₱{yearData.laboratoryFee.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Other</p>
+                        <p className="text-sm font-semibold text-blue-800">
+                          ₱{yearData.otherFee.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-blue-600 font-medium">Total Fees</p>
+                        <p className="text-lg font-bold text-blue-800">
+                          ₱{totalFees.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-blue-200">
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Annual Subsidy</p>
+                        <p className="text-lg font-bold text-green-600">
+                          ₱{yearData.amountSubsidy.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-blue-600 font-medium">
+                          EFC (Expected Family Contribution)
+                        </p>
+                        <p className="text-lg font-bold text-primary">{efcPercent.toFixed(2)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          });
+        })()}
+
       {/* Add New Fee Form */}
       {!readOnly && showAddForm && (
         <Card className="border-2 border-primary/20">
@@ -393,21 +569,45 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="new-term">Term</Label>
-                <Input
-                  id="new-term"
+                <Select
                   value={newFeeData.term}
-                  onChange={(e) => updateNewFeeField('term', e.target.value)}
-                  placeholder="1st Semester"
-                />
+                  onValueChange={(value) => updateNewFeeField('term', value)}
+                >
+                  <SelectTrigger id="new-term">
+                    <SelectValue placeholder="Select term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEMESTER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new-academic-year">Academic Year</Label>
-                <Input
-                  id="new-academic-year"
+                <Select
                   value={newFeeData.academicYear}
-                  onChange={(e) => updateNewFeeField('academicYear', e.target.value)}
-                  placeholder="2025-2026"
-                />
+                  onValueChange={(value) => updateNewFeeField('academicYear', value)}
+                >
+                  <SelectTrigger id="new-academic-year">
+                    <SelectValue placeholder="Select academic year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {academicYears.length > 0 ? (
+                      academicYears.map((ay) => (
+                        <SelectItem key={ay.id} value={ay.year}>
+                          {ay.year} - {ay.semester}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value={newFeeData.academicYear || ''}>
+                        {newFeeData.academicYear || 'No academic years available'}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -531,19 +731,45 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-xs">Term</Label>
-                          <Input
+                          <Select
                             value={editData.term || ''}
-                            onChange={(e) => updateEditField('term', e.target.value)}
-                            className="h-9"
-                          />
+                            onValueChange={(value) => updateEditField('term', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select term" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SEMESTER_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs">Academic Year</Label>
-                          <Input
+                          <Select
                             value={editData.academicYear || ''}
-                            onChange={(e) => updateEditField('academicYear', e.target.value)}
-                            className="h-9"
-                          />
+                            onValueChange={(value) => updateEditField('academicYear', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select academic year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {academicYears.length > 0 ? (
+                                academicYears.map((ay) => (
+                                  <SelectItem key={ay.id} value={ay.year}>
+                                    {ay.year} - {ay.semester}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value={editData.academicYear || ''}>
+                                  {editData.academicYear || 'No academic years available'}
+                                </SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 

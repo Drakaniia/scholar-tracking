@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { Calendar, Filter, Info, Plus, Search, X } from 'lucide-react';
+import { Filter, Info, Plus, Search, X } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 
 import {
@@ -176,21 +176,7 @@ export function StudentForm({
     },
   });
 
-  // Function to calculate age from birth date
-  const calculateAge = (birthDate: Date | null | undefined): number => {
-    if (!birthDate) return 0;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-
-    return age;
-  };
-
+  // Fetch scholarships on component mount
   useEffect(() => {
     fetchScholarships();
   }, []);
@@ -859,42 +845,6 @@ export function StudentForm({
           />
         </div>
       )}
-
-      {/* Birth Date Field - appears for all grade levels */}
-      <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <Label htmlFor="birthDate" className="text-sm font-medium">
-            Birth Date
-          </Label>
-          {form.watch('birthDate') && (
-            <span className="text-xs text-muted-foreground">
-              Age: {calculateAge(form.watch('birthDate'))}
-            </span>
-          )}
-        </div>
-        <div className="relative">
-          <Input
-            id="birthDate"
-            type="date"
-            value={(() => {
-              const watchedValue = form.watch('birthDate');
-              if (watchedValue) {
-                return new Date(watchedValue).toISOString().split('T')[0];
-              }
-              if (defaultValues?.birthDate) {
-                return new Date(defaultValues.birthDate).toISOString().split('T')[0];
-              }
-              return '';
-            })()}
-            onChange={(e) => {
-              const dateValue = e.target.value ? new Date(e.target.value) : null;
-              form.setValue('birthDate', dateValue);
-            }}
-            className="h-10 pl-8"
-          />
-          <Calendar className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-        </div>
-      </div>
 
       {/* Scholarship Assignment Section */}
       <div className="border-t pt-6 space-y-6">

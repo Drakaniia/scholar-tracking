@@ -50,6 +50,8 @@ interface DetailedStudent {
     laboratoryFee: number;
     amountSubsidy: number;
     percentSubsidy: number;
+    term: string;
+    academicYear: string;
   }>;
 }
 
@@ -203,21 +205,66 @@ export default function ReportsPage() {
     return detailedStudents.filter((s) => hasMatchingScholarship(s)).length;
   };
 
-  const calculateTotalFees = (fees: DetailedStudent['fees'][0]) => {
-    if (!fees) return 0;
-    return (
-      Number(fees.tuitionFee) +
-      Number(fees.otherFee) +
-      Number(fees.miscellaneousFee) +
-      Number(fees.laboratoryFee)
-    );
+  // Aggregate fees by academic year (sum all semesters)
+  const aggregateFeesByAcademicYear = (fees: DetailedStudent['fees']) => {
+    if (!fees || fees.length === 0) return null;
+
+    // Group by academic year and sum
+    const feesByYear: Record<
+      string,
+      {
+        tuitionFee: number;
+        otherFee: number;
+        miscellaneousFee: number;
+        laboratoryFee: number;
+        amountSubsidy: number;
+        semesterCount: number;
+        academicYear: string;
+      }
+    > = {};
+
+    fees.forEach((fee) => {
+      const year = fee.academicYear || 'Unknown';
+      if (!feesByYear[year]) {
+        feesByYear[year] = {
+          tuitionFee: 0,
+          otherFee: 0,
+          miscellaneousFee: 0,
+          laboratoryFee: 0,
+          amountSubsidy: 0,
+          semesterCount: 0,
+          academicYear: year,
+        };
+      }
+      feesByYear[year].tuitionFee += Number(fee.tuitionFee);
+      feesByYear[year].otherFee += Number(fee.otherFee);
+      feesByYear[year].miscellaneousFee += Number(fee.miscellaneousFee);
+      feesByYear[year].laboratoryFee += Number(fee.laboratoryFee);
+      feesByYear[year].amountSubsidy += Number(fee.amountSubsidy);
+      feesByYear[year].semesterCount += 1;
+    });
+
+    // Return the most recent academic year's aggregated data
+    const sortedYears = Object.keys(feesByYear).sort().reverse();
+    return feesByYear[sortedYears[0]];
   };
 
-  const calculatePercentSubsidy = (fees: DetailedStudent['fees'][0]) => {
-    if (!fees) return 0;
-    const totalFees = calculateTotalFees(fees);
-    // Return as decimal (e.g., 0.1667 for 16.67%)
-    return totalFees > 0 ? Number((Number(fees.amountSubsidy) / totalFees).toFixed(4)) : 0;
+  // Calculate percent subsidy from aggregated annual data
+  const calculateAnnualPercentSubsidy = (aggregatedFees: {
+    tuitionFee: number;
+    otherFee: number;
+    miscellaneousFee: number;
+    laboratoryFee: number;
+    amountSubsidy: number;
+  }) => {
+    const totalFees =
+      Number(aggregatedFees.tuitionFee) +
+      Number(aggregatedFees.otherFee) +
+      Number(aggregatedFees.miscellaneousFee) +
+      Number(aggregatedFees.laboratoryFee);
+    return totalFees > 0
+      ? Number((Number(aggregatedFees.amountSubsidy) / totalFees).toFixed(4))
+      : 0;
   };
 
   if (loading) {
@@ -416,8 +463,17 @@ export default function ReportsPage() {
                               </TableHeader>
                               <TableBody>
                                 {students.map((student) => {
-                                  const fees = student.fees[0];
-                                  const totalFees = fees ? calculateTotalFees(fees) : 0;
+                                  // Aggregate all fees by academic year
+                                  const aggregatedFees = aggregateFeesByAcademicYear(student.fees);
+                                  const totalFees = aggregatedFees
+                                    ? Number(aggregatedFees.tuitionFee) +
+                                      Number(aggregatedFees.otherFee) +
+                                      Number(aggregatedFees.miscellaneousFee) +
+                                      Number(aggregatedFees.laboratoryFee)
+                                    : 0;
+                                  const percentSubsidy = aggregatedFees
+                                    ? calculateAnnualPercentSubsidy(aggregatedFees)
+                                    : 0;
 
                                   return (
                                     <TableRow key={student.id}>
@@ -437,33 +493,57 @@ export default function ReportsPage() {
                                         {student.yearLevel}
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        {fees ? formatCurrency(Number(fees.tuitionFee)) : '-'}
+                                        {aggregatedFees
+                                          ? formatCurrency(Number(aggregatedFees.tuitionFee))
+                                          : '-'}
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        {fees ? formatCurrency(Number(fees.otherFee)) : '-'}
+                                        {aggregatedFees
+                                          ? formatCurrency(Number(aggregatedFees.otherFee))
+                                          : '-'}
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        {fees ? formatCurrency(Number(fees.miscellaneousFee)) : '-'}
+                                        {aggregatedFees
+                                          ? formatCurrency(Number(aggregatedFees.miscellaneousFee))
+                                          : '-'}
                                       </TableCell>
                                       <TableCell className="text-right">
-                                        {fees ? formatCurrency(Number(fees.laboratoryFee)) : '-'}
+                                        {aggregatedFees
+                                          ? formatCurrency(Number(aggregatedFees.laboratoryFee))
+                                          : '-'}
                                       </TableCell>
                                       <TableCell className="text-right font-semibold">
                                         {formatCurrency(totalFees)}
                                       </TableCell>
                                       <TableCell className="text-right text-green-600 font-semibold">
-                                        {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
+                                        {aggregatedFees
+                                          ? formatCurrency(Number(aggregatedFees.amountSubsidy))
+                                          : '-'}
                                       </TableCell>
                                       <TableCell className="text-right">
                                         <Badge variant="secondary" className="text-xs">
-                                          {fees
-                                            ? `${calculatePercentSubsidy(fees).toFixed(2)}`
-                                            : '-'}
+                                          {aggregatedFees ? `${percentSubsidy.toFixed(2)}` : '-'}
                                         </Badge>
                                       </TableCell>
-                                      <TableCell className="text-right">1</TableCell>
+                                      <TableCell className="text-right">
+                                        {aggregatedFees ? (
+                                          <div className="flex flex-col items-end gap-1">
+                                            <span>1</span>
+                                            {aggregatedFees.semesterCount > 1 && (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[10px] px-1 py-0 h-4"
+                                              >
+                                                {aggregatedFees.semesterCount} sem
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          '1'
+                                        )}
+                                      </TableCell>
                                       <TableCell className="text-right font-semibold">
-                                        {fees ? `${calculatePercentSubsidy(fees).toFixed(2)}` : '-'}
+                                        {aggregatedFees ? `${percentSubsidy.toFixed(2)}` : '-'}
                                       </TableCell>
                                     </TableRow>
                                   );
@@ -477,9 +557,9 @@ export default function ReportsPage() {
                                   <TableCell className="text-right">
                                     {students
                                       .reduce((sum, s) => {
-                                        const fees = s.fees[0];
-                                        const percentSubsidy = fees
-                                          ? calculatePercentSubsidy(fees)
+                                        const aggregatedFees = aggregateFeesByAcademicYear(s.fees);
+                                        const percentSubsidy = aggregatedFees
+                                          ? calculateAnnualPercentSubsidy(aggregatedFees)
                                           : 0;
                                         const numberOfStudents = 1;
                                         return sum + percentSubsidy * numberOfStudents;
