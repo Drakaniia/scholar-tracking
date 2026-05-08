@@ -27,9 +27,10 @@ ScholarTrack is a comprehensive web-based scholarship management system built wi
 - **Scholarship Management**: Multiple scholarship types (PAED, CHED, LGU, SCHOOL_GRANT) with flexible grant types and fee coverage options
 - **Academic Year Management**: Track multiple academic years with semester support
 - **Fee Tracking**: Detailed breakdown of tuition, miscellaneous, laboratory, and other fees with subsidy calculations
+- **Annual Fee Aggregation**: Automatic summation of fees across all semesters per academic year for accurate EFC calculation
 - **Disbursement Tracking**: Monitor scholarship payments and distributions linked to academic years
 - **Graduation Management**: Track student graduation status and archive graduated students
-- **Reports & Analytics**: Dashboard with statistics, charts, and exportable reports
+- **Reports & Analytics**: Dashboard with statistics, charts, and exportable reports showing annual aggregated data
 - **Data Export**: PDF, Excel (XLSX), and CSV export capabilities
 - **Audit Logging**: Complete activity tracking for accountability
 - **Performance Optimization**: Database indexing, connection pooling, query optimization, and caching
@@ -319,6 +320,7 @@ After seeding the database:
 8. **Role-Based Access Control**: Three-tier system (ADMIN, STAFF, VIEWER)
 9. **Academic Year Support**: Multi-year tracking with semester management
 10. **Graduation Tracking**: Automated status updates and archiving
+11. **Annual Fee Aggregation**: Multi-semester fee summation for accurate EFC calculation
 
 ## Common Tasks
 

@@ -25,15 +25,15 @@ bunx --bun prisma init
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--datasource-provider` | Database provider: `postgresql`, `mysql`, `sqlite`, `sqlserver`, `mongodb`, `cockroachdb` | `postgresql` |
-| `--db` | Provisions a fully managed Prisma Postgres database on the Prisma Data Platform | - |
-| `--url` | Define a custom datasource url | - |
-| `--generator-provider` | Define the generator provider to use | `prisma-client` |
-| `--output` | Define Prisma Client generator output path to use | - |
-| `--preview-feature` | Define a preview feature to use | - |
-| `--with-model` | Add example model to created schema file | - |
+| Option                  | Description                                                                               | Default         |
+| ----------------------- | ----------------------------------------------------------------------------------------- | --------------- |
+| `--datasource-provider` | Database provider: `postgresql`, `mysql`, `sqlite`, `sqlserver`, `mongodb`, `cockroachdb` | `postgresql`    |
+| `--db`                  | Provisions a fully managed Prisma Postgres database on the Prisma Data Platform           | -               |
+| `--url`                 | Define a custom datasource url                                                            | -               |
+| `--generator-provider`  | Define the generator provider to use                                                      | `prisma-client` |
+| `--output`              | Define Prisma Client generator output path to use                                         | -               |
+| `--preview-feature`     | Define a preview feature to use                                                           | -               |
+| `--with-model`          | Add example model to created schema file                                                  | -               |
 
 ## Examples
 
@@ -96,8 +96,8 @@ datasource db {
 
 ```typescript
 // prisma.config.ts
-import "dotenv/config";
-import { defineConfig } from 'prisma/config'
+import 'dotenv/config';
+import { defineConfig } from 'prisma/config';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -107,13 +107,13 @@ export default defineConfig({
   datasource: {
     url: process.env['DATABASE_URL'],
   },
-})
+});
 ```
 
 ## Generated Config (Bun)
 
 ```typescript
-import { defineConfig, env } from 'prisma/config'
+import { defineConfig, env } from 'prisma/config';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -123,7 +123,7 @@ export default defineConfig({
   datasource: {
     url: env('DATABASE_URL'),
   },
-})
+});
 ```
 
 ## Next Steps After Init

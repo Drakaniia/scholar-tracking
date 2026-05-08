@@ -6,44 +6,45 @@ Use `next/font` for automatic font optimization with zero layout shift.
 
 ```tsx
 // app/layout.tsx
-import { Inter } from 'next/font/google'
+import { Inter } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.className}>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
 ## Multiple Fonts
 
 ```tsx
-import { Inter, Roboto_Mono } from 'next/font/google'
+import { Inter, Roboto_Mono } from 'next/font/google';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
-})
+});
 
 const robotoMono = Roboto_Mono({
   subsets: ['latin'],
   variable: '--font-roboto-mono',
-})
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${robotoMono.variable}`}>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
 Use in CSS:
+
 ```css
 body {
   font-family: var(--font-inter);
@@ -118,19 +119,19 @@ const myFont = localFont({
 
 ```tsx
 // app/layout.tsx
-import { Inter } from 'next/font/google'
+import { Inter } from 'next/font/google';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
-})
+});
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -144,7 +145,7 @@ module.exports = {
       },
     },
   },
-}
+};
 ```
 
 ## Preloading Subsets
@@ -167,7 +168,7 @@ Control font loading behavior:
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap', // Default - shows fallback, swaps when loaded
-})
+});
 
 // Options:
 // 'auto' - browser decides

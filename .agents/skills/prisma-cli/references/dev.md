@@ -17,14 +17,14 @@ prisma dev [options]
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--name` / `-n` | Name for the database instance | `default` |
-| `--port` / `-p` | HTTP server port | `51213` |
-| `--db-port` / `-P` | Database server port | `51214` |
-| `--shadow-db-port` | Shadow database port (for migrations) | `51215` |
-| `--detach` / `-d` | Run in background | `false` |
-| `--debug` | Enable debug logging | `false` |
+| Option             | Description                           | Default   |
+| ------------------ | ------------------------------------- | --------- |
+| `--name` / `-n`    | Name for the database instance        | `default` |
+| `--port` / `-p`    | HTTP server port                      | `51213`   |
+| `--db-port` / `-P` | Database server port                  | `51214`   |
+| `--shadow-db-port` | Shadow database port (for migrations) | `51215`   |
+| `--detach` / `-d`  | Run in background                     | `false`   |
+| `--debug`          | Enable debug logging                  | `false`   |
 
 ## Examples
 
@@ -35,8 +35,9 @@ prisma dev
 ```
 
 Interactive mode with keyboard shortcuts:
+
 - `q` - Quit
-- `h` - Show HTTP URL  
+- `h` - Show HTTP URL
 - `t` - Show TCP URLs
 
 ### Named instance
@@ -112,8 +113,8 @@ prisma dev rm myproject --force
 Configure your `prisma.config.ts` to use local Prisma Postgres:
 
 ```typescript
-import 'dotenv/config'
-import { defineConfig, env } from 'prisma/config'
+import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -124,22 +125,25 @@ export default defineConfig({
     // Local Prisma Postgres URL (from prisma dev output)
     url: env('DATABASE_URL'),
   },
-})
+});
 ```
 
 ## Workflow
 
 1. Start local database:
+
    ```bash
    prisma dev
    ```
 
 2. In another terminal, run migrations:
+
    ```bash
    prisma migrate dev
    ```
 
 3. Generate client:
+
    ```bash
    prisma generate
    ```

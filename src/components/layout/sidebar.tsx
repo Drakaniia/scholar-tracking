@@ -51,7 +51,20 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { setMobileOpen } = useSidebar();
   const { user } = useAuth();
+  const [displayUser, setDisplayUser] = useState<{ username: string; role: string } | null>(null);
   const isAdmin = user?.role === 'ADMIN';
+
+  // Sync user data after hydration to prevent hydration mismatch
+  useEffect(() => {
+    if (user) {
+      setDisplayUser({
+        username: user.username || 'User',
+        role: user.role,
+      });
+    } else {
+      setDisplayUser(null);
+    }
+  }, [user]);
 
   // Morphing border animation state
   const [borderStyle, setBorderStyle] = useState({ left: 0, width: 0 });
@@ -232,16 +245,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               <DropdownMenuTrigger asChild className="hidden md:flex">
                 <Button variant="ghost" className="text-white hover:bg-white/10 gap-2">
                   <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold text-white">
-                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                    {displayUser ? displayUser.username.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <span className="text-sm">{user?.username || 'User'}</span>
+                  <span className="text-sm">{displayUser ? displayUser.username : 'User'}</span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{user?.username}</p>
-                  <p className="text-xs text-muted-foreground">{user?.role}</p>
+                  <p className="font-medium">{displayUser?.username || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{displayUser?.role || 'Guest'}</p>
                 </div>
                 <DropdownMenuSeparator />
                 {isAdmin && (

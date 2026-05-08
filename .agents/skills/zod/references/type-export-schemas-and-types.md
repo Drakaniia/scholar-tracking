@@ -40,25 +40,25 @@ type User = z.infer<typeof userSchema>  // Same boilerplate again
 
 ```typescript
 // schemas/user.ts
-import { z } from 'zod'
+import { z } from 'zod';
 
 export const userSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   name: z.string(),
   role: z.enum(['admin', 'user']),
-})
+});
 
-export type User = z.infer<typeof userSchema>
+export type User = z.infer<typeof userSchema>;
 
 // For schemas with transforms, export both
 export const apiUserSchema = z.object({
   id: z.string(),
-  created_at: z.string().transform(s => new Date(s)),
-})
+  created_at: z.string().transform((s) => new Date(s)),
+});
 
-export type ApiUserInput = z.input<typeof apiUserSchema>
-export type ApiUser = z.infer<typeof apiUserSchema>
+export type ApiUserInput = z.input<typeof apiUserSchema>;
+export type ApiUser = z.infer<typeof apiUserSchema>;
 ```
 
 ```typescript
@@ -81,35 +81,36 @@ function UserCard({ user }: { user: User }) {
 **Organizing schema exports:**
 
 ```typescript
-// schemas/index.ts - barrel file for schemas
-export { userSchema, type User, type UserInput } from './user'
-export { orderSchema, type Order } from './order'
-export { productSchema, type Product } from './product'
-
 // Usage
-import { userSchema, type User, type Order } from '@/schemas'
+import { type Order, type User, userSchema } from '@/schemas';
+
+// schemas/index.ts - barrel file for schemas
+export { userSchema, type User, type UserInput } from './user';
+export { orderSchema, type Order } from './order';
+export { productSchema, type Product } from './product';
 ```
 
 **With enums, export the enum values too:**
 
 ```typescript
 // schemas/user.ts
-export const UserRole = z.enum(['admin', 'user', 'guest'])
-export type UserRole = z.infer<typeof UserRole>
+export const UserRole = z.enum(['admin', 'user', 'guest']);
+export type UserRole = z.infer<typeof UserRole>;
 
 export const userSchema = z.object({
   id: z.string(),
   role: UserRole,
-})
+});
 
-export type User = z.infer<typeof userSchema>
+export type User = z.infer<typeof userSchema>;
 
 // Access enum values
-UserRole.options  // ['admin', 'user', 'guest']
-UserRole.enum.admin  // 'admin'
+UserRole.options; // ['admin', 'user', 'guest']
+UserRole.enum.admin; // 'admin'
 ```
 
 **When NOT to use this pattern:**
+
 - Internal schemas that won't be used outside the module
 - Transient schemas used only for validation (not as types)
 

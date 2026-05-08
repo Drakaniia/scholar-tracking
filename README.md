@@ -23,21 +23,25 @@ A comprehensive web-based scholarship management system built with **Next.js 16*
 ## Screenshots
 
 ### Dashboard
+
 <div align="center">
   <img src="src/screenshots/dashboard.png" alt="Dashboard">
 </div>
 
 ### Student Management
+
 <div align="center">
   <img src="src/screenshots/students.png" alt="Student Management">
 </div>
 
 ### Scholarship Management
+
 <div align="center">
   <img src="src/screenshots/scholarships.png" alt="Scholarship Management">
 </div>
 
 ### Reports & Analytics
+
 <div align="center">
   <img src="src/screenshots/reports.png" alt="Reports & Analytics">
 </div>
