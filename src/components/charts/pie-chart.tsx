@@ -12,12 +12,11 @@ interface CustomPieChartProps {
   colors?: string[];
 }
 
-// Colors from the pastel palette
 const THEME_COLORS = [
   'hsl(var(--pastel-purple))',
   'hsl(var(--pastel-blue))',
-  'hsl(var(--pastel-orange))',
   'hsl(var(--pastel-pink))',
+  'hsl(var(--pastel-orange))',
   'hsl(var(--pastel-green))',
 ];
 
@@ -28,12 +27,12 @@ export function CustomPieChart({ data, colors = THEME_COLORS }: CustomPieChartPr
         <Pie
           data={data}
           cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={80}
-          paddingAngle={0}
+          cy="46%"
+          innerRadius={62}
+          outerRadius={86}
+          paddingAngle={2}
           dataKey="value"
-          stroke="var(--background)"
+          stroke="#ffffff"
           strokeWidth={4}
         >
           {data.map((entry, index) => (
@@ -42,23 +41,21 @@ export function CustomPieChart({ data, colors = THEME_COLORS }: CustomPieChartPr
         </Pie>
         <Tooltip
           contentStyle={{
-            backgroundColor: 'hsl(var(--card))',
-            borderColor: 'hsl(var(--border))',
+            backgroundColor: '#ffffff',
+            borderColor: '#dce6e1',
             borderRadius: '8px',
-            color: 'hsl(var(--foreground))',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            color: '#0f172a',
+            boxShadow: '0 10px 30px rgb(15 23 42 / 0.12)',
           }}
-          itemStyle={{ color: 'hsl(var(--foreground))' }}
+          itemStyle={{ color: '#0f172a' }}
         />
         <Legend
           verticalAlign="bottom"
-          height={36}
+          height={48}
           iconType="circle"
           iconSize={8}
           formatter={(value) => (
-            <span style={{ color: 'hsl(var(--foreground))', fontSize: '12px', marginLeft: '4px' }}>
-              {value}
-            </span>
+            <span style={{ color: '#475569', fontSize: '12px', marginLeft: '4px' }}>{value}</span>
           )}
         />
       </PieChart>

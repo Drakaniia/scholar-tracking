@@ -38,53 +38,56 @@ export function StudentsChart({
   description = 'Distribution of students',
 }: StudentsChartProps) {
   return (
-    <Card className="shadow-sm border-gray-200">
-      <CardHeader>
+    <Card className="rounded-lg border-[#e1e8e4] bg-white py-0 shadow-sm">
+      <CardHeader className="border-b border-[#e4ece8] px-5 py-5">
         <div className="flex items-center gap-2">
-          {/* <Users className="h-5 w-5 text-primary" /> */}
-          <CardTitle className="text-xl text-foreground">{title}</CardTitle>
+          <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--pastel-blue))]" />
+          <CardTitle className="text-xl text-slate-950">{title}</CardTitle>
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-5 py-5">
         <div className="h-[350px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <BarChart
+              data={data}
+              layout="vertical"
+              margin={{ top: 10, right: 14, left: 12, bottom: 0 }}
+            >
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="hsl(var(--muted-foreground) / 0.2)"
+                stroke="hsl(var(--muted-foreground) / 0.14)"
               />
               <XAxis
-                dataKey="name"
+                type="number"
+                allowDecimals={false}
                 tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={false}
                 axisLine={false}
-                dy={10}
               />
               <YAxis
+                type="category"
+                dataKey="name"
+                width={96}
                 tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 tickLine={false}
                 axisLine={false}
-                dx={-10}
               />
               <Tooltip
-                cursor={{ fill: 'transparent' }}
+                cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="rounded-lg border bg-card p-3 shadow-lg border-gray-200">
-                        <p className="mb-2 font-medium text-foreground">{label}</p>
+                      <div className="rounded-lg border border-[#dce6e1] bg-white p-3 shadow-lg">
+                        <p className="mb-2 font-medium text-slate-950">{label}</p>
                         {payload.map((entry, index) => (
-                          <p
-                            key={index}
-                            className="flex items-center gap-2 text-sm text-foreground/80"
-                          >
+                          <p key={index} className="flex items-center gap-2 text-sm text-slate-600">
                             <span
                               className="h-2 w-2 rounded-full"
                               style={{ backgroundColor: entry.color }}
                             />
-                            {entry.name}: {entry.value} students
+                            {entry.value} students
                           </p>
                         ))}
                       </div>
@@ -93,7 +96,13 @@ export function StudentsChart({
                   return null;
                 }}
               />
-              <Bar dataKey="students" name="Total Students" radius={[4, 4, 0, 0]} barSize={60}>
+              <Bar
+                dataKey="students"
+                name="Total Students"
+                radius={[0, 6, 6, 0]}
+                barSize={28}
+                isAnimationActive={false}
+              >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}

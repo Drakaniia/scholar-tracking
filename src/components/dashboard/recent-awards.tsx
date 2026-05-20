@@ -6,14 +6,14 @@ import { Award } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface RecentAward {
   id: number;
   studentName: string;
   scholarshipName: string;
   type: string;
-  amount: number;
+  amount?: number;
   date: string;
   status: 'active' | 'pending' | 'completed';
 }
@@ -24,63 +24,66 @@ interface RecentAwardsProps {
 }
 
 const statusStyles = {
-  active: 'bg-emerald-100 text-emerald-700',
-  pending: 'bg-amber-100 text-amber-700',
-  completed: 'bg-blue-100 text-blue-700',
+  active: 'bg-[hsl(var(--pastel-green))]/28 text-emerald-700 border-[hsl(var(--pastel-green))]',
+  pending: 'bg-[hsl(var(--pastel-orange))]/28 text-orange-700 border-[hsl(var(--pastel-orange))]',
+  completed: 'bg-[hsl(var(--pastel-blue))]/28 text-sky-700 border-[hsl(var(--pastel-blue))]',
 };
 
 export function RecentAwards({ awards, limit = 5 }: RecentAwardsProps) {
   const displayAwards = awards.slice(0, limit);
 
   return (
-    <Card className="border-gray-200">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-primary" />
+    <Card className="rounded-lg border-[#e1e8e4] bg-white py-0 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-[#e4ece8] px-5 py-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--pastel-green))]/45 text-emerald-800 shadow-sm">
+            <Award className="h-4 w-4" />
+          </span>
           <div>
-            <CardTitle className="text-lg text-foreground">Recent Awards</CardTitle>
-            <CardDescription>Latest scholarship awards</CardDescription>
+            <CardTitle className="text-lg text-slate-950">Recent Awards</CardTitle>
+            <CardDescription>Latest student scholarship activity</CardDescription>
           </div>
         </div>
-        <Link href="/students" className="text-sm font-medium text-primary hover:underline">
+        <Link href="/students" className="text-sm font-medium text-emerald-700 hover:underline">
           View all
         </Link>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="px-5 py-5">
+        <div className="space-y-3">
           {displayAwards.map((award) => (
             <div
               key={award.id}
-              className="flex items-start gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:bg-muted/50"
+              className="grid gap-3 rounded-lg border border-[#e1e8e4] bg-white p-3 transition-colors hover:border-[hsl(var(--pastel-green))] hover:bg-[hsl(var(--pastel-green))]/12 sm:grid-cols-[auto_1fr_auto]"
             >
-              {/* Avatar */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--pastel-purple))]/45 font-semibold text-violet-800">
                 {award.studentName.charAt(0)}
               </div>
 
-              {/* Info */}
-              <div className="flex-1 space-y-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium truncate">{award.studentName}</p>
-                  <Badge className={statusStyles[award.status]} variant="secondary">
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-medium text-slate-950">{award.studentName}</p>
+                  <Badge className={statusStyles[award.status]} variant="outline">
                     {award.status}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">
-                  {award.scholarshipName} • {award.type}
+                <p className="truncate text-sm text-slate-500">
+                  {award.scholarshipName} / {award.type}
                 </p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{award.date}</span>
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(award.amount)}
-                  </span>
-                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 text-sm sm:block sm:text-right">
+                <span className="text-slate-500">{formatDate(award.date)}</span>
+                {typeof award.amount === 'number' && (
+                  <div className="font-semibold text-slate-950">{formatCurrency(award.amount)}</div>
+                )}
               </div>
             </div>
           ))}
 
           {displayAwards.length === 0 && (
-            <p className="text-center text-muted-foreground py-4">No recent awards</p>
+            <div className="rounded-lg border border-dashed border-[#d4dfd9] py-10 text-center text-sm text-slate-500">
+              No recent awards
+            </div>
           )}
         </div>
       </CardContent>
