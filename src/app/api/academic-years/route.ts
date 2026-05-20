@@ -10,6 +10,22 @@ interface AcademicYearData {
   endDate: string;
   semester: string;
   isActive?: boolean;
+  promotionDate?: string | null;
+}
+
+function parseDateInput(value: string, fieldName: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+  return date;
+}
+
+function parseOptionalDateInput(value: string | null | undefined, fieldName: string) {
+  if (!value) {
+    return null;
+  }
+  return parseDateInput(value, fieldName);
 }
 
 export async function GET(request: NextRequest) {
@@ -87,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: AcademicYearData = await request.json();
-    const { year, startDate, endDate, semester, isActive = false } = body;
+    const { year, startDate, endDate, semester, isActive = false, promotionDate } = body;
 
     // Validation
     if (!year || !startDate || !endDate || !semester) {
@@ -117,13 +133,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    let parsedStartDate: Date;
+    let parsedEndDate: Date;
+    let parsedPromotionDate: Date | null;
+
+    try {
+      parsedStartDate = parseDateInput(startDate, 'start date');
+      parsedEndDate = parseDateInput(endDate, 'end date');
+      parsedPromotionDate = parseOptionalDateInput(promotionDate, 'promotion date');
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: error instanceof Error ? error.message : 'Invalid date' },
+        { status: 400 }
+      );
+    }
+
     const academicYear = await prisma.academicYear.create({
       data: {
         year,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
         semester,
         isActive,
+        promotionDate: parsedPromotionDate,
       },
     });
 
@@ -178,8 +210,19 @@ export async function PUT(request: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
     if (body.year) updateData.year = body.year;
-    if (body.startDate) updateData.startDate = new Date(body.startDate);
-    if (body.endDate) updateData.endDate = new Date(body.endDate);
+    try {
+      if (body.startDate) updateData.startDate = parseDateInput(body.startDate, 'start date');
+      if (body.endDate) updateData.endDate = parseDateInput(body.endDate, 'end date');
+      if (body.promotionDate !== undefined) {
+        updateData.promotionDate = parseOptionalDateInput(body.promotionDate, 'promotion date');
+        updateData.promotionProcessedAt = null;
+      }
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: error instanceof Error ? error.message : 'Invalid date' },
+        { status: 400 }
+      );
+    }
     if (body.semester !== undefined) updateData.semester = body.semester;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
 

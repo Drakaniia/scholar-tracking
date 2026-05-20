@@ -93,6 +93,7 @@ JWT_SECRET="your-secure-secret-key-min-32-characters"
 SESSION_SECRET="your-session-secret"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-nextauth-secret"
+CRON_SECRET="your-secure-cron-secret"
 MAX_LOGIN_ATTEMPTS=5
 LOCKOUT_DURATION_MINUTES=15
 SESSION_DURATION_HOURS=8
@@ -144,6 +145,7 @@ JWT_SECRET=<secure-random-32-char-string>
 SESSION_SECRET=<secure-random-string>
 NEXTAUTH_URL=https://your-domain.vercel.app
 NEXTAUTH_SECRET=<secure-random-string>
+CRON_SECRET=<secure-random-cron-secret>
 ```
 
 ## Contributing

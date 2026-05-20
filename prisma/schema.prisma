@@ -203,18 +203,21 @@ model Backup {
 }
 
 model AcademicYear {
-  id            Int            @id @default(autoincrement()) @map("academic_year_id")
-  year          String         @unique @map("year")
-  startDate     DateTime       @map("start_date")
-  endDate       DateTime       @map("end_date")
-  semester      String         @default("1ST") @map("semester")
-  isActive      Boolean        @default(false) @map("is_active")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  disbursements Disbursement[]
-  studentFees   StudentFees[]
+  id                   Int            @id @default(autoincrement()) @map("academic_year_id")
+  year                 String         @unique @map("year")
+  startDate            DateTime       @map("start_date")
+  endDate              DateTime       @map("end_date")
+  semester             String         @default("1ST") @map("semester")
+  isActive             Boolean        @default(false) @map("is_active")
+  promotionDate        DateTime?      @map("promotion_date")
+  promotionProcessedAt DateTime?      @map("promotion_processed_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  disbursements        Disbursement[]
+  studentFees          StudentFees[]
 
   @@index([isActive])
   @@index([year])
+  @@index([promotionDate, promotionProcessedAt])
   @@map("academic_years")
 }

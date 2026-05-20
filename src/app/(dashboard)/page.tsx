@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from 'react';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -13,12 +12,12 @@ import {
   FileSpreadsheet,
   Filter,
   GraduationCap,
+  Landmark,
   TrendingUp,
   Users,
+  Wallet,
 } from 'lucide-react';
 
-import backgroundImage from '@/assets/images/background2.jpg';
-import { CustomPieChart } from '@/components/charts';
 import {
   ChartCardSkeleton,
   PieChartSkeleton,
@@ -128,79 +127,273 @@ const GRADE_LEVEL_LABELS: Record<string, string> = {
   COLLEGE: 'College',
 };
 
+const SCHOLARSHIP_TYPE_LABELS: Record<string, string> = {
+  PAEB: 'PAEB',
+  PAED: 'PAED',
+  CHED: 'CHED',
+  LGU: 'LGU',
+  SCHOOL_GRANT: 'School Grant',
+};
+
 const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
 const SCHOLARSHIP_TYPES = ['PAEB', 'CHED', 'LGU', 'SCHOOL_GRANT'];
+const PASTEL_BAR_COLORS = [
+  'hsl(var(--pastel-purple))',
+  'hsl(var(--pastel-blue))',
+  'hsl(var(--pastel-pink))',
+  'hsl(var(--pastel-orange))',
+  'hsl(var(--pastel-green))',
+];
 
-// Stats Section Component
-function StatsSection({ stats }: { stats: DashboardData['stats'] }) {
+const HERO_METRIC_TONES = {
+  mint: {
+    card: 'border-[hsl(var(--pastel-green))] bg-white bg-gradient-to-br from-white via-[hsl(var(--pastel-green))]/24 to-[hsl(var(--pastel-blue))]/16',
+    icon: 'bg-[hsl(var(--pastel-green))]/45 text-emerald-800',
+  },
+  sky: {
+    card: 'border-[hsl(var(--pastel-blue))] bg-white bg-gradient-to-br from-white via-[hsl(var(--pastel-blue))]/24 to-[hsl(var(--pastel-purple))]/14',
+    icon: 'bg-[hsl(var(--pastel-blue))]/45 text-sky-800',
+  },
+  peach: {
+    card: 'border-[hsl(var(--pastel-orange))] bg-white bg-gradient-to-br from-white via-[hsl(var(--pastel-orange))]/24 to-[hsl(var(--pastel-pink))]/14',
+    icon: 'bg-[hsl(var(--pastel-orange))]/45 text-orange-800',
+  },
+};
+
+function getPercent(numerator: number, denominator: number) {
+  if (!denominator || denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
+function formatPhp(amount: number) {
+  return `PHP ${formatCurrency(amount)}`;
+}
+
+function formatCompactPhp(amount: number) {
+  const compact = new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(amount);
+
+  return `PHP ${compact}`;
+}
+
+function getSourceLabel(source: string) {
+  if (source === 'all') return 'All sources';
+  return (SCHOLARSHIP_SOURCE_LABELS as Record<string, string>)[source] || source;
+}
+
+function getScholarshipTypeLabel(type: string) {
+  if (SCHOLARSHIP_TYPE_LABELS[type]) return SCHOLARSHIP_TYPE_LABELS[type];
+
+  return type
+    .split('_')
+    .map((part) => (part.length <= 4 ? part : `${part[0]}${part.slice(1).toLowerCase()}`))
+    .join(' ');
+}
+
+function DashboardHero({
+  stats,
+  scholarshipSourceFilter,
+  setScholarshipSourceFilter,
+}: {
+  stats: DashboardData['stats'];
+  scholarshipSourceFilter: string;
+  setScholarshipSourceFilter: (value: string) => void;
+}) {
+  const coverageRate = getPercent(stats.studentsWithScholarships, stats.totalStudents);
+  const disbursementRate = getPercent(stats.totalDisbursed, stats.totalAmountAwarded);
+  const remainingFunds = Math.max(stats.totalAmountAwarded - stats.totalDisbursed, 0);
+  const sourceLabel = getSourceLabel(scholarshipSourceFilter);
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <StatsCard
-        title="Total Scholarships"
-        value={stats.totalScholarships}
-        icon={GraduationCap}
-        trend={{ value: 12.5, isPositive: true }}
-        description="Active programs"
-        variant="blue"
-      />
+    <section className="relative overflow-hidden rounded-lg border border-[#dce6e1] bg-white bg-gradient-to-br from-[hsl(var(--pastel-green))]/26 via-[hsl(var(--pastel-blue))]/16 to-[hsl(var(--pastel-orange))]/18 shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.55),rgba(255,255,255,0)_48%)]" />
+      <div className="relative grid gap-5 p-5 lg:grid-cols-[1fr_0.95fr] lg:p-6">
+        <div className="flex flex-col justify-between gap-5">
+          <div className="space-y-3">
+            <Badge
+              variant="outline"
+              className="border-[hsl(var(--pastel-green))] bg-white text-emerald-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+            >
+              {sourceLabel}
+            </Badge>
+            <div className="space-y-2">
+              <h1 className="max-w-2xl text-3xl font-bold text-slate-950 md:text-4xl">
+                Scholarship command center
+              </h1>
+              <p className="max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
+                Coverage, fund release, and recent award movement across the selected scholarship
+                source.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
+              <SelectTrigger className="h-10 w-full rounded-lg border-emerald-200 bg-white shadow-sm sm:w-[220px]">
+                <Filter className="mr-2 h-4 w-4 text-emerald-700" />
+                <SelectValue placeholder="Filter by source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                {SCHOLARSHIP_SOURCES.map((source) => (
+                  <SelectItem key={source} value={source}>
+                    {SCHOLARSHIP_SOURCE_LABELS[source]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              asChild
+              className="h-10 rounded-lg bg-gradient-to-r from-emerald-400 via-teal-400 to-sky-400 text-white shadow-[0_12px_28px_rgba(14,165,233,0.22)] hover:from-emerald-500 hover:to-sky-500"
+            >
+              <Link href="/reports">
+                <Download className="mr-2 h-4 w-4" />
+                Export Report
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-2">
+          <HeroMetric
+            label="Student coverage"
+            value={`${coverageRate}%`}
+            icon={Users}
+            tone="mint"
+          />
+          <HeroMetric
+            label="Released funds"
+            value={formatPhp(stats.totalDisbursed)}
+            icon={Wallet}
+            tone="sky"
+          />
+          <HeroMetric
+            label="Remaining funds"
+            value={formatPhp(remainingFunds)}
+            icon={Landmark}
+            tone="peach"
+          />
+          <div className="rounded-lg border border-[hsl(var(--pastel-green))] bg-white bg-gradient-to-r from-white via-[hsl(var(--pastel-green))]/20 to-[hsl(var(--pastel-blue))]/18 p-3 text-sm text-slate-600 shadow-sm sm:col-span-3 lg:col-span-2">
+            <div className="mb-2 flex items-center justify-between">
+              <span>Disbursement rate</span>
+              <span className="font-semibold text-slate-950">{disbursementRate}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-[hsl(var(--pastel-green))]"
+                style={{ width: `${Math.min(disbursementRate, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HeroMetric({
+  label,
+  value,
+  icon: Icon,
+  tone = 'mint',
+}: {
+  label: string;
+  value: string;
+  icon: typeof Users;
+  tone?: keyof typeof HERO_METRIC_TONES;
+}) {
+  const styles = HERO_METRIC_TONES[tone];
+
+  return (
+    <div className={`rounded-lg border p-4 shadow-sm ${styles.card}`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-slate-500">{label}</span>
+        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${styles.icon}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className="text-xl font-bold text-slate-950">{value}</div>
+    </div>
+  );
+}
+
+function StatsSection({ stats }: { stats: DashboardData['stats'] }) {
+  const coverageRate = getPercent(stats.studentsWithScholarships, stats.totalStudents);
+  const activeRate = getPercent(stats.activeScholarships, stats.totalScholarships);
+  const disbursementRate = getPercent(stats.totalDisbursed, stats.totalAmountAwarded);
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <StatsCard
         title="Total Students"
         value={stats.totalStudents}
         icon={Users}
-        trend={{ value: 8.2, isPositive: true }}
         description={`${stats.studentsWithScholarships} with scholarships`}
-        variant="pink"
-      />
-      <StatsCard
-        title="Total Awarded"
-        value={formatCurrency(stats.totalAmountAwarded)}
-        icon={Award}
-        trend={{ value: 2.1, isPositive: true }}
-        description="Available funds"
-        variant="orange"
-      />
-      <StatsCard
-        title="Total Disbursed"
-        value={formatCurrency(stats.totalDisbursed)}
-        icon={CreditCard}
-        trend={{ value: 18.7, isPositive: true }}
-        description="Total distributed"
+        progress={coverageRate}
         variant="green"
+      />
+      <StatsCard
+        title="Active Programs"
+        value={`${stats.activeScholarships}/${stats.totalScholarships}`}
+        icon={GraduationCap}
+        description={`${activeRate}% active scholarship programs`}
+        progress={activeRate}
+        variant="blue"
+      />
+      <StatsCard
+        title="Awarded Funds"
+        value={formatCompactPhp(stats.totalAmountAwarded)}
+        icon={Award}
+        description="Committed assistance amount"
+        variant="amber"
+      />
+      <StatsCard
+        title="Disbursed Funds"
+        value={formatCompactPhp(stats.totalDisbursed)}
+        icon={CreditCard}
+        description={`${disbursementRate}% of awarded funds released`}
+        progress={disbursementRate}
+        variant="default"
       />
     </div>
   );
 }
 
-// Charts Section Component
 function ChartsSection({ data }: { data: DashboardData }) {
   const studentsChartData =
     data?.charts?.studentsByGradeLevel?.map((item) => ({
-      name: GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel,
+      name: item.gradeLevel ? GRADE_LEVEL_LABELS[item.gradeLevel] || item.gradeLevel : 'Unassigned',
       students: item._count.id,
-      withScholarship: Math.floor(item._count.id * 0.4),
     })) || [];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-5 lg:grid-cols-3">
       <ScholarshipChart
-        title="Scholarship Trends"
-        description="Monthly awarded, disbursed, and remaining balance"
+        title="Fund Movement"
+        description="Awarded, disbursed, and remaining balance by month"
         data={data?.charts?.monthlyTrends || []}
       />
       <div className="lg:col-span-1">
-        {studentsChartData.length > 0 && (
+        {studentsChartData.length > 0 ? (
           <StudentsChart
             data={studentsChartData}
-            title="Students by Grade"
-            description="Distribution of students"
+            title="Student Mix"
+            description="Enrollment distribution by level"
           />
+        ) : (
+          <Card className="rounded-lg border-[#cfe9de] bg-white py-0 shadow-sm">
+            <CardContent className="py-10 text-center text-sm text-slate-500">
+              No student distribution data
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
   );
 }
 
-// Secondary Charts Component
 function SecondaryChartsSection({
   data,
   scholarshipSourceFilter,
@@ -208,42 +401,81 @@ function SecondaryChartsSection({
   data: DashboardData;
   scholarshipSourceFilter: string;
 }) {
+  const sourceLabel = getSourceLabel(scholarshipSourceFilter);
+  const scholarshipTypeData =
+    data?.charts?.scholarshipsByType
+      ?.map((item) => ({
+        name: getScholarshipTypeLabel(item.type),
+        value: item._count.id,
+      }))
+      .sort((a, b) => b.value - a.value) || [];
+  const otherScholarshipTypes = scholarshipTypeData
+    .slice(5)
+    .reduce((sum, item) => sum + item.value, 0);
+  const scholarshipTypeChartData =
+    otherScholarshipTypes > 0
+      ? [...scholarshipTypeData.slice(0, 5), { name: 'Other', value: otherScholarshipTypes }]
+      : scholarshipTypeData;
+  const maxScholarshipTypeCount = Math.max(
+    ...scholarshipTypeChartData.map((item) => item.value),
+    1
+  );
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Card className="lg:col-span-1 border-gray-200">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+    <div className="grid gap-5 lg:grid-cols-3">
+      <Card className="rounded-lg border-[#e1e8e4] bg-white py-0 shadow-[0_12px_34px_rgba(15,23,42,0.07)] lg:col-span-1">
+        <CardHeader className="px-5 pt-5">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <CardTitle className="text-foreground">Scholarships by Type</CardTitle>
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--pastel-purple))]/45 text-violet-800 shadow-sm">
+                <TrendingUp className="h-4 w-4" />
+              </span>
+              <div>
+                <CardTitle className="text-lg text-slate-950">Scholarship Types</CardTitle>
+                <CardDescription>{sourceLabel}</CardDescription>
+              </div>
             </div>
           </div>
-          <CardDescription>Distribution by type</CardDescription>
         </CardHeader>
-        <CardContent>
-          {data?.charts?.scholarshipsByType && data.charts.scholarshipsByType.length > 0 ? (
-            <CustomPieChart
-              key={scholarshipSourceFilter}
-              data={data.charts.scholarshipsByType.map((item) => ({
-                name: item.type,
-                value: item._count.id,
-              }))}
-            />
+        <CardContent className="px-5 pb-5">
+          {scholarshipTypeChartData.length > 0 ? (
+            <div className="space-y-4">
+              {scholarshipTypeChartData.map((item, index) => (
+                <div key={item.name} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-medium text-slate-700">{item.name}</span>
+                    <span className="font-semibold text-slate-950">{item.value}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white shadow-inner">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${(item.value / maxScholarshipTypeCount) * 100}%`,
+                        backgroundColor: PASTEL_BAR_COLORS[index % PASTEL_BAR_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <p className="text-center text-muted-foreground py-8">No data available</p>
+            <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed border-[#d4dfd9] text-sm text-slate-500">
+              No scholarship type data
+            </div>
           )}
         </CardContent>
       </Card>
       <div className="lg:col-span-2">
         <RecentAwards
           awards={
-            data?.recentStudents?.slice(0, 5).map((student, index) => ({
+            data?.recentStudents?.slice(0, 5).map((student) => ({
               id: student.id,
               studentName: `${student.firstName} ${student.lastName}`,
               scholarshipName:
                 student.scholarships?.[0]?.scholarship?.scholarshipName || 'Scholarship Program',
-              type: student.scholarships?.[0]?.scholarship?.type || 'GRANT',
-              amount: 25000 + index * 5000,
+              type: getScholarshipTypeLabel(
+                student.scholarships?.[0]?.scholarship?.type || 'Grant'
+              ),
               date: student.updatedAt || new Date().toLocaleDateString(),
               status: 'active' as const,
             })) || []
@@ -254,7 +486,6 @@ function SecondaryChartsSection({
   );
 }
 
-// Detailed View Component
 function DetailedView({
   detailedStudents,
   router,
@@ -287,136 +518,168 @@ function DetailedView({
   };
 
   return (
-    <Card className="border-gray-200">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-primary" />
+    <Card className="rounded-lg border-[#cfe9de] bg-white py-0 shadow-[0_12px_34px_rgba(14,165,233,0.08)]">
+      <CardHeader className="border-b border-emerald-100 px-5 py-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-400 text-white shadow-sm">
+              <FileSpreadsheet className="h-5 w-5" />
+            </span>
             <div>
-              <CardTitle className="text-foreground">Detailed Student Report</CardTitle>
+              <CardTitle className="text-xl text-slate-950">Detailed Student Report</CardTitle>
               <CardDescription>
-                Complete breakdown by grade level and scholarship type
+                Preview by grade level, scholarship type, and fee coverage.
               </CardDescription>
             </div>
           </div>
-          <Button onClick={() => router.push('/reports')} variant="outline">
+          <Button
+            onClick={() => router.push('/reports')}
+            variant="outline"
+            className="rounded-lg border-emerald-200 bg-white hover:bg-emerald-50"
+          >
             View Full Report
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Tabs defaultValue="GRADE_SCHOOL" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 h-auto">
-              {GRADE_LEVELS.map((level) => (
-                <TabsTrigger
-                  key={level}
-                  value={level}
-                  className="data-[state=active]:bg-[hsl(var(--pastel-purple))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
-                >
-                  {GRADE_LEVEL_LABELS[level]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+      <CardContent className="px-5 py-5">
+        <Tabs defaultValue="GRADE_SCHOOL" className="space-y-5">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg bg-gradient-to-r from-emerald-100 via-sky-100 to-amber-100 p-1 sm:grid-cols-4">
+            {GRADE_LEVELS.map((level) => (
+              <TabsTrigger
+                key={level}
+                value={level}
+                className="rounded-md px-3 py-2 text-slate-600 transition-all data-[state=active]:bg-white data-[state=active]:text-emerald-800 data-[state=active]:shadow-sm"
+              >
+                {GRADE_LEVEL_LABELS[level]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-            {GRADE_LEVELS.map((gradeLevel) => (
+          {GRADE_LEVELS.map((gradeLevel) => {
+            const groups = SCHOLARSHIP_TYPES.map((scholarshipType) => ({
+              scholarshipType,
+              students: getStudentsByGradeLevelAndScholarship(gradeLevel, scholarshipType),
+            })).filter((group) => group.students.length > 0);
+
+            return (
               <TabsContent key={gradeLevel} value={gradeLevel}>
-                <div className="space-y-6">
-                  {SCHOLARSHIP_TYPES.map((scholarshipType) => {
-                    const students = getStudentsByGradeLevelAndScholarship(
-                      gradeLevel,
-                      scholarshipType
-                    );
-                    if (students.length === 0) return null;
+                {groups.length > 0 ? (
+                  <div className="space-y-5">
+                    {groups.map(({ scholarshipType, students }) => {
+                      const previewStudents = students.slice(0, 3);
 
-                    const previewStudents = students.slice(0, 3);
+                      return (
+                        <div key={scholarshipType} className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-base font-semibold text-slate-800">
+                              {getScholarshipTypeLabel(scholarshipType)} Scholarship
+                            </h3>
+                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                              {students.length} students
+                            </Badge>
+                          </div>
+                          <div className="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="bg-gradient-to-r from-emerald-50 to-sky-50 hover:from-emerald-50 hover:to-sky-50">
+                                  <TableHead className="font-semibold text-slate-600">
+                                    Last Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-slate-600">
+                                    First Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-slate-600">
+                                    M.I.
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-slate-600">
+                                    Year Level
+                                  </TableHead>
+                                  <TableHead className="text-right font-semibold text-slate-600">
+                                    Total Fees
+                                  </TableHead>
+                                  <TableHead className="text-right font-semibold text-slate-600">
+                                    Subsidy
+                                  </TableHead>
+                                  <TableHead className="text-right font-semibold text-slate-600">
+                                    Coverage
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {previewStudents.map((student) => {
+                                  const fees = student.fees[0];
+                                  const totalFees = fees ? calculateTotalFees(fees) : 0;
 
-                    return (
-                      <div key={scholarshipType} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-muted-foreground">
-                            {scholarshipType} Scholarship
-                          </h3>
-                          <Badge variant="secondary">{students.length} students</Badge>
-                        </div>
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-muted/50">
-                                <TableHead className="font-bold">Last Name</TableHead>
-                                <TableHead className="font-bold">First Name</TableHead>
-                                <TableHead className="font-bold">M.I.</TableHead>
-                                <TableHead className="font-bold">Year Level</TableHead>
-                                <TableHead className="font-bold text-right">Total Fees</TableHead>
-                                <TableHead className="font-bold text-right">
-                                  Amount Subsidy
-                                </TableHead>
-                                <TableHead className="font-bold text-right">% Subsidy</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {previewStudents.map((student) => {
-                                const fees = student.fees[0];
-                                const totalFees = fees ? calculateTotalFees(fees) : 0;
-
-                                return (
-                                  <TableRow
-                                    key={student.id}
-                                    className="hover:bg-muted/30 transition-colors"
-                                  >
-                                    <TableCell className="font-medium">
-                                      {student.lastName}
-                                    </TableCell>
-                                    <TableCell>{student.firstName}</TableCell>
-                                    <TableCell>{student.middleInitial || '-'}</TableCell>
-                                    <TableCell>{student.yearLevel}</TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                      {formatCurrency(totalFees)}
-                                    </TableCell>
-                                    <TableCell className="text-right text-emerald-600 font-semibold">
-                                      {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <Badge
-                                        variant="secondary"
-                                        className="bg-primary/10 text-primary"
-                                      >
-                                        {fees
-                                          ? `${(calculatePercentSubsidy(fees) * 100).toFixed(2)}%`
-                                          : '-'}
-                                      </Badge>
+                                  return (
+                                    <TableRow key={student.id} className="hover:bg-emerald-50/60">
+                                      <TableCell className="font-medium text-slate-950">
+                                        {student.lastName}
+                                      </TableCell>
+                                      <TableCell>{student.firstName}</TableCell>
+                                      <TableCell>{student.middleInitial || '-'}</TableCell>
+                                      <TableCell>{student.yearLevel}</TableCell>
+                                      <TableCell className="text-right font-medium">
+                                        {formatCurrency(totalFees)}
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium text-emerald-700">
+                                        {fees ? formatCurrency(Number(fees.amountSubsidy)) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Badge
+                                          variant="secondary"
+                                          className="bg-sky-50 text-sky-700"
+                                        >
+                                          {fees
+                                            ? `${(calculatePercentSubsidy(fees) * 100).toFixed(2)}%`
+                                            : '-'}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                                {students.length > 3 && (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={7}
+                                      className="py-4 text-center text-sm text-slate-500"
+                                    >
+                                      {students.length - 3} more students available in the full
+                                      report.
                                     </TableCell>
                                   </TableRow>
-                                );
-                              })}
-                              {students.length > 3 && (
-                                <TableRow>
-                                  <TableCell
-                                    colSpan={7}
-                                    className="text-center text-muted-foreground py-4"
-                                  >
-                                    ... and {students.length - 3} more students. View full report
-                                    for complete details.
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </TableBody>
-                          </Table>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-[#d4dfd9] bg-slate-50/70 text-sm text-slate-500">
+                    No students match this grade and scholarship source.
+                  </div>
+                )}
               </TabsContent>
-            ))}
-          </Tabs>
-        </div>
+            );
+          })}
+        </Tabs>
       </CardContent>
     </Card>
   );
 }
 
-// Main Dashboard Content
+function LoadingState() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="rounded-lg border border-[#dce6e1] bg-white p-6 text-center shadow-sm">
+        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+        <p className="text-sm text-slate-600">Loading dashboard...</p>
+      </div>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -424,14 +687,13 @@ function DashboardContent() {
     searchParams.get('source') || 'all'
   );
 
-  // Use TanStack Query for data fetching
   const { data: statsData, isLoading: statsLoading } = useDashboardStats(scholarshipSourceFilter, {
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
   const { data: detailedData, isLoading: detailedLoading } = useDashboardDetailed(
     scholarshipSourceFilter,
     {
-      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+      staleTime: 5 * 60 * 1000,
     }
   );
 
@@ -454,22 +716,15 @@ function DashboardContent() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-600 mb-4">Failed to load dashboard data</p>
-          <Button onClick={() => window.location.reload()} variant="gradient">
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="rounded-lg border border-[#dce6e1] bg-white p-6 text-center shadow-sm">
+          <p className="mb-4 text-sm text-slate-600">Failed to load dashboard data</p>
+          <Button onClick={() => window.location.reload()} className="rounded-lg">
             Reload Dashboard
           </Button>
         </div>
@@ -487,52 +742,12 @@ function DashboardContent() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 rounded-xl border-t-4 border-t-[#22c55e] shadow-sm overflow-hidden">
-        {/* Background image positioned on the right, mirrored */}
-        <div className="absolute inset-y-0 right-0 w-1/2">
-          <Image
-            src={backgroundImage}
-            alt="Background"
-            fill
-            className="object-cover -scale-x-100 opacity-60"
-            priority
-          />
-        </div>
-
-        {/* Smooth gradient fade from image to white on the left */}
-        <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-transparent via-white/20 to-white" />
-
-        {/* Content with relative positioning to stay above background */}
-        <div className="relative z-10">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
-          <p className="text-gray-600">
-            Welcome back! Here&apos;s an overview of your scholarship programs.
-          </p>
-        </div>
-        <div className="relative z-10 flex items-center gap-2">
-          <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filter by source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sources</SelectItem>
-              {SCHOLARSHIP_SOURCES.map((source) => (
-                <SelectItem key={source} value={source}>
-                  {SCHOLARSHIP_SOURCE_LABELS[source]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button asChild variant="gradient">
-            <Link href="/reports">
-              <Download className="mr-2 h-4 w-4" />
-              Export Report
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <DashboardHero
+        stats={stats}
+        scholarshipSourceFilter={scholarshipSourceFilter}
+        setScholarshipSourceFilter={setScholarshipSourceFilter}
+      />
 
       <Suspense fallback={<StatsGridSkeleton />}>
         <StatsSection stats={stats} />
@@ -544,7 +759,7 @@ function DashboardContent() {
 
       <Suspense
         fallback={
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 lg:grid-cols-3">
             <PieChartSkeleton />
             <RecentAwardsSkeleton />
           </div>
@@ -560,19 +775,9 @@ function DashboardContent() {
   );
 }
 
-// Export default with Suspense boundary at the top level
 export default function DashboardPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-600">Loading dashboard...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingState />}>
       <DashboardContent />
     </Suspense>
   );
