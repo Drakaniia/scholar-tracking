@@ -686,6 +686,8 @@ interface AcademicYear {
   endDate: string;
   semester: string;
   isActive: boolean;
+  promotionDate: string | null;
+  promotionProcessedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

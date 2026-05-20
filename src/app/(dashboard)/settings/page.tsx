@@ -10,11 +10,12 @@ import {
   FileText,
   Filter,
   GraduationCap,
+  Info,
   KeyRound,
   Lock,
   Monitor,
   Pencil,
-  Plus,
+  Save,
   Search,
   Shield,
   Trash2,
@@ -276,12 +277,17 @@ export default function SettingsPage() {
   const [academicYearTotal, setAcademicYearTotal] = useState(0);
   const [academicYearTotalPages, setAcademicYearTotalPages] = useState(0);
   const [academicYearPage] = useState(1);
-  const [isAcademicYearDialogOpen, setIsAcademicYearDialogOpen] = useState(false);
-  const [editingAcademicYear, setEditingAcademicYear] = useState<AcademicYear | null>(null);
   const [isSubmittingAcademicYear, setIsSubmittingAcademicYear] = useState(false);
   const [isAutoPromoting, setIsAutoPromoting] = useState(false);
   const [promotionPreview, setPromotionPreview] = useState<PromotionPreview | null>(null);
   const [isPromotionDialogOpen, setIsPromotionDialogOpen] = useState(false);
+  const [activeAcademicYearId, setActiveAcademicYearId] = useState<number | null>(null);
+  const [academicYearFormData, setAcademicYearFormData] = useState({
+    year: '',
+    startDate: '',
+    endDate: '',
+    promotionDate: '',
+  });
 
   interface AcademicYear {
     id: number;
@@ -290,6 +296,8 @@ export default function SettingsPage() {
     endDate: string;
     semester: string;
     isActive: boolean;
+    promotionDate: string | null;
+    promotionProcessedAt: string | null;
   }
 
   interface PromotionPreview {
@@ -301,10 +309,63 @@ export default function SettingsPage() {
       lastName: string;
       gradeLevel: string;
       yearLevel: string;
+      nextGradeLevel: string | null;
       nextYearLevel: string | null;
-      action: 'PROMOTE' | 'GRADUATE';
+      nextProgram: string | null;
+      nextTermType: string | null;
+      action: 'PROMOTE' | 'GRADUATE' | 'SKIP';
+      reason?: string;
     }>;
   }
+
+  const formatDate = (value: string | null) => {
+    if (!value) return 'Not set';
+    return new Date(value).toLocaleDateString();
+  };
+
+  const formatDateInput = useCallback((value: string | null | undefined) => {
+    if (!value) return '';
+    return new Date(value).toISOString().split('T')[0];
+  }, []);
+
+  const syncAcademicYearSettingsForm = useCallback((years: AcademicYear[]) => {
+    const activeAcademicYear = years.find((academicYear) => academicYear.isActive) || null;
+    setActiveAcademicYearId(activeAcademicYear?.id || null);
+    setAcademicYearFormData({
+      year: activeAcademicYear?.year || '',
+      startDate: formatDateInput(activeAcademicYear?.startDate),
+      endDate: formatDateInput(activeAcademicYear?.endDate),
+      promotionDate: formatDateInput(activeAcademicYear?.promotionDate),
+    });
+  }, [formatDateInput]);
+
+  const getPromotionStatus = (academicYear: AcademicYear) => {
+    if (academicYear.promotionProcessedAt) {
+      return {
+        label: 'Completed',
+        className: 'bg-green-600 text-white',
+      };
+    }
+
+    if (!academicYear.promotionDate) {
+      return {
+        label: 'Disabled',
+        className: '',
+      };
+    }
+
+    if (new Date(academicYear.promotionDate) <= new Date()) {
+      return {
+        label: 'Due',
+        className: 'bg-amber-500 text-white',
+      };
+    }
+
+    return {
+      label: 'Pending',
+      className: 'bg-blue-600 text-white',
+    };
+  };
 
   interface Scholarship {
     id: number;
@@ -1020,6 +1081,7 @@ export default function SettingsPage() {
 
       if (result.success) {
         setAcademicYears(result.data);
+        syncAcademicYearSettingsForm(result.data);
         setAcademicYearTotal(result.total);
         setAcademicYearTotalPages(result.totalPages);
       } else {
@@ -1031,7 +1093,7 @@ export default function SettingsPage() {
     } finally {
       setLoadingAcademicYears(false);
     }
-  }, []);
+  }, [syncAcademicYearSettingsForm]);
 
   const fetchPromotionPreview = useCallback(async () => {
     try {
@@ -1049,40 +1111,36 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const handleOpenAcademicYearDialog = (academicYear?: AcademicYear) => {
-    if (academicYear) {
-      setEditingAcademicYear(academicYear);
-    } else {
-      setEditingAcademicYear(null);
-    }
-    setIsAcademicYearDialogOpen(true);
+  const handleAcademicYearFormChange = (field: keyof typeof academicYearFormData, value: string) => {
+    setAcademicYearFormData((current) => ({
+      ...current,
+      [field]: value,
+    }));
   };
 
-  const handleCloseAcademicYearDialog = () => {
-    setIsAcademicYearDialogOpen(false);
-    setEditingAcademicYear(null);
-  };
-
-  const handleSubmitAcademicYear = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveAcademicYearSettings = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmittingAcademicYear(true);
 
-    const formData = new FormData(e.currentTarget);
+    const activeAcademicYear = activeAcademicYearId
+      ? academicYears.find((academicYear) => academicYear.id === activeAcademicYearId)
+      : null;
     const data = {
-      year: formData.get('year') as string,
-      startDate: formData.get('startDate') as string,
-      endDate: formData.get('endDate') as string,
-      semester: formData.get('semester') as string,
-      isActive: formData.get('isActive') === 'on',
+      year: academicYearFormData.year,
+      startDate: academicYearFormData.startDate,
+      endDate: academicYearFormData.endDate,
+      semester: activeAcademicYear?.semester || '1ST',
+      promotionDate: academicYearFormData.promotionDate || null,
+      isActive: true,
     };
 
     try {
-      const url = editingAcademicYear
-        ? `/api/academic-years?id=${editingAcademicYear.id}`
+      const url = activeAcademicYearId
+        ? `/api/academic-years?id=${activeAcademicYearId}`
         : '/api/academic-years';
 
       const res = await fetch(url, {
-        method: editingAcademicYear ? 'PUT' : 'POST',
+        method: activeAcademicYearId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
         credentials: 'include',
@@ -1091,12 +1149,7 @@ export default function SettingsPage() {
       const result = await res.json();
 
       if (result.success) {
-        toast.success(
-          editingAcademicYear
-            ? 'Academic year updated successfully'
-            : 'Academic year created successfully'
-        );
-        handleCloseAcademicYearDialog();
+        toast.success('Academic year settings saved successfully');
         fetchAcademicYears(academicYearPage);
       } else {
         toast.error(result.error || 'Failed to save academic year');
@@ -1168,7 +1221,7 @@ export default function SettingsPage() {
   const handleAutoPromoteStudents = async () => {
     if (
       !confirm(
-        'This will automatically promote all students to their next year level and graduate students in their final year. Continue?'
+        'This will run promotion immediately for the active academic year. Students who already reached a final year will graduate. Continue?'
       )
     ) {
       return;
@@ -1189,6 +1242,7 @@ export default function SettingsPage() {
         toast.success(result.message || 'Students promoted successfully');
         setIsPromotionDialogOpen(false);
         setPromotionPreview(null);
+        fetchAcademicYears(academicYearPage);
       } else {
         toast.error(result.error || 'Failed to promote students');
       }
@@ -2121,241 +2175,232 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-foreground">
                   <GraduationCap className="h-5 w-5" />
-                  Academic Year Configuration
+                  Academic Year Settings
                 </CardTitle>
                 <div className="flex gap-2">
                   <Button onClick={handleOpenPromotionDialog} variant="outline" className="text-xs">
                     <Activity className="h-4 w-4 mr-2" />
-                    Auto-Promote Students
-                  </Button>
-                  <Button
-                    onClick={() => handleOpenAcademicYearDialog()}
-                    variant="gradient"
-                    className="text-xs"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Academic Year
+                    Run Promotion Now
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               {loadingAcademicYears ? (
                 <div className="flex h-[30vh] items-center justify-center">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
-              ) : academicYears.length === 0 ? (
-                <div className="text-center py-12">
-                  <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-4 text-lg font-semibold">No academic years found</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Add your first academic year to enable automatic student promotion
-                  </p>
-                </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Academic Year</TableHead>
-                        <TableHead>Semester</TableHead>
-                        <TableHead>Start Date</TableHead>
-                        <TableHead>End Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {academicYears.map((ay) => (
-                        <TableRow key={ay.id}>
-                          <TableCell className="font-medium">{ay.year}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {ay.semester === '1ST'
-                                ? '1st Semester'
-                                : ay.semester === '2ND'
-                                  ? '2nd Semester'
-                                  : 'Summer'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{new Date(ay.startDate).toLocaleDateString()}</TableCell>
-                          <TableCell>{new Date(ay.endDate).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            {ay.isActive ? (
-                              <Badge variant="default" className="bg-green-600">
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">Inactive</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleSetActiveAcademicYear(ay.id, !ay.isActive)}
-                                disabled={ay.isActive}
-                              >
-                                {ay.isActive ? 'Active' : 'Set Active'}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenAcademicYearDialog(ay)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteAcademicYear(ay.id)}
-                                disabled={ay.isActive}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                <>
+                  <form
+                    onSubmit={handleSaveAcademicYearSettings}
+                    className="space-y-4 border-b border-gray-200 pb-6"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-base font-semibold">Current Academic Year Settings</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {activeAcademicYearId
+                            ? 'Editing the active academic year'
+                            : 'No active academic year selected'}
+                        </p>
+                      </div>
+                      {activeAcademicYearId && (
+                        <Badge variant="default" className="bg-green-600">
+                          Active
+                        </Badge>
+                      )}
+                    </div>
 
-              {/* Pagination */}
-              {academicYearTotalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Page {academicYearPage} of {academicYearTotalPages}
+                    <div className="flex gap-3 rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                      <p>
+                        Academic year promotion runs automatically on the saved promotion date. The
+                        system promotes due students once for that academic year; use Run Promotion
+                        Now only when an admin needs to process it manually.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentAcademicYear">Academic Year</Label>
+                        <Input
+                          id="currentAcademicYear"
+                          value={academicYearFormData.year}
+                          onChange={(e) => handleAcademicYearFormChange('year', e.target.value)}
+                          placeholder="2025-2026"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPromotionDate">Promotion Date</Label>
+                        <Input
+                          id="currentPromotionDate"
+                          type="date"
+                          value={academicYearFormData.promotionDate}
+                          onChange={(e) =>
+                            handleAcademicYearFormChange('promotionDate', e.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currentStartDate">Start Date</Label>
+                        <Input
+                          id="currentStartDate"
+                          type="date"
+                          value={academicYearFormData.startDate}
+                          onChange={(e) =>
+                            handleAcademicYearFormChange('startDate', e.target.value)
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="currentEndDate">End Date</Label>
+                        <Input
+                          id="currentEndDate"
+                          type="date"
+                          value={academicYearFormData.endDate}
+                          onChange={(e) => handleAcademicYearFormChange('endDate', e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button type="submit" variant="gradient" disabled={isSubmittingAcademicYear}>
+                        <Save className="h-4 w-4" />
+                        {isSubmittingAcademicYear ? 'Saving...' : 'Save Settings'}
+                      </Button>
+                    </div>
+                  </form>
+
+                  <div className="space-y-3">
+                    <h3 className="text-base font-semibold">Academic Year History</h3>
+                    {academicYears.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <GraduationCap className="mx-auto h-10 w-10 mb-2 opacity-50" />
+                        <p>No academic year history yet</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Academic Year</TableHead>
+                              <TableHead>Start Date</TableHead>
+                              <TableHead>End Date</TableHead>
+                              <TableHead>Promotion Date</TableHead>
+                              <TableHead>Promotion Status</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {academicYears.map((ay) => (
+                              <TableRow key={ay.id}>
+                                <TableCell className="font-medium">{ay.year}</TableCell>
+                                <TableCell>
+                                  {new Date(ay.startDate).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>{new Date(ay.endDate).toLocaleDateString()}</TableCell>
+                                <TableCell>{formatDate(ay.promotionDate)}</TableCell>
+                                <TableCell>
+                                  {(() => {
+                                    const status = getPromotionStatus(ay);
+                                    return (
+                                      <Badge
+                                        variant={
+                                          status.label === 'Disabled' ? 'secondary' : 'default'
+                                        }
+                                        className={status.className}
+                                      >
+                                        {status.label}
+                                      </Badge>
+                                    );
+                                  })()}
+                                </TableCell>
+                                <TableCell>
+                                  {ay.isActive ? (
+                                    <Badge variant="default" className="bg-green-600">
+                                      Active
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary">Inactive</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleSetActiveAcademicYear(ay.id, !ay.isActive)
+                                      }
+                                      disabled={ay.isActive}
+                                    >
+                                      {ay.isActive ? 'Active' : 'Set Active'}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteAcademicYear(ay.id)}
+                                      disabled={ay.isActive}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fetchAcademicYears(academicYearPage - 1)}
-                      disabled={academicYearPage === 1 || loadingAcademicYears}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fetchAcademicYears(academicYearPage + 1)}
-                      disabled={academicYearPage === academicYearTotalPages || loadingAcademicYears}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+
+                  {academicYearTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">
+                        Page {academicYearPage} of {academicYearTotalPages}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchAcademicYears(academicYearPage - 1)}
+                          disabled={academicYearPage === 1 || loadingAcademicYears}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchAcademicYears(academicYearPage + 1)}
+                          disabled={
+                            academicYearPage === academicYearTotalPages || loadingAcademicYears
+                          }
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Add/Edit Academic Year Dialog */}
-        <Dialog open={isAcademicYearDialogOpen} onOpenChange={setIsAcademicYearDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingAcademicYear ? 'Edit Academic Year' : 'Add Academic Year'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingAcademicYear
-                  ? 'Update the academic year information.'
-                  : 'Add a new academic year to enable automatic student promotion.'}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmitAcademicYear} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="year">Academic Year</Label>
-                <Input
-                  id="year"
-                  name="year"
-                  defaultValue={editingAcademicYear?.year || ''}
-                  placeholder="2025-2026"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">Format: YYYY-YYYY (e.g., 2025-2026)</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="semester">Semester</Label>
-                <Select name="semester" defaultValue={editingAcademicYear?.semester || '1ST'}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1ST">1st Semester</SelectItem>
-                    <SelectItem value="2ND">2nd Semester</SelectItem>
-                    <SelectItem value="SUMMER">Summer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    name="startDate"
-                    type="date"
-                    defaultValue={
-                      editingAcademicYear?.startDate
-                        ? new Date(editingAcademicYear.startDate).toISOString().split('T')[0]
-                        : ''
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    id="endDate"
-                    name="endDate"
-                    type="date"
-                    defaultValue={
-                      editingAcademicYear?.endDate
-                        ? new Date(editingAcademicYear.endDate).toISOString().split('T')[0]
-                        : ''
-                    }
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  name="isActive"
-                  defaultChecked={editingAcademicYear?.isActive || false}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="isActive">Set as Active Academic Year</Label>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleCloseAcademicYearDialog}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmittingAcademicYear}>
-                  {isSubmittingAcademicYear
-                    ? 'Saving...'
-                    : editingAcademicYear
-                      ? 'Update'
-                      : 'Create'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
         {/* Auto-Promote Dialog */}
         <Dialog open={isPromotionDialogOpen} onOpenChange={setIsPromotionDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Auto-Promote Students</DialogTitle>
+              <DialogTitle>Run Promotion Now</DialogTitle>
               <DialogDescription>
-                Preview and confirm automatic student promotion based on the active academic year.
+                Preview and manually run the same promotion rules used by the scheduled job.
               </DialogDescription>
             </DialogHeader>
             {!promotionPreview ? (
@@ -2374,17 +2419,11 @@ export default function SettingsPage() {
                 <div className="p-4 bg-muted rounded-md">
                   <p className="text-sm">
                     <strong>Active Academic Year:</strong>{' '}
-                    {promotionPreview.activeAcademicYear.year} (
-                    {promotionPreview.activeAcademicYear.semester === '1ST'
-                      ? '1st Semester'
-                      : promotionPreview.activeAcademicYear.semester === '2ND'
-                        ? '2nd Semester'
-                        : 'Summer'}
-                    )
+                    {promotionPreview.activeAcademicYear.year}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    This will promote <strong>{promotionPreview.totalStudents}</strong> active
-                    students.
+                    This will process <strong>{promotionPreview.totalStudents}</strong> active
+                    students and then mark this academic year as promoted.
                   </p>
                 </div>
                 <div className="overflow-x-auto max-h-96">
@@ -2408,16 +2447,38 @@ export default function SettingsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={student.action === 'GRADUATE' ? 'destructive' : 'default'}
+                              variant={
+                                student.action === 'GRADUATE'
+                                  ? 'destructive'
+                                  : student.action === 'SKIP'
+                                    ? 'secondary'
+                                    : 'default'
+                              }
                             >
-                              {student.action === 'GRADUATE' ? 'Graduate' : 'Promote'}
+                              {student.action === 'GRADUATE'
+                                ? 'Graduate'
+                                : student.action === 'SKIP'
+                                  ? 'Skip'
+                                  : 'Promote'}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             {student.action === 'GRADUATE' ? (
                               <span className="text-destructive font-medium">Graduated</span>
+                            ) : student.action === 'SKIP' ? (
+                              <span className="text-muted-foreground">{student.reason}</span>
                             ) : (
-                              <span className="text-green-600">{student.nextYearLevel}</span>
+                              <div className="space-y-1">
+                                <span className="text-green-600">
+                                  {student.nextGradeLevel} - {student.nextYearLevel}
+                                </span>
+                                {student.nextProgram && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {student.nextProgram}
+                                    {student.nextTermType ? ` - ${student.nextTermType}` : ''}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </TableCell>
                         </TableRow>

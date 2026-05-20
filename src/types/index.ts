@@ -241,7 +241,7 @@ export const YEAR_LEVELS: Record<GradeLevel, string[]> = {
   GRADE_SCHOOL: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
   JUNIOR_HIGH: ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
   SENIOR_HIGH: ['Grade 11', 'Grade 12'],
-  COLLEGE: ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'],
+  COLLEGE: ['1st Year', '2nd Year', '3rd Year'],
 };
 
 // Term Type for academic calendar

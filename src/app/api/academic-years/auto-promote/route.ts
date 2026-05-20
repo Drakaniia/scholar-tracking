@@ -31,7 +31,7 @@ export async function POST() {
     if (result.success) {
       return NextResponse.json({
         success: true,
-        message: `Successfully promoted ${result.promotedCount} students and graduated ${result.graduatedCount} students`,
+        message: `Successfully promoted ${result.promotedCount} students, graduated ${result.graduatedCount} students, and skipped ${result.skippedCount} records`,
         data: result,
       });
     } else {
@@ -71,7 +71,9 @@ export async function GET() {
 
     // Get preview of students that would be promoted
     const prisma = (await import('@/lib/prisma')).default;
-    const { getNextYearLevel, getActiveAcademicYear } = await import('@/lib/academic-year-service');
+    const { getActiveAcademicYear, resolvePromotionTarget } = await import(
+      '@/lib/academic-year-service'
+    );
 
     const activeAcademicYear = await getActiveAcademicYear();
 
@@ -87,18 +89,26 @@ export async function GET() {
         lastName: true,
         gradeLevel: true,
         yearLevel: true,
+        program: true,
+        termType: true,
       },
     });
 
     const promotionPreview = students.map((student) => {
-      const { nextYearLevel, isGraduating } = getNextYearLevel(
-        student.gradeLevel,
-        student.yearLevel
-      );
+      const target = resolvePromotionTarget(student);
       return {
         ...student,
-        nextYearLevel: isGraduating ? 'Graduated' : nextYearLevel,
-        action: isGraduating ? 'GRADUATE' : 'PROMOTE',
+        nextGradeLevel: target.action === 'PROMOTE' ? target.gradeLevel : null,
+        nextYearLevel:
+          target.action === 'PROMOTE'
+            ? target.yearLevel
+            : target.action === 'GRADUATE'
+              ? 'Graduated'
+              : null,
+        nextProgram: target.action === 'PROMOTE' ? target.program || student.program : null,
+        nextTermType: target.action === 'PROMOTE' ? target.termType || student.termType : null,
+        action: target.action,
+        reason: target.action === 'SKIP' ? target.reason : undefined,
       };
     });
 
