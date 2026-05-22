@@ -72,7 +72,7 @@
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.1.1",
     "postcss": "^8.5.10",
     "prettier": "^3.8.1",
