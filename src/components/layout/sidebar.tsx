@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import logoImage from '@/assets/images/logo.webp';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +31,8 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 import { useSidebar } from './layout-wrapper';
+
+const LOGO_IMAGE_URL = '/images/logo.webp';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -125,12 +126,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           <div className="mb-6 flex items-center gap-3 px-3">
             <div className="h-8 w-8 relative shrink-0">
               <Image
-                src={logoImage}
+                src={LOGO_IMAGE_URL}
                 alt="ScholarTrack Logo"
                 width={32}
                 height={32}
                 className="h-full w-full object-contain"
                 priority
+                unoptimized
               />
             </div>
             <span className="text-lg font-bold text-white">ScholarTrack</span>
@@ -194,12 +196,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 relative shrink-0">
               <Image
-                src={logoImage}
+                src={LOGO_IMAGE_URL}
                 alt="ScholarTrack Logo"
                 width={32}
                 height={32}
                 className="h-full w-full object-contain"
                 priority
+                unoptimized
               />
             </div>
             <span className="text-lg font-bold text-white hidden sm:block">ScholarTrack</span>

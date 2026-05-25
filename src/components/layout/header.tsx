@@ -1,8 +1,12 @@
 'use client';
 
+import Image from 'next/image';
+
 import { Menu } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+
+const LOGO_IMAGE_URL = '/images/logo.webp';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -17,11 +21,14 @@ export function Header({ onMenuClick }: HeaderProps) {
         </Button>
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 relative shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/logo.png"
+            <Image
+              src={LOGO_IMAGE_URL}
               alt="ScholarTrack Logo"
+              width={32}
+              height={32}
               className="h-full w-full object-contain"
+              priority
+              unoptimized
             />
           </div>
           <span className="text-lg font-bold text-gray-900">ScholarTrack</span>

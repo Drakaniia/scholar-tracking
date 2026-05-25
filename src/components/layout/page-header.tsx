@@ -1,10 +1,9 @@
 'use client';
 
-import Image from 'next/image';
-
-import backgroundImage from '@/assets/images/background2.jpg';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+
+const HEADER_BACKGROUND_IMAGE_URL = '/images/background2.jpg';
 
 interface PageHeaderProps {
   title: string;
@@ -17,15 +16,11 @@ export function PageHeader({ title, description, children, className }: PageHead
   return (
     <Card className="relative border-gray-200 bg-white border-t-4 border-t-[#22c55e] mb-6 overflow-hidden">
       {/* Background image positioned on the right, mirrored */}
-      <div className="absolute inset-y-0 right-0 w-1/2">
-        <Image
-          src={backgroundImage}
-          alt="Background"
-          fill
-          className="object-cover -scale-x-100 opacity-60"
-          priority
-        />
-      </div>
+      <div
+        aria-hidden="true"
+        className="absolute inset-y-0 right-0 w-1/2 -scale-x-100 bg-cover bg-center bg-no-repeat opacity-60"
+        style={{ backgroundImage: `url(${HEADER_BACKGROUND_IMAGE_URL})` }}
+      />
 
       {/* Smooth gradient fade from image to white on the left */}
       <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-transparent via-white/20 to-white" />

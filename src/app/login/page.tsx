@@ -8,11 +8,12 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 
-import backgroundImage from '@/assets/images/background2.jpg';
-import logoImage from '@/assets/images/logo.webp';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+
+const BACKGROUND_IMAGE_URL = '/images/background2.jpg';
+const LOGO_IMAGE_URL = '/images/logo.webp';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -64,9 +65,11 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background image */}
-      <div className="absolute inset-0 h-full w-full">
-        <Image src={backgroundImage} alt="Background" fill className="object-cover" priority />
-      </div>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${BACKGROUND_IMAGE_URL})` }}
+      />
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col">
@@ -74,12 +77,13 @@ const LoginPage = () => {
         <header className="p-6 flex items-center gap-4 shadow-lg" style={{ background: '#0e442c' }}>
           <div className="h-16 w-16 relative">
             <Image
-              src={logoImage}
+              src={LOGO_IMAGE_URL}
               alt="De La Salle John Bosco College"
               width={64}
               height={64}
               className="h-full w-full object-contain"
               priority
+              unoptimized
             />
           </div>
           <div className="text-white">
