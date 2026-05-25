@@ -202,6 +202,30 @@ model Backup {
   @@map("backups")
 }
 
+model PromotionRun {
+  id             Int       @id @default(autoincrement()) @map("promotion_run_id")
+  academicYearId Int       @map("academic_year_id")
+  academicYear   String    @map("academic_year")
+  status         String    @default("PROCESSING")
+  source         String    @default("MANUAL")
+  requestedBy    Int?      @map("requested_by")
+  totalStudents  Int       @default(0) @map("total_students")
+  promotedCount  Int       @default(0) @map("promoted_count")
+  graduatedCount Int       @default(0) @map("graduated_count")
+  skippedCount   Int       @default(0) @map("skipped_count")
+  errorCount     Int       @default(0) @map("error_count")
+  errorMessage   String?   @map("error_message")
+  errors         Json?
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([academicYearId, status])
+  @@index([status, startedAt])
+  @@map("promotion_runs")
+}
+
 model AcademicYear {
   id                   Int            @id @default(autoincrement()) @map("academic_year_id")
   year                 String         @unique @map("year")

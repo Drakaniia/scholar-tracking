@@ -750,15 +750,22 @@ export async function runDueAcademicYearPromotions(
 }
 
 /**
- * Manually runs promotion for the configured active academic year.
+ * Manually runs promotion for the configured active academic year, or a specific academic year.
  */
-export async function autoPromoteStudents(userId?: number): Promise<PromotionRunResult> {
-  const activeAcademicYear = await getActiveAcademicYear();
+export async function autoPromoteStudents(
+  userId?: number,
+  academicYearId?: number
+): Promise<PromotionRunResult> {
+  const activeAcademicYear = academicYearId
+    ? await prisma.academicYear.findUnique({ where: { id: academicYearId } })
+    : await getActiveAcademicYear();
 
   if (!activeAcademicYear) {
     return {
       success: false,
-      error: 'No active academic year found. Please configure an active academic year first.',
+      error: academicYearId
+        ? 'Academic year not found. Please refresh the settings page and try again.'
+        : 'No active academic year found. Please configure an active academic year first.',
       promotedCount: 0,
       graduatedCount: 0,
       skippedCount: 0,

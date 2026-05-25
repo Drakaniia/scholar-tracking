@@ -1,17 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   Activity,
+  AlertCircle,
   Archive,
+  Bell,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   Filter,
   GraduationCap,
   Info,
   KeyRound,
+  Loader2,
   Lock,
   Monitor,
   Pencil,
@@ -124,6 +129,13 @@ interface ChangePasswordFormData {
   confirmPassword: string;
 }
 
+interface AcademicYearFormData {
+  year: string;
+  startDate: string;
+  endDate: string;
+  promotionDate: string;
+}
+
 interface AuditLog {
   id: number;
   userId: number | null;
@@ -152,6 +164,59 @@ interface Student {
   yearLevel: string;
   status: string;
   isArchived: boolean;
+}
+
+const MANILA_TIME_ZONE = 'Asia/Manila';
+
+function getDatePartsInManila(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: MANILA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return { year, month, day };
+}
+
+function formatDateForInput(value: string | null | undefined) {
+  if (!value) return '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const parts = getDatePartsInManila(date);
+  return parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
+}
+
+function getDefaultAcademicYearFormData(now = new Date()): AcademicYearFormData {
+  const parts = getDatePartsInManila(now);
+  const currentYear = parts ? Number(parts.year) : now.getFullYear();
+  const currentMonth = parts ? Number(parts.month) : now.getMonth() + 1;
+  const startYear = currentMonth >= 6 ? currentYear : currentYear - 1;
+  const endYear = startYear + 1;
+  const endDate = `${endYear}-05-31`;
+
+  return {
+    year: `${startYear}-${endYear}`,
+    startDate: `${startYear}-06-01`,
+    endDate,
+    promotionDate: endDate,
+  };
 }
 
 const initialFormData: CreateUserFormData = {
@@ -283,13 +348,13 @@ export default function SettingsPage() {
   const [isUndoingPromotion, setIsUndoingPromotion] = useState(false);
   const [promotionPreview, setPromotionPreview] = useState<PromotionPreview | null>(null);
   const [isPromotionDialogOpen, setIsPromotionDialogOpen] = useState(false);
+  const [promotionRun, setPromotionRun] = useState<PromotionRun | null>(null);
+  const [activeAcademicYear, setActiveAcademicYear] = useState<AcademicYear | null>(null);
   const [activeAcademicYearId, setActiveAcademicYearId] = useState<number | null>(null);
-  const [academicYearFormData, setAcademicYearFormData] = useState({
-    year: '',
-    startDate: '',
-    endDate: '',
-    promotionDate: '',
-  });
+  const [academicYearFormData, setAcademicYearFormData] = useState<AcademicYearFormData>(() =>
+    getDefaultAcademicYearFormData()
+  );
+  const announcedPromotionRunsRef = useRef<Set<number>>(new Set());
 
   interface AcademicYear {
     id: number;
@@ -304,6 +369,7 @@ export default function SettingsPage() {
 
   interface PromotionPreview {
     activeAcademicYear: AcademicYear | null;
+    latestRun: PromotionRun | null;
     totalStudents: number;
     preview: Array<{
       id: number;
@@ -320,28 +386,102 @@ export default function SettingsPage() {
     }>;
   }
 
+  interface PromotionRun {
+    id: number;
+    academicYearId: number;
+    academicYear: string;
+    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REVERTED';
+    source: string;
+    requestedBy: number | null;
+    totalStudents: number;
+    promotedCount: number;
+    graduatedCount: number;
+    skippedCount: number;
+    errorCount: number;
+    errorMessage: string | null;
+    startedAt: string;
+    completedAt: string | null;
+  }
+
   const formatDate = (value: string | null) => {
     if (!value) return 'Not set';
     return new Date(value).toLocaleDateString();
   };
 
-  const formatDateInput = useCallback((value: string | null | undefined) => {
-    if (!value) return '';
-    return new Date(value).toISOString().split('T')[0];
-  }, []);
+  const formatDateTime = (value: string | null) => {
+    if (!value) return 'Not yet';
+    return new Date(value).toLocaleString();
+  };
 
-  const syncAcademicYearSettingsForm = useCallback((years: AcademicYear[]) => {
-    const activeAcademicYear = years.find((academicYear) => academicYear.isActive) || null;
-    setActiveAcademicYearId(activeAcademicYear?.id || null);
-    setAcademicYearFormData({
-      year: activeAcademicYear?.year || '',
-      startDate: formatDateInput(activeAcademicYear?.startDate),
-      endDate: formatDateInput(activeAcademicYear?.endDate),
-      promotionDate: formatDateInput(activeAcademicYear?.promotionDate),
-    });
-  }, [formatDateInput]);
+  const isPromotionRunActive = useCallback(
+    (run: PromotionRun | null) => run?.status === 'PENDING' || run?.status === 'PROCESSING',
+    []
+  );
+
+  const getPromotionRunBadge = (run: PromotionRun) => {
+    if (run.status === 'REVERTED') {
+      return {
+        label: 'Undone',
+        className: 'bg-gray-600 text-white',
+      };
+    }
+
+    if (run.status === 'FAILED') {
+      return {
+        label: 'Failed',
+        className: 'bg-red-600 text-white',
+      };
+    }
+
+    if (run.status === 'COMPLETED') {
+      return {
+        label: run.errorCount > 0 ? 'Completed with issues' : 'Completed',
+        className: run.errorCount > 0 ? 'bg-amber-500 text-white' : 'bg-green-600 text-white',
+      };
+    }
+
+    return {
+      label: 'Processing',
+      className: 'bg-blue-600 text-white',
+    };
+  };
+
+  const getPromotionRunProcessedCount = (run: PromotionRun) =>
+    run.promotedCount + run.graduatedCount + run.skippedCount + run.errorCount;
+
+  const syncAcademicYearSettingsForm = useCallback(
+    (defaultAcademicYear: AcademicYear | null, years: AcademicYear[] = []) => {
+      const fallbackFormData = getDefaultAcademicYearFormData();
+      const existingDefaultAcademicYear =
+        defaultAcademicYear ||
+        years.find((academicYear) => academicYear.year === fallbackFormData.year) ||
+        null;
+
+      setActiveAcademicYear(defaultAcademicYear);
+      setActiveAcademicYearId(existingDefaultAcademicYear?.id || null);
+      setAcademicYearFormData(
+        existingDefaultAcademicYear
+          ? {
+              year: existingDefaultAcademicYear.year,
+              startDate: formatDateForInput(existingDefaultAcademicYear.startDate),
+              endDate: formatDateForInput(existingDefaultAcademicYear.endDate),
+              promotionDate: formatDateForInput(existingDefaultAcademicYear.promotionDate),
+            }
+          : fallbackFormData
+      );
+    },
+    []
+  );
 
   const getPromotionStatus = (academicYear: AcademicYear) => {
+    const latestRunForYear = promotionRun?.academicYearId === academicYear.id ? promotionRun : null;
+    if (latestRunForYear && isPromotionRunActive(latestRunForYear)) {
+      return {
+        label: 'Processing',
+        className: 'bg-blue-600 text-white',
+      };
+    }
+
     if (academicYear.promotionProcessedAt) {
       return {
         label: 'Completed',
@@ -1071,31 +1211,64 @@ export default function SettingsPage() {
   };
 
   // Academic Year functions
-  const fetchAcademicYears = useCallback(async (page: number) => {
-    setLoadingAcademicYears(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '10',
-      });
-      const res = await fetch(`/api/academic-years?${params}`, { credentials: 'include' });
-      const result = await res.json();
+  const handleIncomingPromotionRun = useCallback((run: PromotionRun | null, announce = false) => {
+    setPromotionRun(run);
 
-      if (result.success) {
-        setAcademicYears(result.data);
-        syncAcademicYearSettingsForm(result.data);
-        setAcademicYearTotal(result.total);
-        setAcademicYearTotalPages(result.totalPages);
-      } else {
-        toast.error(result.error || 'Failed to fetch academic years');
-      }
-    } catch (error) {
-      console.error('Error fetching academic years:', error);
-      toast.error('Failed to fetch academic years');
-    } finally {
-      setLoadingAcademicYears(false);
+    if (!run || !announce || (run.status !== 'COMPLETED' && run.status !== 'FAILED')) {
+      return;
     }
-  }, [syncAcademicYearSettingsForm]);
+
+    if (announcedPromotionRunsRef.current.has(run.id)) {
+      return;
+    }
+
+    announcedPromotionRunsRef.current.add(run.id);
+
+    if (run.status === 'COMPLETED') {
+      toast.success(
+        `Promotion complete: ${run.promotedCount} promoted, ${run.graduatedCount} graduated`
+      );
+    } else {
+      toast.error(run.errorMessage || 'Promotion failed. Please review the status in Settings.');
+    }
+  }, []);
+
+  const fetchAcademicYears = useCallback(
+    async (page: number) => {
+      setLoadingAcademicYears(true);
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: '10',
+        });
+        const [listRes, activeRes] = await Promise.all([
+          fetch(`/api/academic-years?${params}`, { credentials: 'include' }),
+          fetch('/api/academic-years?action=active', { credentials: 'include' }),
+        ]);
+        const [listResult, activeResult] = await Promise.all([listRes.json(), activeRes.json()]);
+
+        if (listResult.success) {
+          const years = listResult.data || [];
+          setAcademicYears(years);
+          syncAcademicYearSettingsForm(activeResult.success ? activeResult.data : null, years);
+          setAcademicYearTotal(listResult.total);
+          setAcademicYearTotalPages(listResult.totalPages);
+        } else {
+          toast.error(listResult.error || 'Failed to fetch academic years');
+        }
+
+        if (!activeResult.success) {
+          toast.error(activeResult.error || 'Failed to fetch active academic year');
+        }
+      } catch (error) {
+        console.error('Error fetching academic years:', error);
+        toast.error('Failed to fetch academic years');
+      } finally {
+        setLoadingAcademicYears(false);
+      }
+    },
+    [syncAcademicYearSettingsForm]
+  );
 
   const fetchPromotionPreview = useCallback(async () => {
     try {
@@ -1104,6 +1277,7 @@ export default function SettingsPage() {
 
       if (result.success) {
         setPromotionPreview(result.data);
+        handleIncomingPromotionRun(result.data.latestRun || null);
       } else {
         toast.error(result.error || 'Failed to fetch promotion preview');
       }
@@ -1111,9 +1285,66 @@ export default function SettingsPage() {
       console.error('Error fetching promotion preview:', error);
       toast.error('Failed to fetch promotion preview');
     }
-  }, []);
+  }, [handleIncomingPromotionRun]);
 
-  const handleAcademicYearFormChange = (field: keyof typeof academicYearFormData, value: string) => {
+  const fetchPromotionRunStatus = useCallback(
+    async (runId?: number, options?: { announce?: boolean }) => {
+      try {
+        const params = new URLSearchParams();
+        if (runId) {
+          params.set('runId', runId.toString());
+        } else {
+          params.set('statusOnly', 'true');
+        }
+
+        const res = await fetch(`/api/academic-years/auto-promote?${params.toString()}`, {
+          credentials: 'include',
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          const run = result.data.run || result.data.latestRun || null;
+          handleIncomingPromotionRun(run, options?.announce);
+          return run as PromotionRun | null;
+        }
+
+        toast.error(result.error || 'Failed to fetch promotion status');
+      } catch (error) {
+        console.error('Error fetching promotion status:', error);
+        toast.error('Failed to fetch promotion status');
+      }
+
+      return null;
+    },
+    [handleIncomingPromotionRun]
+  );
+
+  useEffect(() => {
+    if (!promotionRun || !isPromotionRunActive(promotionRun)) {
+      return;
+    }
+
+    const intervalId = window.setInterval(async () => {
+      const latestRun = await fetchPromotionRunStatus(promotionRun.id, { announce: true });
+
+      if (latestRun && !isPromotionRunActive(latestRun)) {
+        fetchAcademicYears(academicYearPage);
+      }
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    academicYearPage,
+    fetchAcademicYears,
+    fetchPromotionRunStatus,
+    isPromotionRunActive,
+    promotionRun,
+  ]);
+
+  const handleAcademicYearFormChange = (
+    field: keyof typeof academicYearFormData,
+    value: string
+  ) => {
     setAcademicYearFormData((current) => ({
       ...current,
       [field]: value,
@@ -1124,14 +1355,15 @@ export default function SettingsPage() {
     e.preventDefault();
     setIsSubmittingAcademicYear(true);
 
-    const activeAcademicYear = activeAcademicYearId
-      ? academicYears.find((academicYear) => academicYear.id === activeAcademicYearId)
+    const selectedAcademicYear = activeAcademicYearId
+      ? academicYears.find((academicYear) => academicYear.id === activeAcademicYearId) ||
+        activeAcademicYear
       : null;
     const data = {
       year: academicYearFormData.year,
       startDate: academicYearFormData.startDate,
       endDate: academicYearFormData.endDate,
-      semester: activeAcademicYear?.semester || '1ST',
+      semester: selectedAcademicYear?.semester || '1ST',
       promotionDate: academicYearFormData.promotionDate || null,
       isActive: true,
     };
@@ -1221,14 +1453,6 @@ export default function SettingsPage() {
   };
 
   const handleAutoPromoteStudents = async () => {
-    if (
-      !confirm(
-        'This will run promotion immediately for the active academic year. Students who already reached a final year will graduate. Continue?'
-      )
-    ) {
-      return;
-    }
-
     setIsAutoPromoting(true);
     try {
       const res = await fetch('/api/academic-years/auto-promote', {
@@ -1241,9 +1465,9 @@ export default function SettingsPage() {
       const result = await res.json();
 
       if (result.success) {
-        toast.success(result.message || 'Students promoted successfully');
-        setIsPromotionDialogOpen(false);
-        setPromotionPreview(null);
+        const run = result.data?.run || null;
+        handleIncomingPromotionRun(run);
+        toast.success(result.message || 'Promotion started');
         fetchAcademicYears(academicYearPage);
       } else {
         toast.error(result.error || 'Failed to promote students');
@@ -1276,6 +1500,7 @@ export default function SettingsPage() {
 
       if (result.success) {
         toast.success(result.message || 'Last promotion undone successfully');
+        setPromotionRun(null);
         setPromotionPreview(null);
         fetchAcademicYears(academicYearPage);
       } else {
@@ -1289,7 +1514,19 @@ export default function SettingsPage() {
     }
   };
 
-  const activeAcademicYear = academicYears.find((academicYear) => academicYear.isActive) || null;
+  const activePromotionRun =
+    promotionRun && activeAcademicYear?.id === promotionRun.academicYearId ? promotionRun : null;
+  const isActivePromotionProcessing = isPromotionRunActive(activePromotionRun);
+  const dialogPromotionRun =
+    promotionRun && promotionPreview?.activeAcademicYear?.id === promotionRun.academicYearId
+      ? promotionRun
+      : null;
+  const isDialogPromotionProcessing = isPromotionRunActive(dialogPromotionRun);
+  const canStartDialogPromotion = Boolean(
+    promotionPreview?.activeAcademicYear &&
+    !promotionPreview.activeAcademicYear.promotionProcessedAt &&
+    !isDialogPromotionProcessing
+  );
   const canUndoPromotion = Boolean(activeAcademicYear?.promotionProcessedAt);
 
   if (loading) {
@@ -1343,7 +1580,10 @@ export default function SettingsPage() {
           <TabsTrigger
             value="academic-year"
             className="gap-2"
-            onClick={() => fetchAcademicYears(1)}
+            onClick={() => {
+              fetchAcademicYears(1);
+              fetchPromotionRunStatus();
+            }}
           >
             <GraduationCap className="h-4 w-4" />
             Academic Year
@@ -2227,9 +2467,18 @@ export default function SettingsPage() {
                       {isUndoingPromotion ? 'Undoing...' : 'Undo Last Promotion'}
                     </Button>
                   )}
-                  <Button onClick={handleOpenPromotionDialog} variant="outline" className="text-xs">
-                    <Activity className="h-4 w-4 mr-2" />
-                    Run Promotion Now
+                  <Button
+                    onClick={handleOpenPromotionDialog}
+                    variant="outline"
+                    className="text-xs"
+                    disabled={isAutoPromoting}
+                  >
+                    {isActivePromotionProcessing || isAutoPromoting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Activity className="h-4 w-4 mr-2" />
+                    )}
+                    {isActivePromotionProcessing ? 'View Promotion Status' : 'Run Promotion Now'}
                   </Button>
                 </div>
               </div>
@@ -2249,12 +2498,14 @@ export default function SettingsPage() {
                       <div>
                         <h3 className="text-base font-semibold">Current Academic Year Settings</h3>
                         <p className="text-sm text-muted-foreground">
-                          {activeAcademicYearId
+                          {activeAcademicYear
                             ? 'Editing the active academic year'
-                            : 'No active academic year selected'}
+                            : activeAcademicYearId
+                              ? 'Editing the default academic year'
+                              : 'Default academic year values are ready to save'}
                         </p>
                       </div>
-                      {activeAcademicYearId && (
+                      {activeAcademicYear && (
                         <Badge variant="default" className="bg-green-600">
                           Active
                         </Badge>
@@ -2269,6 +2520,58 @@ export default function SettingsPage() {
                         Now only when an admin needs to process it manually.
                       </p>
                     </div>
+
+                    {activePromotionRun && (
+                      <div
+                        className={`flex flex-col gap-3 rounded-md border px-4 py-3 text-sm md:flex-row md:items-center md:justify-between ${
+                          activePromotionRun.status === 'FAILED'
+                            ? 'border-red-200 bg-red-50 text-red-950'
+                            : activePromotionRun.status === 'REVERTED'
+                              ? 'border-gray-200 bg-gray-50 text-gray-950'
+                              : isActivePromotionProcessing
+                                ? 'border-blue-200 bg-blue-50 text-blue-950'
+                                : 'border-green-200 bg-green-50 text-green-950'
+                        }`}
+                      >
+                        <div className="flex gap-3">
+                          {activePromotionRun.status === 'FAILED' ? (
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />
+                          ) : activePromotionRun.status === 'REVERTED' ? (
+                            <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-gray-700" />
+                          ) : isActivePromotionProcessing ? (
+                            <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-blue-700" />
+                          ) : (
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-700" />
+                          )}
+                          <div>
+                            <p className="font-medium">
+                              {isActivePromotionProcessing
+                                ? 'Promotion in progress'
+                                : activePromotionRun.status === 'FAILED'
+                                  ? 'Last promotion failed'
+                                  : activePromotionRun.status === 'REVERTED'
+                                    ? 'Last promotion undone'
+                                    : 'Last promotion completed'}
+                            </p>
+                            <p className="mt-1 text-xs opacity-80">
+                              {isActivePromotionProcessing
+                                ? 'Student promotions are being processed. You can leave this page and check back later.'
+                                : activePromotionRun.status === 'REVERTED'
+                                  ? 'Students were restored from the last promotion run.'
+                                  : `${activePromotionRun.promotedCount} promoted, ${activePromotionRun.graduatedCount} graduated, ${activePromotionRun.skippedCount} skipped.`}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleOpenPromotionDialog}
+                        >
+                          View Status
+                        </Button>
+                      </div>
+                    )}
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
@@ -2349,9 +2652,7 @@ export default function SettingsPage() {
                             {academicYears.map((ay) => (
                               <TableRow key={ay.id}>
                                 <TableCell className="font-medium">{ay.year}</TableCell>
-                                <TableCell>
-                                  {new Date(ay.startDate).toLocaleDateString()}
-                                </TableCell>
+                                <TableCell>{new Date(ay.startDate).toLocaleDateString()}</TableCell>
                                 <TableCell>{new Date(ay.endDate).toLocaleDateString()}</TableCell>
                                 <TableCell>{formatDate(ay.promotionDate)}</TableCell>
                                 <TableCell>
@@ -2445,107 +2746,281 @@ export default function SettingsPage() {
 
         {/* Auto-Promote Dialog */}
         <Dialog open={isPromotionDialogOpen} onOpenChange={setIsPromotionDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Run Promotion Now</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                {isDialogPromotionProcessing ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                ) : dialogPromotionRun?.status === 'COMPLETED' ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                ) : dialogPromotionRun?.status === 'FAILED' ? (
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                ) : dialogPromotionRun?.status === 'REVERTED' ? (
+                  <RotateCcw className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <Activity className="h-5 w-5 text-green-600" />
+                )}
+                {isDialogPromotionProcessing ? 'Promotion in Progress' : 'Run Promotion Now'}
+              </DialogTitle>
               <DialogDescription>
-                Preview and manually run the same promotion rules used by the scheduled job.
+                Preview the promotion rules, start manual processing, and check the latest run
+                status.
               </DialogDescription>
             </DialogHeader>
             {!promotionPreview ? (
               <div className="flex h-48 items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : !promotionPreview.activeAcademicYear ? (
               <div className="py-8 text-center">
-                <p className="text-destructive font-medium">No active academic year found.</p>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="font-medium text-destructive">No active academic year found.</p>
+                <p className="mt-2 text-sm text-muted-foreground">
                   Please set an active academic year before promoting students.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-md">
-                  <p className="text-sm">
-                    <strong>Active Academic Year:</strong>{' '}
-                    {promotionPreview.activeAcademicYear.year}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This will process <strong>{promotionPreview.totalStudents}</strong> active
-                    students and then mark this academic year as promoted.
-                  </p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border border-gray-200 bg-background p-4">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">
+                      Academic Year
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {promotionPreview.activeAcademicYear.year}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-gray-200 bg-background p-4">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">
+                      Active Students
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">
+                      {promotionPreview.totalStudents.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-gray-200 bg-background p-4">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">Mode</p>
+                    <p className="mt-1 text-lg font-semibold">Manual run</p>
+                  </div>
                 </div>
-                <div className="overflow-x-auto max-h-96">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Student Name</TableHead>
-                        <TableHead>Current Level</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Next Level</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {promotionPreview.preview.map((student) => (
-                        <TableRow key={student.id}>
-                          <TableCell>
-                            {student.lastName}, {student.firstName}
-                          </TableCell>
-                          <TableCell>
-                            {student.gradeLevel} - {student.yearLevel}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                student.action === 'GRADUATE'
-                                  ? 'destructive'
-                                  : student.action === 'SKIP'
-                                    ? 'secondary'
-                                    : 'default'
-                              }
-                            >
-                              {student.action === 'GRADUATE'
-                                ? 'Graduate'
-                                : student.action === 'SKIP'
-                                  ? 'Skip'
-                                  : 'Promote'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {student.action === 'GRADUATE' ? (
-                              <span className="text-destructive font-medium">Graduated</span>
-                            ) : student.action === 'SKIP' ? (
-                              <span className="text-muted-foreground">{student.reason}</span>
-                            ) : (
-                              <div className="space-y-1">
-                                <span className="text-green-600">
-                                  {student.nextGradeLevel} - {student.nextYearLevel}
-                                </span>
-                                {student.nextProgram && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {student.nextProgram}
-                                    {student.nextTermType ? ` - ${student.nextTermType}` : ''}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </TableCell>
+
+                {dialogPromotionRun && (
+                  <div
+                    className={`rounded-md border p-4 ${
+                      dialogPromotionRun.status === 'FAILED'
+                        ? 'border-red-200 bg-red-50'
+                        : dialogPromotionRun.status === 'REVERTED'
+                          ? 'border-gray-200 bg-gray-50'
+                          : isDialogPromotionProcessing
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-green-200 bg-green-50'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="flex gap-3">
+                        {dialogPromotionRun.status === 'FAILED' ? (
+                          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" />
+                        ) : dialogPromotionRun.status === 'REVERTED' ? (
+                          <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-gray-700" />
+                        ) : isDialogPromotionProcessing ? (
+                          <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-blue-700" />
+                        ) : (
+                          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
+                        )}
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold">
+                              {isDialogPromotionProcessing
+                                ? 'Student promotions are being processed'
+                                : dialogPromotionRun.status === 'FAILED'
+                                  ? 'Promotion failed'
+                                  : dialogPromotionRun.status === 'REVERTED'
+                                    ? 'Promotion was undone'
+                                    : 'Promotion complete'}
+                            </p>
+                            {(() => {
+                              const badge = getPromotionRunBadge(dialogPromotionRun);
+                              return (
+                                <Badge variant="default" className={badge.className}>
+                                  {badge.label}
+                                </Badge>
+                              );
+                            })()}
+                          </div>
+                          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                            {isDialogPromotionProcessing
+                              ? 'This may take a few minutes for large student lists. You can close this dialog, leave Settings, and return later to check the result.'
+                              : dialogPromotionRun.status === 'FAILED'
+                                ? dialogPromotionRun.errorMessage ||
+                                  'The run did not finish. Review the error and try again.'
+                                : dialogPromotionRun.status === 'REVERTED'
+                                  ? 'Students were restored from this run. You can start a fresh promotion for the active academic year.'
+                                  : 'All available results from the latest promotion run are shown below.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-md bg-white/70 p-3">
+                        <p className="text-xs text-muted-foreground">
+                          {isDialogPromotionProcessing ? 'Students queued' : 'Processed'}
+                        </p>
+                        <p className="text-base font-semibold">
+                          {isDialogPromotionProcessing
+                            ? dialogPromotionRun.totalStudents.toLocaleString()
+                            : `${getPromotionRunProcessedCount(
+                                dialogPromotionRun
+                              ).toLocaleString()} / ${dialogPromotionRun.totalStudents.toLocaleString()}`}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-white/70 p-3">
+                        <p className="text-xs text-muted-foreground">Promoted</p>
+                        <p className="text-base font-semibold">
+                          {dialogPromotionRun.promotedCount.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-white/70 p-3">
+                        <p className="text-xs text-muted-foreground">Graduated</p>
+                        <p className="text-base font-semibold">
+                          {dialogPromotionRun.graduatedCount.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-white/70 p-3">
+                        <p className="text-xs text-muted-foreground">Issues</p>
+                        <p className="text-base font-semibold">
+                          {dialogPromotionRun.errorCount.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 text-xs text-muted-foreground md:grid-cols-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Started {formatDateTime(dialogPromotionRun.startedAt)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Bell className="h-4 w-4" />
+                        {isDialogPromotionProcessing
+                          ? 'A toast will appear if this page is open when the run finishes.'
+                          : `Finished ${formatDateTime(dialogPromotionRun.completedAt)}`}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {canStartDialogPromotion && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    <div className="flex gap-3">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                      <p>
+                        Starting promotion will process{' '}
+                        <strong>{promotionPreview.totalStudents.toLocaleString()}</strong> active
+                        students in the background and mark this academic year as promoted when the
+                        run completes.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {canStartDialogPromotion && (
+                  <div className="max-h-96 overflow-x-auto rounded-md border border-gray-200">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student Name</TableHead>
+                          <TableHead>Current Level</TableHead>
+                          <TableHead>Action</TableHead>
+                          <TableHead>Next Level</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {promotionPreview.preview.map((student) => (
+                          <TableRow key={student.id}>
+                            <TableCell>
+                              {student.lastName}, {student.firstName}
+                            </TableCell>
+                            <TableCell>
+                              {student.gradeLevel} - {student.yearLevel}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  student.action === 'GRADUATE'
+                                    ? 'destructive'
+                                    : student.action === 'SKIP'
+                                      ? 'secondary'
+                                      : 'default'
+                                }
+                              >
+                                {student.action === 'GRADUATE'
+                                  ? 'Graduate'
+                                  : student.action === 'SKIP'
+                                    ? 'Skip'
+                                    : 'Promote'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {student.action === 'GRADUATE' ? (
+                                <span className="font-medium text-destructive">Graduated</span>
+                              ) : student.action === 'SKIP' ? (
+                                <span className="text-muted-foreground">{student.reason}</span>
+                              ) : (
+                                <div className="space-y-1">
+                                  <span className="text-green-600">
+                                    {student.nextGradeLevel} - {student.nextYearLevel}
+                                  </span>
+                                  {student.nextProgram && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {student.nextProgram}
+                                      {student.nextTermType ? ` - ${student.nextTermType}` : ''}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {!canStartDialogPromotion &&
+                  !isDialogPromotionProcessing &&
+                  !dialogPromotionRun && (
+                    <div className="rounded-md border border-gray-200 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                      Promotion is not available for this academic year.
+                    </div>
+                  )}
+
+                {promotionPreview.activeAcademicYear.promotionProcessedAt &&
+                  !dialogPromotionRun && (
+                    <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-950">
+                      This academic year has already been promoted. Use Undo Last Promotion before
+                      running promotion again.
+                    </div>
+                  )}
+
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsPromotionDialogOpen(false)}>
-                    Cancel
+                    {isDialogPromotionProcessing ? 'Close' : 'Cancel'}
                   </Button>
-                  <Button
-                    onClick={handleAutoPromoteStudents}
-                    disabled={isAutoPromoting}
-                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
-                  >
-                    {isAutoPromoting ? 'Promoting...' : 'Confirm Promotion'}
-                  </Button>
+                  {canStartDialogPromotion && (
+                    <Button
+                      onClick={handleAutoPromoteStudents}
+                      disabled={isAutoPromoting}
+                      className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+                    >
+                      {isAutoPromoting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        'Start Promotion'
+                      )}
+                    </Button>
+                  )}
                 </DialogFooter>
               </div>
             )}
