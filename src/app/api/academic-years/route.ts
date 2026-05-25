@@ -13,11 +13,38 @@ interface AcademicYearData {
   promotionDate?: string | null;
 }
 
-function parseDateInput(value: string, fieldName: string) {
-  const date = new Date(value);
+const DATE_INPUT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function parseDateInput(value: unknown, fieldName: string) {
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+
+  const normalizedValue = value.trim();
+  const dateInputMatch = normalizedValue.match(DATE_INPUT_PATTERN);
+  const date = dateInputMatch
+    ? new Date(
+        Date.UTC(
+          Number(dateInputMatch[1]),
+          Number(dateInputMatch[2]) - 1,
+          Number(dateInputMatch[3])
+        )
+      )
+    : new Date(normalizedValue);
+
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid ${fieldName}`);
   }
+
+  if (
+    dateInputMatch &&
+    (date.getUTCFullYear() !== Number(dateInputMatch[1]) ||
+      date.getUTCMonth() !== Number(dateInputMatch[2]) - 1 ||
+      date.getUTCDate() !== Number(dateInputMatch[3]))
+  ) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+
   return date;
 }
 
@@ -26,6 +53,33 @@ function parseOptionalDateInput(value: string | null | undefined, fieldName: str
     return null;
   }
   return parseDateInput(value, fieldName);
+}
+
+function validateAcademicYearDateRange(startDate: Date, endDate: Date) {
+  if (startDate > endDate) {
+    throw new Error('Start date must be before end date');
+  }
+}
+
+function sameDateOnlyValue(left: Date | null, right: Date | null) {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return left.toISOString().slice(0, 10) === right.toISOString().slice(0, 10);
+}
+
+function parseAcademicYearId(value: string | null) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function getPrismaErrorCode(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    return (error as { code?: string }).code;
+  }
+
+  return undefined;
 }
 
 export async function GET(request: NextRequest) {
@@ -49,6 +103,7 @@ export async function GET(request: NextRequest) {
     if (action === 'active') {
       const activeYear = await prisma.academicYear.findFirst({
         where: { isActive: true },
+        orderBy: { startDate: 'desc' },
       });
       return NextResponse.json({ success: true, data: activeYear });
     }
@@ -125,14 +180,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If setting as active, deactivate other years
-    if (isActive) {
-      await prisma.academicYear.updateMany({
-        where: { isActive: true },
-        data: { isActive: false },
-      });
-    }
-
     let parsedStartDate: Date;
     let parsedEndDate: Date;
     let parsedPromotionDate: Date | null;
@@ -141,6 +188,7 @@ export async function POST(request: NextRequest) {
       parsedStartDate = parseDateInput(startDate, 'start date');
       parsedEndDate = parseDateInput(endDate, 'end date');
       parsedPromotionDate = parseOptionalDateInput(promotionDate, 'promotion date');
+      validateAcademicYearDateRange(parsedStartDate, parsedEndDate);
     } catch (error) {
       return NextResponse.json(
         { success: false, error: error instanceof Error ? error.message : 'Invalid date' },
@@ -148,20 +196,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const academicYear = await prisma.academicYear.create({
-      data: {
-        year,
-        startDate: parsedStartDate,
-        endDate: parsedEndDate,
-        semester,
-        isActive,
-        promotionDate: parsedPromotionDate,
-      },
+    const academicYear = await prisma.$transaction(async (tx) => {
+      if (isActive) {
+        await tx.academicYear.updateMany({
+          where: { isActive: true },
+          data: { isActive: false },
+        });
+      }
+
+      return tx.academicYear.create({
+        data: {
+          year,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+          semester,
+          isActive,
+          promotionDate: parsedPromotionDate,
+        },
+      });
     });
 
     return NextResponse.json({ success: true, data: academicYear });
   } catch (error) {
     console.error('Error creating academic year:', error);
+    if (getPrismaErrorCode(error) === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'Academic year already exists' },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: 'Failed to create academic year' },
       { status: 500 }
@@ -189,9 +253,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const academicYearId = parseAcademicYearId(searchParams.get('id'));
 
-    if (!id) {
+    if (!academicYearId) {
       return NextResponse.json(
         { success: false, error: 'Academic year ID required' },
         { status: 400 }
@@ -200,22 +264,50 @@ export async function PUT(request: NextRequest) {
 
     const body: Partial<AcademicYearData> = await request.json();
 
-    // If setting as active, deactivate other years
-    if (body.isActive) {
-      await prisma.academicYear.updateMany({
-        where: { isActive: true, id: { not: parseInt(id) } },
-        data: { isActive: false },
+    const existingAcademicYear = await prisma.academicYear.findUnique({
+      where: { id: academicYearId },
+    });
+
+    if (!existingAcademicYear) {
+      return NextResponse.json(
+        { success: false, error: 'Academic year not found' },
+        { status: 404 }
+      );
+    }
+
+    if (body.year && body.year !== existingAcademicYear.year) {
+      const duplicateAcademicYear = await prisma.academicYear.findUnique({
+        where: { year: body.year },
       });
+
+      if (duplicateAcademicYear && duplicateAcademicYear.id !== academicYearId) {
+        return NextResponse.json(
+          { success: false, error: 'Academic year already exists' },
+          { status: 400 }
+        );
+      }
     }
 
     const updateData: Record<string, unknown> = {};
     if (body.year) updateData.year = body.year;
+    let nextStartDate = existingAcademicYear.startDate;
+    let nextEndDate = existingAcademicYear.endDate;
     try {
-      if (body.startDate) updateData.startDate = parseDateInput(body.startDate, 'start date');
-      if (body.endDate) updateData.endDate = parseDateInput(body.endDate, 'end date');
+      if (body.startDate !== undefined) {
+        nextStartDate = parseDateInput(body.startDate, 'start date');
+        updateData.startDate = nextStartDate;
+      }
+      if (body.endDate !== undefined) {
+        nextEndDate = parseDateInput(body.endDate, 'end date');
+        updateData.endDate = nextEndDate;
+      }
+      validateAcademicYearDateRange(nextStartDate, nextEndDate);
       if (body.promotionDate !== undefined) {
-        updateData.promotionDate = parseOptionalDateInput(body.promotionDate, 'promotion date');
-        updateData.promotionProcessedAt = null;
+        const nextPromotionDate = parseOptionalDateInput(body.promotionDate, 'promotion date');
+        updateData.promotionDate = nextPromotionDate;
+        if (!sameDateOnlyValue(existingAcademicYear.promotionDate, nextPromotionDate)) {
+          updateData.promotionProcessedAt = null;
+        }
       }
     } catch (error) {
       return NextResponse.json(
@@ -226,14 +318,30 @@ export async function PUT(request: NextRequest) {
     if (body.semester !== undefined) updateData.semester = body.semester;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
-    const academicYear = await prisma.academicYear.update({
-      where: { id: parseInt(id) },
-      data: updateData,
+    const academicYear = await prisma.$transaction(async (tx) => {
+      if (body.isActive) {
+        await tx.academicYear.updateMany({
+          where: { isActive: true, id: { not: academicYearId } },
+          data: { isActive: false },
+        });
+      }
+
+      return tx.academicYear.update({
+        where: { id: academicYearId },
+        data: updateData,
+      });
     });
 
     return NextResponse.json({ success: true, data: academicYear });
   } catch (error) {
     console.error('Error updating academic year:', error);
+    if (getPrismaErrorCode(error) === 'P2002') {
+      return NextResponse.json(
+        { success: false, error: 'Academic year already exists' },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: 'Failed to update academic year' },
       { status: 500 }
