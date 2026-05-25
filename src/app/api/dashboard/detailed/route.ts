@@ -3,12 +3,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
+import { generateQueryKey, queryOptimizer } from '@/lib/query-optimizer';
+
+const CACHE_TTL = 2 * 60 * 1000;
+
+function cacheHeaders(cacheStatus: 'HIT' | 'MISS') {
+  return {
+    'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+    'X-Cache': cacheStatus,
+  };
+}
 
 // GET /api/dashboard/detailed - Get detailed student report
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const sourceFilter = searchParams.get('source') || '';
+    const cacheKey = generateQueryKey('dashboard-detailed', { source: sourceFilter || 'all' });
+    const cachedData = queryOptimizer.get(cacheKey);
+
+    if (cachedData) {
+      return NextResponse.json(
+        {
+          success: true,
+          data: cachedData,
+          cached: true,
+        },
+        { headers: cacheHeaders('HIT') }
+      );
+    }
 
     // Build where clause - include all students, filter by scholarship source if specified
     const whereClause: Prisma.StudentWhereInput = {};
@@ -28,7 +51,13 @@ export async function GET(request: NextRequest) {
     const students = await prisma.student.findMany({
       where: whereClause,
       orderBy: [{ gradeLevel: 'asc' }, { lastName: 'asc' }],
-      include: {
+      select: {
+        id: true,
+        lastName: true,
+        firstName: true,
+        middleInitial: true,
+        gradeLevel: true,
+        yearLevel: true,
         scholarships: sourceFilter
           ? {
               where: {
@@ -36,7 +65,7 @@ export async function GET(request: NextRequest) {
                   source: sourceFilter,
                 },
               },
-              include: {
+              select: {
                 scholarship: {
                   select: {
                     scholarshipName: true,
@@ -47,7 +76,7 @@ export async function GET(request: NextRequest) {
               },
             }
           : {
-              include: {
+              select: {
                 scholarship: {
                   select: {
                     scholarshipName: true,
@@ -60,14 +89,30 @@ export async function GET(request: NextRequest) {
         fees: {
           // Fetch all fee records to enable annual aggregation in reports
           orderBy: [{ academicYear: 'desc' }, { term: 'asc' }],
+          select: {
+            tuitionFee: true,
+            otherFee: true,
+            miscellaneousFee: true,
+            laboratoryFee: true,
+            amountSubsidy: true,
+            percentSubsidy: true,
+            term: true,
+            academicYear: true,
+          },
         },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: students,
-    });
+    queryOptimizer.set(cacheKey, students, CACHE_TTL);
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: students,
+        cached: false,
+      },
+      { headers: cacheHeaders('MISS') }
+    );
   } catch (error) {
     console.error('Error fetching detailed report:', error);
     return NextResponse.json(

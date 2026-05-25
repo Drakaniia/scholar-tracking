@@ -625,51 +625,37 @@ export function usePrefetchData() {
   const queryClient = useQueryClient();
 
   const prefetchAll = useCallback(async () => {
-    // Prefetch dashboard stats
-    await queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.stats(),
-      queryFn: async () => {
-        const response = await fetch('/api/dashboard', { credentials: 'include' });
-        if (!response.ok) throw new Error('Failed to prefetch dashboard stats');
-        return response.json();
-      },
-      staleTime: 5 * 60 * 1000,
-    });
-
-    // Prefetch dashboard detailed data
-    await queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard.detailed(),
-      queryFn: async () => {
-        const response = await fetch('/api/dashboard/detailed', { credentials: 'include' });
-        if (!response.ok) throw new Error('Failed to prefetch dashboard details');
-        return response.json();
-      },
-      staleTime: 5 * 60 * 1000,
-    });
-
-    // Prefetch students data (first page)
-    await queryClient.prefetchQuery({
-      queryKey: queryKeys.students.list({ page: 1, limit: 11 }),
-      queryFn: async () => {
-        const params = new URLSearchParams({ limit: '11', page: '1', archived: 'false' });
-        const response = await fetch(`/api/students?${params}`, { credentials: 'include' });
-        if (!response.ok) throw new Error('Failed to prefetch students');
-        return response.json();
-      },
-      staleTime: 2 * 60 * 1000,
-    });
-
-    // Prefetch scholarships data (first page)
-    await queryClient.prefetchQuery({
-      queryKey: queryKeys.scholarships.list({ page: 1, limit: 10 }),
-      queryFn: async () => {
-        const params = new URLSearchParams({ limit: '10', page: '1' });
-        const response = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
-        if (!response.ok) throw new Error('Failed to prefetch scholarships');
-        return response.json();
-      },
-      staleTime: 2 * 60 * 1000,
-    });
+    await Promise.allSettled([
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.dashboard.stats(),
+        queryFn: async () => {
+          const response = await fetch('/api/dashboard', { credentials: 'include' });
+          if (!response.ok) throw new Error('Failed to prefetch dashboard stats');
+          return response.json();
+        },
+        staleTime: 5 * 60 * 1000,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.students.list({ page: 1, limit: 11 }),
+        queryFn: async () => {
+          const params = new URLSearchParams({ limit: '11', page: '1', archived: 'false' });
+          const response = await fetch(`/api/students?${params}`, { credentials: 'include' });
+          if (!response.ok) throw new Error('Failed to prefetch students');
+          return response.json();
+        },
+        staleTime: 2 * 60 * 1000,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.scholarships.list({ page: 1, limit: 10 }),
+        queryFn: async () => {
+          const params = new URLSearchParams({ limit: '10', page: '1' });
+          const response = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
+          if (!response.ok) throw new Error('Failed to prefetch scholarships');
+          return response.json();
+        },
+        staleTime: 2 * 60 * 1000,
+      }),
+    ]);
   }, [queryClient]);
 
   return { prefetchAll };

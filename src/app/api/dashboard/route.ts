@@ -39,19 +39,19 @@ export async function GET(request: NextRequest) {
     const results = await batchQueries({
       totalStudents: () => prisma.student.count(),
       studentsWithScholarships: () =>
-        prisma.studentScholarship
-          .groupBy({
-            by: ['studentId'],
-            where: sourceFilter
-              ? {
-                  scholarship: {
-                    source: sourceFilter,
-                  },
-                }
-              : undefined,
-            _count: { studentId: true },
-          })
-          .then((result) => result.length),
+        prisma.student.count({
+          where: {
+            scholarships: {
+              some: sourceFilter
+                ? {
+                    scholarship: {
+                      source: sourceFilter,
+                    },
+                  }
+                : {},
+            },
+          },
+        }),
       totalScholarships: () =>
         prisma.scholarship.count({
           where: sourceFilter
@@ -82,12 +82,26 @@ export async function GET(request: NextRequest) {
         }),
       disbursements: () =>
         prisma.disbursement.aggregate({
+          where: sourceFilter
+            ? {
+                scholarship: {
+                  source: sourceFilter,
+                },
+              }
+            : undefined,
           _sum: { amount: true },
         }),
       monthlyTrends: async () => {
         // Get recent student scholarships and disbursements
         const [scholarships, disbs] = await Promise.all([
           prisma.studentScholarship.findMany({
+            where: sourceFilter
+              ? {
+                  scholarship: {
+                    source: sourceFilter,
+                  },
+                }
+              : undefined,
             take: 100,
             orderBy: { awardDate: 'desc' },
             select: {
@@ -96,6 +110,13 @@ export async function GET(request: NextRequest) {
             },
           }),
           prisma.disbursement.findMany({
+            where: sourceFilter
+              ? {
+                  scholarship: {
+                    source: sourceFilter,
+                  },
+                }
+              : undefined,
             take: 100,
             orderBy: { disbursementDate: 'desc' },
             select: {

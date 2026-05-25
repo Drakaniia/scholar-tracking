@@ -4,8 +4,6 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 
 import { usePathname, useRouter } from 'next/navigation';
 
-import { usePrefetchData } from '@/hooks/use-queries';
-
 interface User {
   id: number;
   username: string;
@@ -72,7 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  const { prefetchAll } = usePrefetchData();
 
   const checkAuth = useCallback(async (): Promise<boolean> => {
     // First check sessionStorage - if we have cached user, assume valid
@@ -96,11 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData.user);
         cacheUser(userData.user);
 
-        // Prefetch key data after successful authentication
-        prefetchAll().catch((err) => {
-          console.warn('Failed to prefetch data:', err);
-        });
-
         return true;
       } else {
         setUser(null);
@@ -113,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cacheUser(null);
       return false;
     }
-  }, [prefetchAll]);
+  }, []);
 
   const logout = async () => {
     try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -49,7 +49,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboardDetailed, useDashboardStats } from '@/hooks/use-queries';
-import { prefetchEndpoints } from '@/lib/cache';
 import { formatCurrency } from '@/lib/utils';
 import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
@@ -690,30 +689,21 @@ function DashboardContent() {
   const { data: statsData, isLoading: statsLoading } = useDashboardStats(scholarshipSourceFilter, {
     staleTime: 5 * 60 * 1000,
   });
-  const { data: detailedData, isLoading: detailedLoading } = useDashboardDetailed(
-    scholarshipSourceFilter,
-    {
-      staleTime: 5 * 60 * 1000,
-    }
-  );
+  const statsLoaded = !!statsData?.data;
+  const {
+    data: detailedData,
+    isLoading: detailedLoading,
+    isFetching: detailedFetching,
+    isError: detailedError,
+  } = useDashboardDetailed(scholarshipSourceFilter, {
+    enabled: statsLoaded,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const isLoading = statsLoading || detailedLoading;
+  const isLoading = statsLoading;
   const data = statsData?.data;
   const detailedStudents = detailedData?.data || [];
-
-  useEffect(() => {
-    const prefetchAllPages = async () => {
-      await prefetchEndpoints([
-        '/api/students?limit=100',
-        '/api/scholarships',
-        '/api/dashboard/detailed',
-        '/api/users',
-      ]);
-    };
-
-    const timer = setTimeout(prefetchAllPages, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const showDetailedSkeleton = !detailedData && !detailedError && (detailedLoading || detailedFetching);
 
   if (isLoading) {
     return <LoadingState />;
@@ -768,9 +758,13 @@ function DashboardContent() {
         <SecondaryChartsSection data={data} scholarshipSourceFilter={scholarshipSourceFilter} />
       </Suspense>
 
-      <Suspense fallback={<TabsSkeleton />}>
-        <DetailedView detailedStudents={detailedStudents} router={router} />
-      </Suspense>
+      {showDetailedSkeleton ? (
+        <TabsSkeleton />
+      ) : (
+        <Suspense fallback={<TabsSkeleton />}>
+          <DetailedView detailedStudents={detailedStudents} router={router} />
+        </Suspense>
+      )}
     </div>
   );
 }
