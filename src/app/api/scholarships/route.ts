@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       const archivedParam = searchParams.get('archived');
       const includeArchived = archivedParam === 'true';
 
-      const cacheKey = generateQueryKey('scholarships-counts', {});
+      const cacheKey = generateQueryKey('scholarships-counts', { archived: includeArchived });
       const cachedData = queryOptimizer.get<{ total: number; internal: number; external: number }>(
         cacheKey
       );
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
 
     // Use server-side cache for scholarship queries
     const cacheKey = generateQueryKey('scholarships-list', {
+      archived: includeArchived,
       page,
       limit,
       search,
@@ -258,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     // Invalidate cache
     queryOptimizer.invalidatePattern('scholarships-list');
-    queryOptimizer.invalidate('scholarships-counts');
+    queryOptimizer.invalidatePattern('scholarships-counts');
 
     return NextResponse.json({
       success: true,
