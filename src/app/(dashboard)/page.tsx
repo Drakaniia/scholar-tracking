@@ -2,13 +2,11 @@
 
 import { Suspense, useState } from 'react';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
   Award,
   CreditCard,
-  Download,
   FileSpreadsheet,
   Filter,
   GraduationCap,
@@ -29,6 +27,7 @@ import {
   StudentsChart,
   TabsSkeleton,
 } from '@/components/dashboard';
+import { ExportButton } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -242,15 +241,14 @@ function DashboardHero({
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              asChild
+            <ExportButton
+              endpoint="/api/export/summary"
+              filename="scholarship-summary-by-grade-level"
+              formats={['xlsx']}
+              label="Export Summary"
+              variant="default"
               className="h-10 rounded-lg bg-gradient-to-r from-emerald-400 via-teal-400 to-sky-400 text-white shadow-[0_12px_28px_rgba(14,165,233,0.22)] hover:from-emerald-500 hover:to-sky-500"
-            >
-              <Link href="/reports">
-                <Download className="mr-2 h-4 w-4" />
-                Export Report
-              </Link>
-            </Button>
+            />
           </div>
         </div>
 
@@ -702,7 +700,8 @@ function DashboardContent() {
   const isLoading = statsLoading;
   const data = statsData?.data;
   const detailedStudents = detailedData?.data || [];
-  const showDetailedSkeleton = !detailedData && !detailedError && (detailedLoading || detailedFetching);
+  const showDetailedSkeleton =
+    !detailedData && !detailedError && (detailedLoading || detailedFetching);
 
   if (isLoading) {
     return <LoadingState />;

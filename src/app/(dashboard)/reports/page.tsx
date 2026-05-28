@@ -351,7 +351,7 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader title="Reports" description="Detailed student scholarship reports and analytics">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -362,7 +362,18 @@ export default function ReportsPage() {
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <ExportButton endpoint={exportEndpoint} filename="detailed-student-scholarship-report" />
+          <ExportButton
+            endpoint={exportEndpoint}
+            filename="detailed-student-scholarship-report"
+            extraItems={[
+              {
+                endpoint: '/api/export/summary',
+                filename: 'scholarship-summary-by-grade-level',
+                format: 'xlsx',
+                label: 'Summary Excel by Grade Level',
+              },
+            ]}
+          />
         </div>
       </PageHeader>
 
