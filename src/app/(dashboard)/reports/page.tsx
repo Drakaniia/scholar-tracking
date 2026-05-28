@@ -63,11 +63,35 @@ const GRADE_LEVEL_LABELS: Record<string, string> = {
 };
 
 const GRADE_LEVELS = ['GRADE_SCHOOL', 'JUNIOR_HIGH', 'SENIOR_HIGH', 'COLLEGE'];
+const SCHOLARSHIP_ACRONYMS = new Set([
+  'CHED',
+  'CMSP',
+  'ESC',
+  'LGU',
+  'OLSSEF',
+  'PAEB',
+  'TDP',
+  'TES',
+  'UTFI',
+]);
+
+function formatScholarshipType(type: string) {
+  if (type === 'No Scholarship') return type;
+  return type
+    .split('_')
+    .map((part) =>
+      SCHOLARSHIP_ACRONYMS.has(part) ? part : `${part[0]}${part.slice(1).toLowerCase()}`
+    )
+    .join(' ');
+}
 
 export default function ReportsPage() {
   const [detailedStudents, setDetailedStudents] = useState<DetailedStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [scholarshipNamesByGradeAndType, setScholarshipNamesByGradeAndType] = useState<
+    Record<string, Record<string, string[]>>
+  >({});
+  const [scholarshipSourcesByGradeAndType, setScholarshipSourcesByGradeAndType] = useState<
     Record<string, Record<string, string[]>>
   >({});
   const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
@@ -92,16 +116,23 @@ export default function ReportsPage() {
 
       // Extract unique scholarship names per grade level and type
       const namesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
+      const sourcesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
 
       detailedData.data.forEach((student: DetailedStudent) => {
         const gradeLevel = student.gradeLevel;
         if (!namesByGradeAndType[gradeLevel]) {
           namesByGradeAndType[gradeLevel] = {};
         }
+        if (!sourcesByGradeAndType[gradeLevel]) {
+          sourcesByGradeAndType[gradeLevel] = {};
+        }
 
         if (!student.scholarships || student.scholarships.length === 0) {
           if (!namesByGradeAndType[gradeLevel]['No Scholarship']) {
             namesByGradeAndType[gradeLevel]['No Scholarship'] = new Set();
+          }
+          if (!sourcesByGradeAndType[gradeLevel]['No Scholarship']) {
+            sourcesByGradeAndType[gradeLevel]['No Scholarship'] = new Set();
           }
           namesByGradeAndType[gradeLevel]['No Scholarship'].add('Unassigned');
         } else {
@@ -111,7 +142,13 @@ export default function ReportsPage() {
               if (!namesByGradeAndType[gradeLevel][type]) {
                 namesByGradeAndType[gradeLevel][type] = new Set();
               }
+              if (!sourcesByGradeAndType[gradeLevel][type]) {
+                sourcesByGradeAndType[gradeLevel][type] = new Set();
+              }
               namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
+              if (ss.scholarship.source) {
+                sourcesByGradeAndType[gradeLevel][type].add(ss.scholarship.source);
+              }
             }
           });
         }
@@ -128,6 +165,17 @@ export default function ReportsPage() {
         });
       });
       setScholarshipNamesByGradeAndType(sortedNamesByGradeAndType);
+
+      const sortedSourcesByGradeAndType: Record<string, Record<string, string[]>> = {};
+      Object.keys(sourcesByGradeAndType).forEach((grade) => {
+        sortedSourcesByGradeAndType[grade] = {};
+        Object.keys(sourcesByGradeAndType[grade]).forEach((type) => {
+          sortedSourcesByGradeAndType[grade][type] = Array.from(
+            sourcesByGradeAndType[grade][type]
+          ).sort();
+        });
+      });
+      setScholarshipSourcesByGradeAndType(sortedSourcesByGradeAndType);
     }
   }, [detailedData]);
 
@@ -149,46 +197,61 @@ export default function ReportsPage() {
       (s) =>
         s.gradeLevel === gradeLevel &&
         (scholarshipType === 'No Scholarship'
-          ? !s.scholarships || s.scholarships.length === 0
-          : s.scholarships?.some((ss) => ss.scholarship?.type === scholarshipType))
+          ? fundingTypeFilter === 'all' && (!s.scholarships || s.scholarships.length === 0)
+          : s.scholarships?.some(
+              (ss) =>
+                ss.scholarship?.type === scholarshipType &&
+                scholarshipMatchesFundingFilter(ss.scholarship?.source)
+            ))
     );
   };
 
   // Get scholarship names for a specific grade level and type
   const getScholarshipNames = (gradeLevel: string, scholarshipType: string): string[] => {
-    return scholarshipNamesByGradeAndType[gradeLevel]?.[scholarshipType] || [];
+    if (fundingTypeFilter === 'all') {
+      return scholarshipNamesByGradeAndType[gradeLevel]?.[scholarshipType] || [];
+    }
+
+    return Array.from(
+      new Set(
+        detailedStudents
+          .filter((student) => student.gradeLevel === gradeLevel)
+          .flatMap((student) => student.scholarships || [])
+          .filter(
+            (ss) =>
+              ss.scholarship?.type === scholarshipType &&
+              scholarshipMatchesFundingFilter(ss.scholarship?.source)
+          )
+          .map((ss) => ss.scholarship?.scholarshipName || '')
+          .filter(Boolean)
+      )
+    ).sort();
   };
 
-  const isInternalScholarship = (scholarshipType: string): boolean => {
-    return scholarshipType === 'SCHOOL_GRANT';
+  const scholarshipMatchesFundingFilter = (source?: string): boolean => {
+    if (fundingTypeFilter === 'all') return true;
+    if (fundingTypeFilter === 'internal') return source === 'INTERNAL';
+    if (fundingTypeFilter === 'external') return source === 'EXTERNAL';
+    return true;
   };
 
-  const isExternalScholarship = (scholarshipType: string): boolean => {
-    return ['PAED', 'CHED', 'LGU'].includes(scholarshipType);
-  };
-
-  const filterScholarshipTypes = (types: string[]) => {
+  const filterScholarshipTypes = (gradeLevel: string, types: string[]) => {
     if (fundingTypeFilter === 'all') return types;
-    if (fundingTypeFilter === 'internal') {
-      return types.filter((type) => isInternalScholarship(type));
-    }
-    if (fundingTypeFilter === 'external') {
-      return types.filter((type) => isExternalScholarship(type));
-    }
-    return types;
+
+    return types.filter((type) =>
+      scholarshipSourcesByGradeAndType[gradeLevel]?.[type]?.some((source) =>
+        scholarshipMatchesFundingFilter(source)
+      )
+    );
   };
 
   const hasMatchingScholarship = (student: DetailedStudent): boolean => {
     if (fundingTypeFilter === 'all') return true;
     if (!student.scholarships || student.scholarships.length === 0) return false;
 
-    if (fundingTypeFilter === 'internal') {
-      return student.scholarships?.some((ss) => isInternalScholarship(ss.scholarship?.type));
-    }
-    if (fundingTypeFilter === 'external') {
-      return student.scholarships?.some((ss) => isExternalScholarship(ss.scholarship?.type));
-    }
-    return true;
+    return student.scholarships?.some((ss) =>
+      scholarshipMatchesFundingFilter(ss.scholarship?.source)
+    );
   };
 
   const getFilteredGradeLevelCounts = (): Record<string, number> => {
@@ -204,6 +267,16 @@ export default function ReportsPage() {
   const getFilteredTotalCount = (): number => {
     return detailedStudents.filter((s) => hasMatchingScholarship(s)).length;
   };
+
+  const exportSourceFilter =
+    fundingTypeFilter === 'internal'
+      ? 'INTERNAL'
+      : fundingTypeFilter === 'external'
+        ? 'EXTERNAL'
+        : '';
+  const exportEndpoint = exportSourceFilter
+    ? `/api/export/students?source=${exportSourceFilter}`
+    : '/api/export/students';
 
   // Aggregate fees by academic year (sum all semesters)
   const aggregateFeesByAcademicYear = (fees: DetailedStudent['fees']) => {
@@ -289,10 +362,7 @@ export default function ReportsPage() {
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <ExportButton
-            endpoint="/api/export/students"
-            filename="detailed-student-scholarship-report"
-          />
+          <ExportButton endpoint={exportEndpoint} filename="detailed-student-scholarship-report" />
         </div>
       </PageHeader>
 
@@ -358,13 +428,13 @@ export default function ReportsPage() {
                   value="internal"
                   className="data-[state=active]:bg-[hsl(var(--pastel-blue))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
                 >
-                  Internally Funded
+                  Internal Funded
                 </TabsTrigger>
                 <TabsTrigger
                   value="external"
                   className="data-[state=active]:bg-[hsl(var(--pastel-green))] data-[state=active]:text-gray-800 data-[state=inactive]:text-gray-600 transition-all"
                 >
-                  Externally Funded
+                  External Funded
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -381,8 +451,12 @@ export default function ReportsPage() {
               // Get scholarship types for this grade level and apply funding filter
               const allScholarshipTypes = Object.keys(
                 scholarshipNamesByGradeAndType[gradeLevel] || {}
-              );
-              const scholarshipTypes = filterScholarshipTypes(allScholarshipTypes);
+              ).sort((a, b) => {
+                if (a === 'No Scholarship') return 1;
+                if (b === 'No Scholarship') return -1;
+                return formatScholarshipType(a).localeCompare(formatScholarshipType(b));
+              });
+              const scholarshipTypes = filterScholarshipTypes(gradeLevel, allScholarshipTypes);
 
               if (scholarshipTypes.length === 0) return null;
 
@@ -410,7 +484,9 @@ export default function ReportsPage() {
                             <div className="flex items-center justify-between">
                               <div className="space-y-1">
                                 <h3 className="text-lg font-semibold text-muted-foreground">
-                                  {scholarshipType} Scholarship
+                                  {scholarshipType === 'No Scholarship'
+                                    ? 'No Scholarship'
+                                    : `${formatScholarshipType(scholarshipType)} Scholarship`}
                                 </h3>
                                 {scholarshipNames.length > 0 && (
                                   <p className="text-sm text-muted-foreground">
@@ -458,7 +534,7 @@ export default function ReportsPage() {
                                   <TableHead className="font-bold text-right">
                                     No. of Students
                                   </TableHead>
-                                  <TableHead className="font-bold text-right">EFC</TableHead>
+                                  <TableHead className="font-bold text-right">FSE</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
