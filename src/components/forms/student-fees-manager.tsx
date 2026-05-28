@@ -18,8 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { queryKeys, useAcademicYears } from '@/hooks/use-queries';
+import { queryKeys, useAcademicYears, useActiveAcademicYear } from '@/hooks/use-queries';
+import {
+  getAcademicTermCode,
+  getCoveredTermsLabel,
+  normalizeTermCode,
+  scholarshipCoversTerm,
+} from '@/lib/terms';
 import { formatCurrency } from '@/lib/utils';
+import { SCHOLARSHIP_TERMS, SCHOLARSHIP_TERM_LABELS, ScholarshipTerm } from '@/types';
 
 interface StudentFees {
   id: number;
@@ -46,6 +53,7 @@ interface Scholarship {
   coversMiscellaneous: boolean;
   coversLaboratory: boolean;
   coversOther: boolean;
+  coveredTerms: string;
 }
 
 interface StudentScholarship {
@@ -88,14 +96,15 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
 
   // Fetch academic years for dropdown
   const { data: academicYearsData } = useAcademicYears();
+  const { data: activeAcademicYearData } = useActiveAcademicYear();
   const academicYears = academicYearsData?.data || [];
+  const activeTermCode = getAcademicTermCode(activeAcademicYearData?.data?.semester);
 
   // Semester options
   const SEMESTER_OPTIONS = [
     { value: '1st Semester', label: '1st Semester' },
     { value: '2nd Semester', label: '2nd Semester' },
-    { value: 'Summer', label: 'Summer' },
-    { value: 'Midyear', label: 'Midyear' },
+    { value: '3rd Semester', label: '3rd Semester' },
   ];
 
   // Calculate total fees
@@ -150,10 +159,15 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
 
   // Calculate pending semesters for an academic year
   const getPendingSemesters = (year: string, recordedSemesters: string[]) => {
-    // Expected semesters (typically 2 for most schools)
-    const expectedSemesters = ['1st Semester', '2nd Semester'];
-    const pending = expectedSemesters.filter((sem) => !recordedSemesters.includes(sem));
-    return pending;
+    const recordedTermCodes = new Set(
+      recordedSemesters
+        .map((semester) => normalizeTermCode(semester))
+        .filter((semester): semester is ScholarshipTerm => semester !== null)
+    );
+
+    return SCHOLARSHIP_TERMS.filter((term) => !recordedTermCodes.has(term)).map(
+      (term) => SCHOLARSHIP_TERM_LABELS[term]
+    );
   };
 
   // Calculate percent subsidy (as percentage, e.g., 16.67 for 16.67%)
@@ -184,7 +198,6 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
           (ss: StudentScholarship) => ss.scholarshipStatus === 'Active'
         );
         setStudentScholarships(activeScholarships);
-        calculateTotalScholarshipCoverage(activeScholarships);
       }
     } catch (error) {
       console.error('Error fetching student scholarships:', error);
@@ -196,26 +209,36 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
     fetchStudentScholarships();
   }, [fetchFees, fetchStudentScholarships]);
 
-  const calculateTotalScholarshipCoverage = (scholarships: StudentScholarship[]) => {
-    const coverage = {
-      tuitionFee: 0,
-      miscellaneousFee: 0,
-      laboratoryFee: 0,
-      otherFee: 0,
-      amountSubsidy: 0,
-    };
+  const calculateTotalScholarshipCoverage = useCallback(
+    (scholarships: StudentScholarship[], termCode: ScholarshipTerm) => {
+      const coverage = {
+        tuitionFee: 0,
+        miscellaneousFee: 0,
+        laboratoryFee: 0,
+        otherFee: 0,
+        amountSubsidy: 0,
+      };
 
-    scholarships.forEach((ss) => {
-      const sch = ss.scholarship;
-      if (sch.coversTuition) coverage.tuitionFee += Number(sch.tuitionFee) || 0;
-      if (sch.coversMiscellaneous) coverage.miscellaneousFee += Number(sch.miscellaneousFee) || 0;
-      if (sch.coversLaboratory) coverage.laboratoryFee += Number(sch.laboratoryFee) || 0;
-      if (sch.coversOther) coverage.otherFee += Number(sch.otherFee) || 0;
-      coverage.amountSubsidy += Number(sch.amountSubsidy) || 0;
-    });
+      scholarships.forEach((ss) => {
+        const sch = ss.scholarship;
+        if (!scholarshipCoversTerm(sch.coveredTerms, termCode)) {
+          return;
+        }
+        if (sch.coversTuition) coverage.tuitionFee += Number(sch.tuitionFee) || 0;
+        if (sch.coversMiscellaneous) coverage.miscellaneousFee += Number(sch.miscellaneousFee) || 0;
+        if (sch.coversLaboratory) coverage.laboratoryFee += Number(sch.laboratoryFee) || 0;
+        if (sch.coversOther) coverage.otherFee += Number(sch.otherFee) || 0;
+        coverage.amountSubsidy += Number(sch.amountSubsidy) || 0;
+      });
 
-    setTotalScholarshipCoverage(coverage);
-  };
+      setTotalScholarshipCoverage(coverage);
+    },
+    []
+  );
+
+  useEffect(() => {
+    calculateTotalScholarshipCoverage(studentScholarships, activeTermCode);
+  }, [activeTermCode, calculateTotalScholarshipCoverage, studentScholarships]);
 
   const handleEdit = (fee: StudentFees) => {
     setEditingId(fee.id);
@@ -378,7 +401,9 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-green-600" />
-              <CardTitle className="text-base text-green-800">Scholarship Fee Coverage</CardTitle>
+              <CardTitle className="text-base text-green-800">
+                Scholarship Fee Coverage - {SCHOLARSHIP_TERM_LABELS[activeTermCode]}
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -391,6 +416,9 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                     className="bg-white text-green-700 border-green-300"
                   >
                     {ss.scholarship.scholarshipName}
+                    <span className="ml-1 text-green-600">
+                      {getCoveredTermsLabel(ss.scholarship.coveredTerms)}
+                    </span>
                   </Badge>
                 ))}
               </div>
