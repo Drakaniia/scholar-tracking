@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { validateStudentScholarshipEligibility } from '@/lib/scholarship-validation';
+import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 
 // GET /api/students/[id]/scholarships - Get all scholarships for a student
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -128,17 +129,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     // Auto-create student fees based on scholarship fee limits if scholarship has fee coverage
-    const shouldCreateFees =
+    const hasFeeCoverage =
       scholarship.coversTuition ||
       scholarship.coversMiscellaneous ||
       scholarship.coversLaboratory ||
       scholarship.coversOther;
 
+    const currentAcademicYear = await prisma.academicYear.findFirst({
+      where: { isActive: true },
+    });
+    const termCode = getAcademicTermCode(currentAcademicYear?.semester);
+    const shouldCreateFees =
+      hasFeeCoverage && scholarshipCoversTerm(scholarship.coveredTerms, termCode);
+
     if (shouldCreateFees) {
       // Get current academic year and term
       const currentYear = new Date().getFullYear();
-      const academicYear = `${currentYear}-${currentYear + 1}`;
-      const term = '1st Semester'; // Default term, can be customized
+      const academicYear = currentAcademicYear?.year || `${currentYear}-${currentYear + 1}`;
+      const academicYearId = currentAcademicYear?.id || null;
+      const term = getAcademicTermLabel(termCode);
 
       // Calculate total fees from scholarship limits
       const totalFees =
@@ -174,6 +183,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           otherFee: scholarship.otherFee || 0,
           amountSubsidy,
           percentSubsidy,
+          academicYearId,
         },
         create: {
           studentId,
@@ -185,6 +195,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           percentSubsidy,
           term,
           academicYear,
+          academicYearId,
         },
       });
     }

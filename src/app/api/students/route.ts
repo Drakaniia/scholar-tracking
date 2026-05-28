@@ -9,6 +9,7 @@ import {
   queryOptimizer,
 } from '@/lib/query-optimizer';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
+import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 import { CreateStudentInput } from '@/types';
 
 // GET /api/students - Get all students
@@ -326,12 +327,8 @@ async function createStudentFeesManual(
     where: { isActive: true },
   });
 
-  const term =
-    currentAcademicYear?.semester === '1ST'
-      ? '1st Semester'
-      : currentAcademicYear?.semester === '2ND'
-        ? '2nd Semester'
-        : 'Summer';
+  const termCode = getAcademicTermCode(currentAcademicYear?.semester);
+  const term = getAcademicTermLabel(termCode);
 
   const academicYear = currentAcademicYear?.year || new Date().getFullYear().toString();
   const academicYearId = currentAcademicYear?.id || null;
@@ -351,6 +348,9 @@ async function createStudentFeesManual(
 
   let totalAmountSubsidy = 0;
   for (const ss of studentScholarships) {
+    if (!scholarshipCoversTerm(ss.scholarship.coveredTerms, termCode)) {
+      continue;
+    }
     totalAmountSubsidy += Number(ss.scholarship.amountSubsidy) || 0;
   }
 

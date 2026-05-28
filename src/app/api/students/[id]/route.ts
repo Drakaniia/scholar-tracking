@@ -7,6 +7,7 @@ import { hasStudentGraduated } from '@/lib/graduation-service';
 import prisma from '@/lib/prisma';
 import { queryOptimizer } from '@/lib/query-optimizer';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
+import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 import { UpdateStudentInput } from '@/types';
 
 type ArchiveAction = 'archive' | 'unarchive';
@@ -34,10 +35,7 @@ function validateArchiveAction(
 ): { response: NextResponse } | { action: ArchiveAction } {
   if (!action) {
     return {
-      response: NextResponse.json(
-        { success: false, error: 'Action is required' },
-        { status: 400 }
-      ),
+      response: NextResponse.json({ success: false, error: 'Action is required' }, { status: 400 }),
     };
   }
 
@@ -438,12 +436,8 @@ async function updateStudentFees(
     where: { isActive: true },
   });
 
-  const term =
-    currentAcademicYear?.semester === '1ST'
-      ? '1st Semester'
-      : currentAcademicYear?.semester === '2ND'
-        ? '2nd Semester'
-        : 'Summer';
+  const termCode = getAcademicTermCode(currentAcademicYear?.semester);
+  const term = getAcademicTermLabel(termCode);
 
   const academicYear = currentAcademicYear?.year || new Date().getFullYear().toString();
   const academicYearId = currentAcademicYear?.id || null;
@@ -470,6 +464,9 @@ async function updateStudentFees(
 
   let totalAmountSubsidy = 0;
   for (const ss of studentScholarships) {
+    if (!scholarshipCoversTerm(ss.scholarship.coveredTerms, termCode)) {
+      continue;
+    }
     totalAmountSubsidy += Number(ss.scholarship.amountSubsidy) || 0;
   }
 
