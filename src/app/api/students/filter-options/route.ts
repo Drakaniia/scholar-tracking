@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import prisma from '@/lib/prisma';
+import { YEAR_LEVELS } from '@/types';
+
+const SCHOOL_YEAR_LEVELS = [
+  ...YEAR_LEVELS.GRADE_SCHOOL,
+  ...YEAR_LEVELS.JUNIOR_HIGH,
+  ...YEAR_LEVELS.SENIOR_HIGH,
+];
+
+const PROGRAM_ORDER = new Map(SCHOOL_YEAR_LEVELS.map((level, index) => [level, index]));
+
+function sortProgramOptions(programs: string[]) {
+  return programs.sort((a, b) => {
+    const aOrder = PROGRAM_ORDER.get(a);
+    const bOrder = PROGRAM_ORDER.get(b);
+
+    if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
+    if (aOrder !== undefined) return -1;
+    if (bOrder !== undefined) return 1;
+
+    return a.localeCompare(b);
+  });
+}
 
 // GET /api/students/filter-options - Get filter options with counts based on current filters
 // Optimized to use database-level aggregation instead of fetching all records
@@ -11,6 +33,17 @@ export async function GET(request: NextRequest) {
     const program = searchParams.get('program') || '';
     const status = searchParams.get('status') || '';
     const scholarshipId = searchParams.get('scholarshipId') || '';
+    const scholarshipSource = searchParams.get('scholarshipSource') || '';
+    const canonicalProgramOptions =
+      gradeLevel === 'GRADE_SCHOOL'
+        ? YEAR_LEVELS.GRADE_SCHOOL
+        : gradeLevel === 'JUNIOR_HIGH'
+          ? YEAR_LEVELS.JUNIOR_HIGH
+          : gradeLevel === 'SENIOR_HIGH'
+            ? YEAR_LEVELS.SENIOR_HIGH
+            : !gradeLevel || gradeLevel === 'all'
+              ? SCHOOL_YEAR_LEVELS
+              : [];
 
     // Build where clause based on provided filters
     const where: Record<string, unknown> = {
@@ -35,6 +68,14 @@ export async function GET(request: NextRequest) {
     } else if (scholarshipId === 'none') {
       where.scholarships = {
         none: {},
+      };
+    } else if (scholarshipSource && scholarshipSource !== 'all') {
+      where.scholarships = {
+        some: {
+          scholarship: {
+            source: scholarshipSource,
+          },
+        },
       };
     }
 
@@ -79,12 +120,18 @@ export async function GET(request: NextRequest) {
         prisma.student.count({ where }),
         // Get all scholarships for the dropdown
         prisma.scholarship.findMany({
-          where: { isArchived: false },
+          where: {
+            isArchived: false,
+            ...(scholarshipSource && scholarshipSource !== 'all'
+              ? { source: scholarshipSource }
+              : {}),
+          },
           select: {
             id: true,
             scholarshipName: true,
+            source: true,
           },
-          orderBy: { scholarshipName: 'asc' },
+          orderBy: [{ source: 'asc' }, { scholarshipName: 'asc' }],
         }),
       ]);
 
@@ -141,7 +188,9 @@ export async function GET(request: NextRequest) {
       {
         success: true,
         data: {
-          programs: Object.keys(programCounts).sort(),
+          programs: sortProgramOptions(
+            Array.from(new Set([...canonicalProgramOptions, ...Object.keys(programCounts)]))
+          ),
           programCounts,
           gradeLevelCounts,
           statusCounts,
