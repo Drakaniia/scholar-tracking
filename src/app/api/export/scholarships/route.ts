@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 import prisma from '@/lib/prisma';
+import { getCoveredTermsLabel } from '@/lib/terms';
 
 function formatGeneratedAt(date = new Date()) {
   return new Intl.DateTimeFormat('en-PH', {
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
       'Sponsor',
       'Type',
       'Source',
+      'Covered Terms',
       'Amount',
       'Tuition Fee',
       'Misc Fee',
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest) {
       s.sponsor,
       s.type,
       s.source,
+      getCoveredTermsLabel(s.coveredTerms),
       Number(s.amount),
       Number(s.tuitionFee),
       Number(s.miscellaneousFee),
@@ -89,6 +92,7 @@ export async function GET(request: NextRequest) {
         { wch: 30 }, // Sponsor
         { wch: 10 }, // Type
         { wch: 12 }, // Source
+        { wch: 30 }, // Covered Terms
         { wch: 12 }, // Amount
         { wch: 12 }, // Tuition Fee
         { wch: 12 }, // Misc Fee
@@ -147,13 +151,25 @@ export async function GET(request: NextRequest) {
     autoTable(doc, {
       startY: 45,
       head: [
-        ['Name', 'Sponsor', 'Type', 'Source', 'Amount', 'Subsidy', '% Sub', 'Status', 'Students'],
+        [
+          'Name',
+          'Sponsor',
+          'Type',
+          'Source',
+          'Terms',
+          'Amount',
+          'Subsidy',
+          '% Sub',
+          'Status',
+          'Students',
+        ],
       ],
       body: scholarships.map((s) => [
         s.scholarshipName,
         s.sponsor,
         s.type,
         s.source === 'INTERNAL' ? 'Internal' : 'External',
+        getCoveredTermsLabel(s.coveredTerms),
         formatPdfCurrency(Number(s.amount)),
         formatPdfCurrency(Number(s.amountSubsidy)),
         `${Number(s.percentSubsidy).toFixed(2)}%`,
