@@ -73,6 +73,8 @@ import {
   USER_STATUS_LABELS,
 } from '@/types';
 
+const ARCHIVED_ITEMS_PAGE_SIZE = 10;
+
 interface User {
   id: number;
   username: string;
@@ -1111,7 +1113,7 @@ export default function SettingsPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10',
+        limit: ARCHIVED_ITEMS_PAGE_SIZE.toString(),
         archived: 'true',
       });
 
@@ -1140,7 +1142,7 @@ export default function SettingsPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10',
+        limit: ARCHIVED_ITEMS_PAGE_SIZE.toString(),
         archived: 'true',
       });
 
@@ -1177,9 +1179,17 @@ export default function SettingsPage() {
       const result = await response.json();
 
       if (result.success) {
+        const nextPage =
+          archivedStudents.length === 1 && studentPage > 1 ? studentPage - 1 : studentPage;
+        const nextTotal = Math.max(studentTotal - 1, 0);
+
+        setArchivedStudents((students) => students.filter((student) => student.id !== studentId));
+        setStudentPage(nextPage);
+        setStudentTotal(nextTotal);
+        setStudentTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+
         toast.success('Student unarchived successfully');
-        // Refresh the archived students list
-        fetchArchivedStudents(studentPage);
+        void fetchArchivedStudents(nextPage);
       } else {
         toast.error(result.error || 'Failed to unarchive student');
       }
@@ -1205,9 +1215,21 @@ export default function SettingsPage() {
       const result = await response.json();
 
       if (result.success) {
+        const nextPage =
+          archivedScholarships.length === 1 && scholarshipPage > 1
+            ? scholarshipPage - 1
+            : scholarshipPage;
+        const nextTotal = Math.max(scholarshipTotal - 1, 0);
+
+        setArchivedScholarships((scholarships) =>
+          scholarships.filter((scholarship) => scholarship.id !== scholarshipId)
+        );
+        setScholarshipPage(nextPage);
+        setScholarshipTotal(nextTotal);
+        setScholarshipTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+
         toast.success('Scholarship unarchived successfully');
-        // Refresh the archived scholarships list
-        fetchArchivedScholarships(scholarshipPage);
+        void fetchArchivedScholarships(nextPage);
       } else {
         toast.error(result.error || 'Failed to unarchive scholarship');
       }
