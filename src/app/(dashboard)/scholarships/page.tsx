@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { keepPreviousData } from '@tanstack/react-query';
 import {
   Archive,
   ChevronLeft,
@@ -45,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useDebounce } from '@/hooks/use-debounce';
 import {
   useCreateScholarship,
   useDeleteScholarship,
@@ -108,13 +110,57 @@ interface ScholarshipCounts {
   external: number;
 }
 
+function ScholarshipTableLoading({ isAdmin }: { isAdmin: boolean }) {
+  const columns = isAdmin ? 9 : 8;
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Scholarship Name</TableHead>
+            <TableHead>Sponsor</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Grant Type</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Students</TableHead>
+            <TableHead>Status</TableHead>
+            {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(6)].map((_, rowIndex) => (
+            <TableRow key={rowIndex}>
+              {[...Array(columns)].map((_, columnIndex) => (
+                <TableCell key={columnIndex}>
+                  <div
+                    className={`h-4 animate-pulse rounded bg-muted ${
+                      columnIndex === 0
+                        ? 'w-36'
+                        : columnIndex === 5
+                          ? 'ml-auto w-20'
+                          : columnIndex === columns - 1
+                            ? 'ml-auto w-16'
+                            : 'w-24'
+                    }`}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export default function ScholarshipsPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const { user, isLoading: authLoading } = useAuth();
+  const isAdmin = !authLoading && user?.role === 'ADMIN';
   const [scholarships, setScholarships] = useState<ScholarshipWithCount[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isVisible, setIsVisible] = useState(false);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -129,12 +175,19 @@ export default function ScholarshipsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // TanStack Query hooks for data fetching
-  const { data: scholarshipsData, isLoading: scholarshipsLoading } = useScholarships({
-    search,
-    source: sourceFilter === 'all' ? undefined : sourceFilter,
-    page,
-    limit: 10,
-  });
+  const {
+    data: scholarshipsData,
+    isFetching: scholarshipsFetching,
+    isLoading: scholarshipsLoading,
+  } = useScholarships(
+    {
+      search: debouncedSearch,
+      source: sourceFilter === 'all' ? undefined : sourceFilter,
+      page,
+      limit: 10,
+    },
+    { placeholderData: keepPreviousData }
+  );
 
   const { data: scholarshipDetail, isLoading: detailLoading } = useScholarship(
     selectedScholarship?.id || 0,
@@ -169,13 +222,6 @@ export default function ScholarshipsPage() {
   }, [scholarshipsData]);
 
   useEffect(() => {
-    setLoading(scholarshipsLoading);
-    if (!scholarshipsLoading) {
-      setIsVisible(true);
-    }
-  }, [scholarshipsLoading]);
-
-  useEffect(() => {
     if (scholarshipDetail?.data && selectedScholarship) {
       setSelectedScholarship(scholarshipDetail.data as ScholarshipDetail);
     }
@@ -188,7 +234,7 @@ export default function ScholarshipsPage() {
   useEffect(() => {
     // Reset to page 1 when filter changes
     setPage(1);
-  }, [sourceFilter, search]);
+  }, [sourceFilter, debouncedSearch]);
 
   const handleCreate = async (data: CreateScholarshipInput) => {
     setSubmitting(true);
@@ -266,16 +312,11 @@ export default function ScholarshipsPage() {
     // useScholarship hook will fetch automatically due to enabled: !!selectedScholarship?.id
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
+  const listLoading = scholarshipsLoading || scholarshipsFetching;
+  const showPagination = scholarships.length > 0;
 
   return (
-    <div className={`transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div>
       <PageHeader title="Scholarships" description="Manage scholarship programs and grants">
         <div className="flex gap-2">
           <ExportButton endpoint="/api/export/scholarships" filename="scholarships-report" />
@@ -369,8 +410,10 @@ export default function ScholarshipsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {scholarships.length === 0 ? (
+        <CardContent aria-busy={listLoading}>
+          {listLoading ? (
+            <ScholarshipTableLoading isAdmin={isAdmin} />
+          ) : scholarships.length === 0 ? (
             <div className="text-center py-12">
               <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No scholarships found</h3>
@@ -488,7 +531,7 @@ export default function ScholarshipsPage() {
           )}
 
           {/* Pagination Controls */}
-          {scholarships.length > 0 && (
+          {showPagination && (
             <div className="mt-4 flex items-center justify-between border-t pt-4">
               <div className="text-sm text-muted-foreground">
                 Page {page} of {totalPages} ({total} total)
@@ -498,7 +541,7 @@ export default function ScholarshipsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => p - 1)}
-                  disabled={page === 1}
+                  disabled={page === 1 || listLoading}
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Previous
@@ -507,7 +550,7 @@ export default function ScholarshipsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => p + 1)}
-                  disabled={page === totalPages}
+                  disabled={page === totalPages || listLoading}
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />
