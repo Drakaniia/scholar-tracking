@@ -55,6 +55,7 @@ import {
   useScholarships,
   useUpdateScholarship,
 } from '@/hooks/use-queries';
+import { getCoveredTermsLabel } from '@/lib/terms';
 import { formatCurrency } from '@/lib/utils';
 import type { CreateScholarshipInput, GrantType, Scholarship, StudentScholarship } from '@/types';
 import { GRADE_LEVEL_LABELS, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
@@ -111,7 +112,7 @@ interface ScholarshipCounts {
 }
 
 function ScholarshipTableLoading({ isAdmin }: { isAdmin: boolean }) {
-  const columns = isAdmin ? 9 : 8;
+  const columns = isAdmin ? 10 : 9;
 
   return (
     <div className="overflow-x-auto">
@@ -434,6 +435,7 @@ export default function ScholarshipsPage() {
                     <TableHead>Sponsor</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Grant Type</TableHead>
+                    <TableHead>Terms</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Students</TableHead>
@@ -475,6 +477,11 @@ export default function ScholarshipsPage() {
                               : scholarship.grantType === 'NONE'
                                 ? 'None'
                                 : scholarship.grantType.replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getCoveredTermsLabel(scholarship.coveredTerms)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -594,6 +601,7 @@ export default function ScholarshipsPage() {
                     coversMiscellaneous: editingScholarship.coversMiscellaneous,
                     coversLaboratory: editingScholarship.coversLaboratory,
                     coversOther: editingScholarship.coversOther,
+                    coveredTerms: editingScholarship.coveredTerms,
                     otherFeeName: editingScholarship.otherFeeName || undefined,
                     tuitionFee: editingScholarship.tuitionFee,
                     miscellaneousFee: editingScholarship.miscellaneousFee,
@@ -707,6 +715,12 @@ export default function ScholarshipsPage() {
                               : selectedScholarship.grantType === 'NONE'
                                 ? 'None'
                                 : selectedScholarship.grantType.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Covered Terms</p>
+                        <Badge variant="outline">
+                          {getCoveredTermsLabel(selectedScholarship.coveredTerms)}
                         </Badge>
                       </div>
                       <div>
