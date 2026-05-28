@@ -430,6 +430,7 @@ async function main() {
         amount: new Prisma.Decimal(10000),
         requirements: 'Resident of the city/municipality',
         status: 'Active',
+        coveredTerms: '1ST,2ND,3RD',
       },
     }),
     prisma.scholarship.create({
@@ -442,6 +443,7 @@ async function main() {
         amount: new Prisma.Decimal(12000),
         requirements: 'Resident of the city/municipality',
         status: 'Active',
+        coveredTerms: '1ST,2ND,3RD',
       },
     }),
     prisma.scholarship.create({
@@ -651,6 +653,7 @@ async function main() {
         amount: new Prisma.Decimal(15000),
         requirements: 'Resident of the city/municipality',
         status: 'Active',
+        coveredTerms: '1ST,2ND,3RD',
       },
     }),
     prisma.scholarship.create({
