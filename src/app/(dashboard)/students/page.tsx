@@ -417,6 +417,7 @@ export default function StudentsPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <StudentForm
+                  key={editingStudent ? `edit-${editingStudent.id}` : 'create'}
                   defaultValues={
                     editingStudent
                       ? {
