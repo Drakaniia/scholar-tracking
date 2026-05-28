@@ -5,6 +5,68 @@ import prisma from '@/lib/prisma';
 import { queryOptimizer } from '@/lib/query-optimizer';
 import { UpdateScholarshipInput } from '@/types';
 
+type ArchiveAction = 'archive' | 'unarchive';
+
+async function readArchiveBody(request: NextRequest) {
+  const text = await request.text();
+
+  if (!text.trim()) {
+    return { success: true, body: null as Record<string, unknown> | null };
+  }
+
+  try {
+    const body = JSON.parse(text);
+    return {
+      success: true,
+      body: body && typeof body === 'object' ? (body as Record<string, unknown>) : null,
+    };
+  } catch {
+    return { success: false, body: null };
+  }
+}
+
+function validateArchiveAction(
+  action: unknown
+): { response: NextResponse } | { action: ArchiveAction } {
+  if (!action) {
+    return {
+      response: NextResponse.json(
+        { success: false, error: 'Action is required' },
+        { status: 400 }
+      ),
+    };
+  }
+
+  if (action !== 'archive' && action !== 'unarchive') {
+    return {
+      response: NextResponse.json(
+        { success: false, error: 'Invalid action. Use "archive" or "unarchive".' },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return { action };
+}
+
+async function updateScholarshipArchiveState(scholarshipId: number, action: ArchiveAction) {
+  const updatedScholarship = await prisma.scholarship.update({
+    where: { id: scholarshipId },
+    data: { isArchived: action === 'archive' },
+  });
+
+  queryOptimizer.invalidatePattern('scholarships-list');
+  queryOptimizer.invalidatePattern('scholarships-counts');
+  queryOptimizer.invalidatePattern('students-list');
+  queryOptimizer.invalidatePattern('dashboard');
+
+  return NextResponse.json({
+    success: true,
+    data: updatedScholarship,
+    message: `Scholarship ${action}d successfully`,
+  });
+}
+
 // GET /api/scholarships/[id] - Get single scholarship
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -323,7 +385,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Invalidate cache
     queryOptimizer.invalidatePattern('scholarships-list');
-    queryOptimizer.invalidate('scholarships-counts');
+    queryOptimizer.invalidatePattern('scholarships-counts');
     queryOptimizer.invalidatePattern('students-list');
     queryOptimizer.invalidatePattern('dashboard');
 
@@ -343,7 +405,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // PATCH /api/scholarships/[id] - Archive/unarchive scholarship or other actions
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  let action = 'unknown';
+  let action: ArchiveAction | 'unknown' = 'unknown';
   try {
     const session = await getSession();
 
@@ -354,35 +416,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const scholarshipId = parseInt(id);
 
-    // Parse request body
-    const body = await request.json();
-    action = body.action;
-
-    if (!action) {
-      return NextResponse.json({ success: false, error: 'Action is required' }, { status: 400 });
-    }
-
-    if (action !== 'archive' && action !== 'unarchive') {
+    if (isNaN(scholarshipId)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid action. Use "archive" or "unarchive".' },
+        { success: false, error: 'Invalid scholarship ID' },
         { status: 400 }
       );
     }
 
-    const updatedScholarship = await prisma.scholarship.update({
-      where: { id: scholarshipId },
-      data: { isArchived: action === 'archive' },
-    });
+    const parsedBody = await readArchiveBody(request);
+    if (!parsedBody.success) {
+      return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+    }
 
-    // Invalidate cache
-    queryOptimizer.invalidatePattern('scholarships-list');
-    queryOptimizer.invalidate('scholarships-counts');
+    const validation = validateArchiveAction(parsedBody.body?.action);
+    if ('response' in validation) {
+      return validation.response;
+    }
 
-    return NextResponse.json({
-      success: true,
-      data: updatedScholarship,
-      message: `Scholarship ${action}d successfully`,
-    });
+    action = validation.action;
+    return updateScholarshipArchiveState(scholarshipId, action);
   } catch (error) {
     console.error(
       `Error ${action === 'archive' ? 'archiving' : 'unarchiving'} scholarship:`,
@@ -390,6 +442,39 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     );
     return NextResponse.json(
       { success: false, error: `Failed to ${action} scholarship` },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/scholarships/[id] - Archive scholarship for callers that treat delete as soft archive
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const action: ArchiveAction = 'archive';
+  try {
+    const session = await getSession();
+
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const scholarshipId = parseInt(id);
+
+    if (isNaN(scholarshipId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid scholarship ID' },
+        { status: 400 }
+      );
+    }
+
+    return updateScholarshipArchiveState(scholarshipId, action);
+  } catch (error) {
+    console.error('Error archiving scholarship:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to archive scholarship' },
       { status: 500 }
     );
   }

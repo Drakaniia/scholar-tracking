@@ -9,6 +9,66 @@ import { queryOptimizer } from '@/lib/query-optimizer';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
 import { UpdateStudentInput } from '@/types';
 
+type ArchiveAction = 'archive' | 'unarchive';
+
+async function readArchiveBody(request: NextRequest) {
+  const text = await request.text();
+
+  if (!text.trim()) {
+    return { success: true, body: null as Record<string, unknown> | null };
+  }
+
+  try {
+    const body = JSON.parse(text);
+    return {
+      success: true,
+      body: body && typeof body === 'object' ? (body as Record<string, unknown>) : null,
+    };
+  } catch {
+    return { success: false, body: null };
+  }
+}
+
+function validateArchiveAction(
+  action: unknown
+): { response: NextResponse } | { action: ArchiveAction } {
+  if (!action) {
+    return {
+      response: NextResponse.json(
+        { success: false, error: 'Action is required' },
+        { status: 400 }
+      ),
+    };
+  }
+
+  if (action !== 'archive' && action !== 'unarchive') {
+    return {
+      response: NextResponse.json(
+        { success: false, error: 'Invalid action. Use "archive" or "unarchive".' },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return { action };
+}
+
+async function updateStudentArchiveState(studentId: number, action: ArchiveAction) {
+  const updatedStudent = await prisma.student.update({
+    where: { id: studentId },
+    data: { isArchived: action === 'archive' },
+  });
+
+  queryOptimizer.invalidatePattern('students-list');
+  queryOptimizer.invalidatePattern('dashboard');
+
+  return NextResponse.json({
+    success: true,
+    data: updatedStudent,
+    message: `Student ${action}d successfully`,
+  });
+}
+
 // GET /api/students/[id] - Get single student
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -288,7 +348,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // PATCH /api/students/[id] - Archive/unarchive student or other actions
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  let action = 'unknown';
+  let action: ArchiveAction | 'unknown' = 'unknown';
   try {
     const session = await getSession();
 
@@ -299,38 +359,56 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const studentId = parseInt(id);
 
-    // Parse request body
-    const body = await request.json();
-    action = body.action;
-
-    if (!action) {
-      return NextResponse.json({ success: false, error: 'Action is required' }, { status: 400 });
+    if (isNaN(studentId)) {
+      return NextResponse.json({ success: false, error: 'Invalid student ID' }, { status: 400 });
     }
 
-    if (action !== 'archive' && action !== 'unarchive') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid action. Use "archive" or "unarchive".' },
-        { status: 400 }
-      );
+    const parsedBody = await readArchiveBody(request);
+    if (!parsedBody.success) {
+      return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
     }
 
-    const updatedStudent = await prisma.student.update({
-      where: { id: studentId },
-      data: { isArchived: action === 'archive' },
-    });
+    const validation = validateArchiveAction(parsedBody.body?.action);
+    if ('response' in validation) {
+      return validation.response;
+    }
 
-    // Invalidate cache
-    queryOptimizer.invalidatePattern('students-list');
-
-    return NextResponse.json({
-      success: true,
-      data: updatedStudent,
-      message: `Student ${action}d successfully`,
-    });
+    action = validation.action;
+    return updateStudentArchiveState(studentId, action);
   } catch (error) {
     console.error(`Error ${action === 'archive' ? 'archiving' : 'unarchiving'} student:`, error);
     return NextResponse.json(
       { success: false, error: `Failed to ${action} student` },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/students/[id] - Archive student for callers that treat delete as soft archive
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const action: ArchiveAction = 'archive';
+  try {
+    const session = await getSession();
+
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const studentId = parseInt(id);
+
+    if (isNaN(studentId)) {
+      return NextResponse.json({ success: false, error: 'Invalid student ID' }, { status: 400 });
+    }
+
+    return updateStudentArchiveState(studentId, action);
+  } catch (error) {
+    console.error('Error archiving student:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to archive student' },
       { status: 500 }
     );
   }
