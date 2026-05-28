@@ -701,7 +701,7 @@ export default function ScholarshipsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">
-                          EFC (Total % Subsidy)
+                          FSE (Total % Subsidy)
                         </p>
                         <p className="text-2xl font-bold text-primary">
                           {selectedScholarship.students && selectedScholarship.students.length > 0

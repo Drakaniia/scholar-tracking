@@ -535,9 +535,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-blue-600 font-medium">
-                          EFC (Expected Family Contribution)
-                        </p>
+                        <p className="text-xs text-blue-600 font-medium">FSE</p>
                         <p className="text-lg font-bold text-primary">{efcPercent.toFixed(2)}%</p>
                       </div>
                     </div>
