@@ -6,11 +6,25 @@ import * as XLSX from 'xlsx';
 
 import prisma from '@/lib/prisma';
 
+function formatGeneratedAt(date = new Date()) {
+  return new Intl.DateTimeFormat('en-PH', {
+    timeZone: 'Asia/Manila',
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    hour12: true,
+  }).format(date);
+}
+
+function formatPdfCurrency(amount: number) {
+  return `PHP ${new Intl.NumberFormat('en-US').format(amount)}`;
+}
+
 // GET /api/export/scholarships - Export scholarships to PDF/CSV/XLSX
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get('format') || 'pdf';
+    const generatedAt = formatGeneratedAt();
 
     const scholarships = await prisma.scholarship.findMany({
       include: {
@@ -60,7 +74,13 @@ export async function GET(request: NextRequest) {
     if (format === 'xlsx') {
       // Create workbook and worksheet
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['Scholarship Programs'],
+        [`Generated: ${generatedAt}`],
+        [],
+        headers,
+        ...rows,
+      ]);
 
       // Set column widths
       ws['!cols'] = [
@@ -70,6 +90,12 @@ export async function GET(request: NextRequest) {
         { wch: 10 }, // Type
         { wch: 12 }, // Source
         { wch: 12 }, // Amount
+        { wch: 12 }, // Tuition Fee
+        { wch: 12 }, // Misc Fee
+        { wch: 12 }, // Lab Fee
+        { wch: 12 }, // Other Fee
+        { wch: 15 }, // Amount Subsidy
+        { wch: 12 }, // % Subsidy
         { wch: 50 }, // Requirements
         { wch: 10 }, // Status
         { wch: 10 }, // Students
@@ -89,7 +115,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (format === 'csv') {
-      const csv = [headers, ...rows]
+      const csv = [['Scholarship Programs'], [`Generated: ${generatedAt}`], [], headers, ...rows]
         .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
@@ -107,13 +133,13 @@ export async function GET(request: NextRequest) {
     doc.setFontSize(18);
     doc.text('Scholarship Programs', 14, 22);
     doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Generated: ${generatedAt}`, 14, 30);
 
     const totalAmount = scholarships.reduce((sum, s) => sum + Number(s.amount), 0);
     const activeCount = scholarships.filter((s) => s.status === 'Active').length;
     const totalSubsidy = scholarships.reduce((sum, s) => sum + Number(s.amountSubsidy), 0);
     doc.text(
-      `Total Programs: ${scholarships.length} | Active: ${activeCount} | Total Amount: ₱${totalAmount.toLocaleString()} | Total Subsidy: ₱${totalSubsidy.toLocaleString()}`,
+      `Total Programs: ${scholarships.length} | Active: ${activeCount} | Total Amount: ${formatPdfCurrency(totalAmount)} | Total Subsidy: ${formatPdfCurrency(totalSubsidy)}`,
       14,
       38
     );
@@ -128,8 +154,8 @@ export async function GET(request: NextRequest) {
         s.sponsor,
         s.type,
         s.source === 'INTERNAL' ? 'Internal' : 'External',
-        `₱${Number(s.amount).toLocaleString()}`,
-        `₱${Number(s.amountSubsidy).toLocaleString()}`,
+        formatPdfCurrency(Number(s.amount)),
+        formatPdfCurrency(Number(s.amountSubsidy)),
         `${Number(s.percentSubsidy).toFixed(2)}%`,
         s.status,
         String(s._count.students),
