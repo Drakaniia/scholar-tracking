@@ -30,10 +30,7 @@ function validateArchiveAction(
 ): { response: NextResponse } | { action: ArchiveAction } {
   if (!action) {
     return {
-      response: NextResponse.json(
-        { success: false, error: 'Action is required' },
-        { status: 400 }
-      ),
+      response: NextResponse.json({ success: false, error: 'Action is required' }, { status: 400 }),
     };
   }
 
@@ -86,6 +83,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         amount: true,
         amountSubsidy: true,
         percentSubsidy: true,
+        coveredTerms: true,
         requirements: true,
         status: true,
         isArchived: true,
@@ -201,6 +199,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       'otherFee',
       'amountSubsidy',
       'percentSubsidy',
+      'coveredTerms',
     ];
 
     const existingScholarship = await prisma.scholarship.findUnique({

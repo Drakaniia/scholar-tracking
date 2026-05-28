@@ -193,6 +193,7 @@ interface Scholarship {
   amount: number;
   requirements: string | null;
   status: string;
+  coveredTerms: string;
 }
 
 interface ScholarshipCounts {

@@ -8,6 +8,7 @@ import {
   getPaginationParams,
   queryOptimizer,
 } from '@/lib/query-optimizer';
+import { DEFAULT_COVERED_TERMS, LGU_COVERED_TERMS } from '@/lib/terms';
 import { CreateScholarshipInput } from '@/types';
 
 // GET /api/scholarships - Get all scholarships or counts
@@ -144,6 +145,7 @@ export async function GET(request: NextRequest) {
           amount: true,
           amountSubsidy: true,
           percentSubsidy: true,
+          coveredTerms: true,
           requirements: true,
           status: true,
           isArchived: true,
@@ -243,6 +245,8 @@ export async function POST(request: NextRequest) {
         laboratoryFee: body.laboratoryFee || 0,
         otherFee: body.otherFee || 0,
         amountSubsidy: body.amountSubsidy || 0,
+        coveredTerms:
+          body.coveredTerms || (body.type === 'LGU' ? LGU_COVERED_TERMS : DEFAULT_COVERED_TERMS),
         percentSubsidy:
           body.percentSubsidy !== undefined
             ? body.percentSubsidy
