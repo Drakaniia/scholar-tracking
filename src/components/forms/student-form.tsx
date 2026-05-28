@@ -77,6 +77,11 @@ const GRADE_SCHOOL_LEVELS = [
   'Grade 6',
 ] as const;
 
+const SCHOLARSHIP_SOURCE_ORDER: Record<string, number> = {
+  INTERNAL: 0,
+  EXTERNAL: 1,
+};
+
 interface ScholarshipFormData {
   id: number;
   scholarshipName: string;
@@ -377,23 +382,29 @@ export function StudentForm({
     );
   };
 
-  const filteredScholarships = scholarships.filter((scholarship) => {
-    const matchesSearch = scholarship.scholarshipName
-      .toLowerCase()
-      .includes(scholarshipSearch.toLowerCase());
-    const matchesSource =
-      scholarshipSourceFilter === 'all' || scholarship.source === scholarshipSourceFilter;
-    const notSelected = !selectedScholarships.some((s) => s.scholarshipId === scholarship.id);
+  const filteredScholarships = scholarships
+    .filter((scholarship) => {
+      const matchesSearch = scholarship.scholarshipName
+        .toLowerCase()
+        .includes(scholarshipSearch.toLowerCase());
+      const matchesSource =
+        scholarshipSourceFilter === 'all' || scholarship.source === scholarshipSourceFilter;
+      const notSelected = !selectedScholarships.some((s) => s.scholarshipId === scholarship.id);
 
-    // Filter by student's grade level
-    const eligibleLevels = scholarship.eligibleGradeLevels
-      ? scholarship.eligibleGradeLevels.split(',').map((l) => l.trim())
-      : [];
-    const matchesGradeLevel =
-      eligibleLevels.length === 0 || eligibleLevels.includes(selectedGradeLevel as string);
+      // Filter by student's grade level
+      const eligibleLevels = scholarship.eligibleGradeLevels
+        ? scholarship.eligibleGradeLevels.split(',').map((l) => l.trim())
+        : [];
+      const matchesGradeLevel =
+        eligibleLevels.length === 0 || eligibleLevels.includes(selectedGradeLevel as string);
 
-    return matchesSearch && matchesSource && notSelected && matchesGradeLevel;
-  });
+      return matchesSearch && matchesSource && notSelected && matchesGradeLevel;
+    })
+    .sort((a, b) => {
+      const sourceOrder =
+        (SCHOLARSHIP_SOURCE_ORDER[a.source] ?? 99) - (SCHOLARSHIP_SOURCE_ORDER[b.source] ?? 99);
+      return sourceOrder || a.scholarshipName.localeCompare(b.scholarshipName);
+    });
 
   // Get selected scholarship details for display
   const getSelectedScholarshipDetails = (scholarshipId: number) => {
@@ -1039,7 +1050,7 @@ export function StudentForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="all">All Scholarships</SelectItem>
                     <SelectItem value="INTERNAL">Internal</SelectItem>
                     <SelectItem value="EXTERNAL">External</SelectItem>
                   </SelectContent>
