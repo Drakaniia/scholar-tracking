@@ -276,15 +276,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create StudentFees with manual values
-
     if (body.fees) {
       await createStudentFeesManual(student.id, body.fees);
     }
 
+    const studentWithScholarships = await prisma.student.findUnique({
+      where: { id: student.id },
+      include: {
+        scholarships: {
+          include: {
+            scholarship: true,
+          },
+        },
+        fees: true,
+      },
+    });
+
+    queryOptimizer.invalidatePattern('students-list');
+    queryOptimizer.invalidatePattern('dashboard');
+
     return NextResponse.json({
       success: true,
-      data: student,
+      data: studentWithScholarships || student,
       message: 'Student created successfully',
     });
   } catch (error) {
