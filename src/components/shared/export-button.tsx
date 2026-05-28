@@ -11,22 +11,69 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+type ExportFormat = 'pdf' | 'csv' | 'xlsx';
+type ButtonVariant =
+  | 'default'
+  | 'gradient'
+  | 'destructive'
+  | 'outline'
+  | 'secondary'
+  | 'ghost'
+  | 'link';
+
 interface ExportButtonProps {
   endpoint: string;
   filename: string;
+  formats?: ExportFormat[];
+  label?: string;
+  variant?: ButtonVariant;
+  className?: string;
+  extraItems?: Array<{
+    endpoint: string;
+    filename: string;
+    format: ExportFormat;
+    label: string;
+  }>;
 }
 
-export function ExportButton({ endpoint, filename }: ExportButtonProps) {
-  const handleExport = async (format: 'pdf' | 'csv' | 'xlsx') => {
+const FORMAT_META = {
+  pdf: {
+    label: 'Export as PDF',
+    Icon: FileText,
+  },
+  xlsx: {
+    label: 'Export as Excel',
+    Icon: Sheet,
+  },
+  csv: {
+    label: 'Export as CSV',
+    Icon: FileSpreadsheet,
+  },
+} as const;
+
+export function ExportButton({
+  endpoint,
+  filename,
+  formats = ['pdf', 'xlsx', 'csv'],
+  label = 'Export',
+  variant = 'gradient',
+  className,
+  extraItems = [],
+}: ExportButtonProps) {
+  const handleExport = async (
+    format: ExportFormat,
+    exportEndpoint = endpoint,
+    exportFilename = filename
+  ) => {
     try {
-      if (!endpoint) {
+      if (!exportEndpoint) {
         toast.error('Export endpoint not configured');
         return;
       }
 
       toast.loading(`Generating ${format.toUpperCase()} export...`);
 
-      const exportUrl = new URL(endpoint, window.location.origin);
+      const exportUrl = new URL(exportEndpoint, window.location.origin);
       exportUrl.searchParams.set('format', format);
 
       const res = await fetch(exportUrl.toString(), { credentials: 'include' });
@@ -39,7 +86,7 @@ export function ExportButton({ endpoint, filename }: ExportButtonProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${filename}.${format}`;
+      a.download = `${exportFilename}.${format}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -54,27 +101,48 @@ export function ExportButton({ endpoint, filename }: ExportButtonProps) {
     }
   };
 
+  if (formats.length === 1 && extraItems.length === 0) {
+    const format = formats[0];
+    const { Icon } = FORMAT_META[format];
+
+    return (
+      <Button variant={variant} onClick={() => handleExport(format)} className={className}>
+        <Icon className="mr-2 h-4 w-4" />
+        {label}
+      </Button>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="gradient">
+        <Button variant={variant} className={className}>
           <FileDown className="mr-2 h-4 w-4" />
-          Export
+          {label}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleExport('pdf')}>
-          <FileText className="mr-2 h-4 w-4" />
-          Export as PDF
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('xlsx')}>
-          <Sheet className="mr-2 h-4 w-4" />
-          Export as Excel
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('csv')}>
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Export as CSV
-        </DropdownMenuItem>
+        {extraItems.map((item) => {
+          const { Icon } = FORMAT_META[item.format];
+          return (
+            <DropdownMenuItem
+              key={`${item.endpoint}-${item.format}`}
+              onClick={() => handleExport(item.format, item.endpoint, item.filename)}
+            >
+              <Icon className="mr-2 h-4 w-4" />
+              {item.label}
+            </DropdownMenuItem>
+          );
+        })}
+        {formats.map((format) => {
+          const { Icon, label: formatLabel } = FORMAT_META[format];
+          return (
+            <DropdownMenuItem key={format} onClick={() => handleExport(format)}>
+              <Icon className="mr-2 h-4 w-4" />
+              {formatLabel}
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
