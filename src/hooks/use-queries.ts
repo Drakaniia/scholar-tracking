@@ -37,7 +37,8 @@ export const queryKeys = {
     list: (filters: StudentFilters) => [...queryKeys.students.lists(), filters] as const,
     details: () => [...queryKeys.students.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.students.details(), id] as const,
-    filterOptions: () => [...queryKeys.students.all, 'filter-options'] as const,
+    filterOptions: (filters: StudentFilters = {}) =>
+      [...queryKeys.students.all, 'filter-options', filters] as const,
   },
 
   // Scholarships
@@ -47,7 +48,8 @@ export const queryKeys = {
     list: (filters: ScholarshipFilters) => [...queryKeys.scholarships.lists(), filters] as const,
     details: () => [...queryKeys.scholarships.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.scholarships.details(), id] as const,
-    filterOptions: () => [...queryKeys.scholarships.all, 'filter-options'] as const,
+    filterOptions: (filters: ScholarshipFilters = {}) =>
+      [...queryKeys.scholarships.all, 'filter-options', filters] as const,
   },
 
   // Users
@@ -74,6 +76,7 @@ interface StudentFilters {
   program?: string;
   status?: string;
   scholarshipId?: string;
+  scholarshipSource?: string;
   archived?: boolean;
   page?: number;
   limit?: number;
@@ -313,7 +316,7 @@ export function useStudentFilterOptions(
   options?: Partial<UseQueryOptions<ApiResponse<StudentFilterOptions>, Error>>
 ) {
   return useQuery<ApiResponse<StudentFilterOptions>, Error>({
-    queryKey: queryKeys.students.filterOptions(),
+    queryKey: queryKeys.students.filterOptions(filters),
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
@@ -509,7 +512,7 @@ export function useScholarshipFilterOptions(
   options?: Partial<UseQueryOptions<ApiResponse<ScholarshipCounts>, Error>>
 ) {
   return useQuery<ApiResponse<ScholarshipCounts>, Error>({
-    queryKey: queryKeys.scholarships.filterOptions(),
+    queryKey: queryKeys.scholarships.filterOptions(filters),
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {

@@ -137,6 +137,7 @@ export default function StudentsPage() {
   const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
   const [programFilter, setProgramFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
   const [scholarshipFilter, setScholarshipFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithScholarships | null>(null);
@@ -150,7 +151,7 @@ export default function StudentsPage() {
   const [total, setTotal] = useState(0);
   const [programs, setPrograms] = useState<string[]>([]);
   const [scholarships, setScholarships] = useState<
-    Array<{ id: number; scholarshipName: string; _count?: { students: number } }>
+    Array<{ id: number; scholarshipName: string; source: string; _count?: { students: number } }>
   >([]);
   const [studentsWithoutScholarship, setStudentsWithoutScholarship] = useState<number>(0);
   const [gradeLevelCounts, setGradeLevelCounts] = useState<Record<string, number>>({});
@@ -171,6 +172,7 @@ export default function StudentsPage() {
     gradeLevel: gradeLevelFilter === 'all' ? undefined : gradeLevelFilter,
     program: programFilter === 'all' ? undefined : programFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
+    scholarshipSource: scholarshipSourceFilter === 'all' ? undefined : scholarshipSourceFilter,
     scholarshipId: scholarshipFilter === 'all' ? undefined : scholarshipFilter,
     archived: showArchived,
     page,
@@ -189,6 +191,7 @@ export default function StudentsPage() {
     gradeLevel: gradeLevelFilter,
     program: programFilter,
     status: statusFilter,
+    scholarshipSource: scholarshipSourceFilter,
     scholarshipId: scholarshipFilter,
   });
 
@@ -219,7 +222,12 @@ export default function StudentsPage() {
     if (filterOptionsData) {
       const data = filterOptionsData.data as {
         programs: string[];
-        scholarships: Array<{ id: number; scholarshipName: string; _count?: { students: number } }>;
+        scholarships: Array<{
+          id: number;
+          scholarshipName: string;
+          source: string;
+          _count?: { students: number };
+        }>;
         studentsWithoutScholarship: number;
         gradeLevelCounts: Record<string, number>;
         programCounts: Record<string, number>;
@@ -241,7 +249,32 @@ export default function StudentsPage() {
   useEffect(() => {
     // Reset to page 1 when filters change
     setPage(1);
-  }, [debouncedSearch, gradeLevelFilter, programFilter, statusFilter, scholarshipFilter]);
+  }, [
+    debouncedSearch,
+    gradeLevelFilter,
+    programFilter,
+    statusFilter,
+    scholarshipSourceFilter,
+    scholarshipFilter,
+  ]);
+
+  useEffect(() => {
+    if (
+      scholarshipSourceFilter === 'all' ||
+      scholarshipFilter === 'all' ||
+      scholarshipFilter === 'none'
+    ) {
+      return;
+    }
+
+    const selectedScholarship = scholarships.find(
+      (scholarship) => scholarship.id.toString() === scholarshipFilter
+    );
+
+    if (selectedScholarship && selectedScholarship.source !== scholarshipSourceFilter) {
+      setScholarshipFilter('all');
+    }
+  }, [scholarshipSourceFilter, scholarshipFilter, scholarships]);
 
   const openDeleteDialog = (student: Student) => {
     setDeletingStudent(student);
@@ -506,6 +539,17 @@ export default function StudentsPage() {
                   </SelectContent>
                 </Select>
 
+                <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
+                  <SelectTrigger className="h-8 w-[190px] text-xs">
+                    <SelectValue placeholder="Scholarship Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Scholarship Sources</SelectItem>
+                    <SelectItem value="INTERNAL">Internal</SelectItem>
+                    <SelectItem value="EXTERNAL">External</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select value={scholarshipFilter} onValueChange={setScholarshipFilter}>
                   <SelectTrigger className="h-8 w-[200px] text-xs">
                     <SelectValue placeholder="Scholarship" />
@@ -528,6 +572,7 @@ export default function StudentsPage() {
                 {(gradeLevelFilter !== 'all' ||
                   programFilter !== 'all' ||
                   statusFilter !== 'all' ||
+                  scholarshipSourceFilter !== 'all' ||
                   scholarshipFilter !== 'all' ||
                   search) && (
                   <Button
@@ -538,6 +583,7 @@ export default function StudentsPage() {
                       setGradeLevelFilter('all');
                       setProgramFilter('all');
                       setStatusFilter('all');
+                      setScholarshipSourceFilter('all');
                       setScholarshipFilter('all');
                     }}
                     className="h-8 px-2 text-xs"

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const program = searchParams.get('program') || '';
     const status = searchParams.get('status') || '';
     const scholarshipId = searchParams.get('scholarshipId') || '';
+    const scholarshipSource = searchParams.get('scholarshipSource') || '';
     const archivedParam = searchParams.get('archived');
     const includeArchived = archivedParam === 'true';
 
@@ -34,6 +35,8 @@ export async function GET(request: NextRequest) {
       program,
       status,
       scholarshipId,
+      scholarshipSource,
+      archived: includeArchived,
     });
     const cachedData = queryOptimizer.get<{ students: unknown[]; total: number }>(cacheKey);
 
@@ -90,6 +93,16 @@ export async function GET(request: NextRequest) {
           },
         });
       }
+    } else if (scholarshipSource && scholarshipSource !== 'all') {
+      Object.assign(where, {
+        scholarships: {
+          some: {
+            scholarship: {
+              source: scholarshipSource,
+            },
+          },
+        },
+      });
     }
 
     const [students, total] = await Promise.all([
