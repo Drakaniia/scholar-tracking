@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { normalizeTermCode } from '@/lib/terms';
 
 interface AcademicYearData {
   year: string;
@@ -59,6 +60,14 @@ function validateAcademicYearDateRange(startDate: Date, endDate: Date) {
   if (startDate > endDate) {
     throw new Error('Start date must be before end date');
   }
+}
+
+function parseSemester(value: string | null | undefined) {
+  const semester = normalizeTermCode(value);
+  if (!semester) {
+    throw new Error('Invalid semester');
+  }
+  return semester;
 }
 
 function sameDateOnlyValue(left: Date | null, right: Date | null) {
@@ -168,6 +177,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let parsedSemester: string;
+    try {
+      parsedSemester = parseSemester(semester);
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: error instanceof Error ? error.message : 'Invalid semester' },
+        { status: 400 }
+      );
+    }
+
     // Check if year already exists
     const existing = await prisma.academicYear.findUnique({
       where: { year },
@@ -209,7 +228,7 @@ export async function POST(request: NextRequest) {
           year,
           startDate: parsedStartDate,
           endDate: parsedEndDate,
-          semester,
+          semester: parsedSemester,
           isActive,
           promotionDate: parsedPromotionDate,
         },
@@ -315,7 +334,16 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (body.semester !== undefined) updateData.semester = body.semester;
+    if (body.semester !== undefined) {
+      try {
+        updateData.semester = parseSemester(body.semester);
+      } catch (error) {
+        return NextResponse.json(
+          { success: false, error: error instanceof Error ? error.message : 'Invalid semester' },
+          { status: 400 }
+        );
+      }
+    }
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
     const academicYear = await prisma.$transaction(async (tx) => {

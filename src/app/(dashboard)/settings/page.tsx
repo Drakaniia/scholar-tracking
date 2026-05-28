@@ -65,7 +65,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { clientCache, fetchWithCache } from '@/lib/cache';
 import { formatCurrency } from '@/lib/utils';
-import { GRADE_LEVEL_LABELS, USER_ROLE_LABELS, USER_STATUS_LABELS } from '@/types';
+import {
+  GRADE_LEVEL_LABELS,
+  SCHOLARSHIP_TERMS,
+  SCHOLARSHIP_TERM_LABELS,
+  USER_ROLE_LABELS,
+  USER_STATUS_LABELS,
+} from '@/types';
 
 interface User {
   id: number;
@@ -133,6 +139,7 @@ interface AcademicYearFormData {
   year: string;
   startDate: string;
   endDate: string;
+  semester: string;
   promotionDate: string;
 }
 
@@ -215,6 +222,7 @@ function getDefaultAcademicYearFormData(now = new Date()): AcademicYearFormData 
     year: `${startYear}-${endYear}`,
     startDate: `${startYear}-06-01`,
     endDate,
+    semester: '1ST',
     promotionDate: endDate,
   };
 }
@@ -465,6 +473,7 @@ export default function SettingsPage() {
               year: existingDefaultAcademicYear.year,
               startDate: formatDateForInput(existingDefaultAcademicYear.startDate),
               endDate: formatDateForInput(existingDefaultAcademicYear.endDate),
+              semester: existingDefaultAcademicYear.semester || '1ST',
               promotionDate: formatDateForInput(existingDefaultAcademicYear.promotionDate),
             }
           : fallbackFormData
@@ -1363,7 +1372,7 @@ export default function SettingsPage() {
       year: academicYearFormData.year,
       startDate: academicYearFormData.startDate,
       endDate: academicYearFormData.endDate,
-      semester: selectedAcademicYear?.semester || '1ST',
+      semester: academicYearFormData.semester || selectedAcademicYear?.semester || '1ST',
       promotionDate: academicYearFormData.promotionDate || null,
       isActive: true,
     };
@@ -2596,6 +2605,24 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label htmlFor="currentSemester">Current Semester</Label>
+                        <Select
+                          value={academicYearFormData.semester}
+                          onValueChange={(value) => handleAcademicYearFormChange('semester', value)}
+                        >
+                          <SelectTrigger id="currentSemester">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SCHOLARSHIP_TERMS.map((term) => (
+                              <SelectItem key={term} value={term}>
+                                {SCHOLARSHIP_TERM_LABELS[term]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="currentStartDate">Start Date</Label>
                         <Input
                           id="currentStartDate"
@@ -2640,6 +2667,7 @@ export default function SettingsPage() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Academic Year</TableHead>
+                              <TableHead>Semester</TableHead>
                               <TableHead>Start Date</TableHead>
                               <TableHead>End Date</TableHead>
                               <TableHead>Promotion Date</TableHead>
@@ -2652,6 +2680,13 @@ export default function SettingsPage() {
                             {academicYears.map((ay) => (
                               <TableRow key={ay.id}>
                                 <TableCell className="font-medium">{ay.year}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {SCHOLARSHIP_TERM_LABELS[
+                                      ay.semester as keyof typeof SCHOLARSHIP_TERM_LABELS
+                                    ] || ay.semester}
+                                  </Badge>
+                                </TableCell>
                                 <TableCell>{new Date(ay.startDate).toLocaleDateString()}</TableCell>
                                 <TableCell>{new Date(ay.endDate).toLocaleDateString()}</TableCell>
                                 <TableCell>{formatDate(ay.promotionDate)}</TableCell>
