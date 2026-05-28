@@ -42,8 +42,7 @@ When entering fees semester-by-semester:
 
 - 1st Semester
 - 2nd Semester
-- Summer
-- Midyear
+- 3rd Semester
 
 #### Academic Year Dropdown:
 
@@ -156,8 +155,7 @@ Response format:
 │ Term: [1st Semester ▼]          │
 │   • 1st Semester                │
 │   • 2nd Semester                │
-│   • Summer                      │
-│   • Midyear                     │
+│   • 3rd Semester                │
 │                                 │
 │ Academic Year: [2025-2026 ▼]   │
 │   • 2025-2026 - 1ST             │
@@ -226,11 +224,11 @@ Response format:
 - User can still enter fees
 - System doesn't break
 
-### Summer/Midyear Terms
+### Third Semester Terms
 
 - Included in dropdown options
-- Not counted as "pending" (optional terms)
-- Only 1st and 2nd semesters are expected
+- Counted as a standard expected term
+- 1st, 2nd, and 3rd semesters are expected
 
 ### Multiple Academic Years
 

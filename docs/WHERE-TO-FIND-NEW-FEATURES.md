@@ -124,8 +124,7 @@ Free-text inputs replaced with structured dropdowns.
 │   ┌─────────────────────────────┐   │
 │   │ • 1st Semester              │   │
 │   │ • 2nd Semester              │   │
-│   │ • Summer                    │   │
-│   │ • Midyear                   │   │
+│   │ • 3rd Semester              │   │
 │   └─────────────────────────────┘   │
 │                                     │
 │ Academic Year: [2025-2026 ▼]       │  ← Dropdown (from database)
