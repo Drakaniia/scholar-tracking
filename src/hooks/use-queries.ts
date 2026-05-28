@@ -358,7 +358,7 @@ export function useCreateStudent() {
     },
     onSuccess: () => {
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Student created successfully');
     },
@@ -388,7 +388,7 @@ export function useUpdateStudent() {
     },
     onSuccess: (_, { id }) => {
       // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Student updated successfully');

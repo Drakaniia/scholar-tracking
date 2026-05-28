@@ -210,6 +210,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
               startTerm: scholarship.startTerm || '',
               endTerm: scholarship.endTerm || '',
               grantAmount: scholarship.grantAmount || 0,
+              grantType: scholarship.grantType || 'FULL',
               scholarshipStatus: scholarship.scholarshipStatus || 'Active',
             })),
           });
@@ -221,11 +222,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         await updateStudentFees(tx, studentId, body.fees);
       }
 
-      return { student, removedScholarships };
+      const studentWithScholarships = await tx.student.findUnique({
+        where: { id: studentId },
+        include: {
+          scholarships: {
+            include: {
+              scholarship: true,
+            },
+          },
+          fees: true,
+        },
+      });
+
+      return { student: studentWithScholarships || student, removedScholarships };
     });
 
     // Invalidate cache
     queryOptimizer.invalidatePattern('students-list');
+    queryOptimizer.invalidatePattern('dashboard');
 
     // Build response with scholarship removal information
     const responseData: {
