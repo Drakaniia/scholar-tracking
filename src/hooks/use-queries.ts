@@ -411,7 +411,7 @@ export function useDeleteStudent() {
 
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json.error || 'Failed to delete student');
+        throw new Error(json.error || 'Failed to archive student');
       }
       return json;
     },
@@ -419,10 +419,10 @@ export function useDeleteStudent() {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-      toast.success('Student deleted successfully');
+      toast.success('Student archived successfully');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to delete student');
+      toast.error(error.message || 'Failed to archive student');
     },
   });
 }
@@ -605,17 +605,17 @@ export function useDeleteScholarship() {
 
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json.error || 'Failed to delete scholarship');
+        throw new Error(json.error || 'Failed to archive scholarship');
       }
       return json;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-      toast.success('Scholarship deleted successfully');
+      toast.success('Scholarship archived successfully');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to delete scholarship');
+      toast.error(error.message || 'Failed to archive scholarship');
     },
   });
 }
