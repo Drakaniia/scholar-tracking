@@ -26,7 +26,10 @@ export function ExportButton({ endpoint, filename }: ExportButtonProps) {
 
       toast.loading(`Generating ${format.toUpperCase()} export...`);
 
-      const res = await fetch(`${endpoint}?format=${format}`);
+      const exportUrl = new URL(endpoint, window.location.origin);
+      exportUrl.searchParams.set('format', format);
+
+      const res = await fetch(exportUrl.toString(), { credentials: 'include' });
 
       if (!res.ok) {
         throw new Error('Export failed');
