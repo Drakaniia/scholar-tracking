@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { LGU_COVERED_TERMS, parseCoveredTerms, serializeCoveredTerms } from '@/lib/terms';
 import {
   CreateScholarshipInput,
   GRADE_LEVELS,
@@ -35,6 +36,9 @@ import {
   GrantType,
   SCHOLARSHIP_SOURCES,
   SCHOLARSHIP_SOURCE_LABELS,
+  SCHOLARSHIP_TERMS,
+  SCHOLARSHIP_TERM_LABELS,
+  ScholarshipTerm,
 } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
@@ -70,6 +74,9 @@ export function ScholarshipForm({
   );
   const [selectedGrantType, setSelectedGrantType] = useState<GrantType>(
     defaultValues?.grantType || 'FULL'
+  );
+  const [selectedCoveredTerms, setSelectedCoveredTerms] = useState<ScholarshipTerm[]>(
+    parseCoveredTerms(defaultValues?.coveredTerms)
   );
   const [coversTuition, setCoversTuition] = useState(defaultValues?.coversTuition || false);
   const [coversMiscellaneous, setCoversMiscellaneous] = useState(
@@ -129,6 +136,9 @@ export function ScholarshipForm({
       setShowCustomType(false);
       setCustomType('');
       form.setValue('type', value);
+      if (value === 'LGU') {
+        setSelectedCoveredTerms(parseCoveredTerms(LGU_COVERED_TERMS));
+      }
     }
   };
 
@@ -154,6 +164,13 @@ export function ScholarshipForm({
     form.setValue('eligiblePrograms', updated.join(','));
   };
 
+  const handleCoveredTermToggle = (term: ScholarshipTerm) => {
+    const updated = selectedCoveredTerms.includes(term)
+      ? selectedCoveredTerms.filter((selectedTerm) => selectedTerm !== term)
+      : [...selectedCoveredTerms, term];
+    setSelectedCoveredTerms(updated);
+  };
+
   const handleCoversOtherChange = (checked: boolean) => {
     setCoversOther(checked);
     if (checked && !otherFeeName) {
@@ -174,6 +191,7 @@ export function ScholarshipForm({
     }
     data.eligibleGradeLevels = selectedGradeLevels.join(',');
     data.eligiblePrograms = selectedPrograms.length > 0 ? selectedPrograms.join(',') : null;
+    data.coveredTerms = serializeCoveredTerms(selectedCoveredTerms);
     data.grantType = selectedGrantType;
     data.coversTuition = coversTuition;
     data.coversMiscellaneous = coversMiscellaneous;
@@ -271,6 +289,30 @@ export function ScholarshipForm({
             )}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Covered Semesters</Label>
+        <div className="grid grid-cols-3 gap-3 p-3 border rounded-md">
+          {SCHOLARSHIP_TERMS.map((term) => (
+            <div key={term} className="flex items-center space-x-2">
+              <Checkbox
+                id={`covered-term-${term}`}
+                checked={selectedCoveredTerms.includes(term)}
+                onCheckedChange={() => handleCoveredTermToggle(term)}
+              />
+              <Label
+                htmlFor={`covered-term-${term}`}
+                className="text-sm font-normal cursor-pointer"
+              >
+                {SCHOLARSHIP_TERM_LABELS[term]}
+              </Label>
+            </div>
+          ))}
+        </div>
+        {selectedCoveredTerms.length === 0 && (
+          <p className="text-xs text-destructive">Select at least one semester.</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -651,7 +693,7 @@ export function ScholarshipForm({
         </Button>
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || selectedCoveredTerms.length === 0}
           className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
         >
           {loading ? 'Saving...' : isEditing ? 'Update' : 'Create'}
