@@ -18,7 +18,7 @@ describe('resolvePromotionTarget', () => {
     });
   });
 
-  it('promotes Grade 10 to Grade 11 in senior high', () => {
+  it('blocks Grade 10 promotion until an end-of-year decision is recorded', () => {
     expect(
       resolvePromotionTarget({
         gradeLevel: 'JUNIOR_HIGH',
@@ -27,9 +27,58 @@ describe('resolvePromotionTarget', () => {
         termType: 'SEMESTER',
       })
     ).toEqual({
+      action: 'SKIP',
+      reason:
+        'Grade 10 requires an end-of-year decision before promotion: continue to Grade 11, completed JHS, transferred out, withdrawn, or retained.',
+    });
+  });
+
+  it('promotes Grade 10 to Grade 11 when continuing to senior high', () => {
+    expect(
+      resolvePromotionTarget({
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 10',
+        program: 'General Education',
+        termType: 'SEMESTER',
+        transitionDecision: 'CONTINUE_SENIOR_HIGH',
+      })
+    ).toEqual({
       action: 'PROMOTE',
       gradeLevel: 'SENIOR_HIGH',
       yearLevel: 'Grade 11',
+    });
+  });
+
+  it('moves Grade 10 completers to the separated registry when they do not continue', () => {
+    expect(
+      resolvePromotionTarget({
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 10',
+        program: 'General Education',
+        termType: 'SEMESTER',
+        transitionDecision: 'COMPLETED_JHS',
+      })
+    ).toEqual({
+      action: 'SEPARATE',
+      status: 'Completed JHS',
+      graduationStatus: 'Completed JHS',
+      outcome: 'COMPLETED_JHS',
+      reason: 'Student completed Junior High and is not continuing to Senior High in this school',
+    });
+  });
+
+  it('blocks Grade 12 promotion until an end-of-year decision is recorded', () => {
+    expect(
+      resolvePromotionTarget({
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 12',
+        program: 'STEM',
+        termType: 'SEMESTER',
+      })
+    ).toEqual({
+      action: 'SKIP',
+      reason:
+        'Grade 12 requires an end-of-year decision before promotion: continue to College, graduated SHS, transferred out, withdrawn, or retained.',
     });
   });
 
@@ -40,6 +89,7 @@ describe('resolvePromotionTarget', () => {
         yearLevel: 'Grade 12',
         program: 'STEM',
         termType: 'SEMESTER',
+        transitionDecision: 'CONTINUE_COLLEGE',
       })
     ).toEqual({
       action: 'PROMOTE',

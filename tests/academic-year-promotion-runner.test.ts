@@ -36,6 +36,10 @@ const txMock = vi.hoisted(() => ({
     deleteMany: vi.fn(),
     findMany: vi.fn(),
   },
+  studentAcademicRecord: {
+    create: vi.fn(),
+    deleteMany: vi.fn(),
+  },
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -55,6 +59,8 @@ describe('runDueAcademicYearPromotions', () => {
     txMock.disbursement.deleteMany.mockResolvedValue({ count: 0 });
     txMock.disbursement.findMany.mockResolvedValue([]);
     txMock.student.update.mockResolvedValue({});
+    txMock.studentAcademicRecord.create.mockResolvedValue({});
+    txMock.studentAcademicRecord.deleteMany.mockResolvedValue({ count: 0 });
     txMock.studentScholarship.createMany.mockResolvedValue({ count: 0 });
     txMock.studentScholarship.deleteMany.mockResolvedValue({ count: 0 });
     txMock.studentScholarship.findMany.mockResolvedValue([]);
@@ -112,6 +118,7 @@ describe('runDueAcademicYearPromotions', () => {
         id: 1,
         year: '2026-2027',
         semester: '1ST',
+        startDate: new Date('2025-06-01T00:00:00.000Z'),
         promotionDate: new Date('2026-05-22T00:00:00.000Z'),
         promotionProcessedAt: null,
       },
@@ -153,6 +160,7 @@ describe('runDueAcademicYearPromotions', () => {
         yearLevel: 'Grade 10',
         program: 'Junior High',
         termType: 'SEMESTER',
+        transitionDecision: 'CONTINUE_SENIOR_HIGH',
       },
       {
         id: 5,
@@ -171,6 +179,7 @@ describe('runDueAcademicYearPromotions', () => {
         yearLevel: 'Grade 12',
         program: 'STEM',
         termType: 'SEMESTER',
+        transitionDecision: 'CONTINUE_COLLEGE',
       },
       {
         id: 7,
@@ -264,16 +273,19 @@ describe('undoLastAcademicYearPromotion', () => {
     txMock.backup.deleteMany.mockResolvedValue({ count: 2 });
     txMock.disbursement.createMany.mockResolvedValue({ count: 1 });
     txMock.student.update.mockResolvedValue({});
+    txMock.studentAcademicRecord.create.mockResolvedValue({});
+    txMock.studentAcademicRecord.deleteMany.mockResolvedValue({ count: 0 });
     txMock.studentScholarship.createMany.mockResolvedValue({ count: 1 });
   });
 
   it('restores students and reopens the active academic year promotion marker', async () => {
     const promotionProcessedAt = new Date('2026-05-22T02:00:00.000Z');
     prismaMock.academicYear.findFirst.mockResolvedValueOnce({
-      id: 1,
-      year: '2026-2027',
-      semester: '1ST',
-      promotionDate: new Date('2026-05-22T00:00:00.000Z'),
+        id: 1,
+        year: '2026-2027',
+        semester: '1ST',
+        startDate: new Date('2025-06-01T00:00:00.000Z'),
+        promotionDate: new Date('2026-05-22T00:00:00.000Z'),
       promotionProcessedAt,
     });
     txMock.backup.findMany.mockResolvedValueOnce([
@@ -370,6 +382,9 @@ describe('undoLastAcademicYearPromotion', () => {
     expect(txMock.academicYear.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { promotionProcessedAt: null },
+    });
+    expect(txMock.studentAcademicRecord.deleteMany).toHaveBeenCalledWith({
+      where: { academicYearId: 1 },
     });
     expect(txMock.backup.deleteMany).toHaveBeenCalledWith({
       where: { operationContext: 'ACADEMIC_YEAR_PROMOTION:1' },
