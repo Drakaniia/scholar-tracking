@@ -9,6 +9,7 @@ import {
 } from '@/lib/academic-year-service';
 import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { STUDENT_TRANSITION_DECISIONS } from '@/types';
 
 const ACTIVE_PROMOTION_STATUSES = ['PENDING', 'PROCESSING'];
 
@@ -156,6 +157,69 @@ export async function POST() {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const payload = await verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
+    }
+
+    if (payload.role !== 'ADMIN') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const decisions = Array.isArray(body?.decisions) ? body.decisions : [];
+
+    if (decisions.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'At least one transition decision is required.' },
+        { status: 400 }
+      );
+    }
+
+    const allowedDecisions = new Set<string>(STUDENT_TRANSITION_DECISIONS);
+    for (const decision of decisions) {
+      if (!Number.isInteger(decision?.studentId) || !allowedDecisions.has(decision?.decision)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid transition decision payload.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    await prisma.$transaction(
+      decisions.map((decision: { studentId: number; decision: string }) =>
+        prisma.student.update({
+          where: { id: decision.studentId },
+          data: {
+            transitionDecision: decision.decision,
+            transitionDecisionAt: new Date(),
+            transitionDecisionBy: payload.id,
+          },
+        })
+      )
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: `${decisions.length} transition decision(s) saved.`,
+    });
+  } catch (error) {
+    console.error('Error saving transition decisions:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to save transition decisions' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE() {
   try {
     const cookieStore = await cookies();
@@ -273,6 +337,7 @@ export async function GET(request: NextRequest) {
         yearLevel: true,
         program: true,
         termType: true,
+        transitionDecision: true,
       },
     });
 
@@ -286,11 +351,18 @@ export async function GET(request: NextRequest) {
             ? target.yearLevel
             : target.action === 'GRADUATE'
               ? 'Graduated'
+              : target.action === 'SEPARATE'
+                ? target.status
+                : target.action === 'RETAIN'
+                  ? student.yearLevel
               : null,
         nextProgram: target.action === 'PROMOTE' ? target.program || student.program : null,
         nextTermType: target.action === 'PROMOTE' ? target.termType || student.termType : null,
         action: target.action,
         reason: target.action === 'SKIP' ? target.reason : undefined,
+        transitionDecision: student.transitionDecision,
+        requiresDecision:
+          target.action === 'SKIP' && target.reason.includes('requires an end-of-year decision'),
       };
     });
 
