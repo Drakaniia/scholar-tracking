@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause - include all students, filter by scholarship source if specified
-    const whereClause: Prisma.StudentWhereInput = {};
+    const whereClause: Prisma.StudentWhereInput = {
+      isArchived: false,
+      status: 'Active',
+    };
 
     // Only filter by scholarship if a source is specified
     if (sourceFilter) {

@@ -35,12 +35,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const activeStudentWhere = {
+      isArchived: false,
+      status: 'Active',
+    };
+
     // Batch all queries together for better performance
     const results = await batchQueries({
-      totalStudents: () => prisma.student.count(),
+      totalStudents: () => prisma.student.count({ where: activeStudentWhere }),
       studentsWithScholarships: () =>
         prisma.student.count({
           where: {
+            ...activeStudentWhere,
             scholarships: {
               some: sourceFilter
                 ? {
@@ -172,6 +178,7 @@ export async function GET(request: NextRequest) {
       },
       recentStudents: () =>
         prisma.student.findMany({
+          where: activeStudentWhere,
           take: 5,
           orderBy: { updatedAt: 'desc' },
           select: {
@@ -200,6 +207,7 @@ export async function GET(request: NextRequest) {
       studentsByGradeLevel: () =>
         prisma.student.groupBy({
           by: ['gradeLevel'],
+          where: activeStudentWhere,
           _count: { id: true },
         }),
     });

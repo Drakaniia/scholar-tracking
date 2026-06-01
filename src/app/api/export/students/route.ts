@@ -231,7 +231,10 @@ export async function GET(request: NextRequest) {
     const sourceFilter = ['INTERNAL', 'EXTERNAL'].includes(sourceParam) ? sourceParam : '';
     const generatedAt = formatGeneratedAt();
 
-    const whereClause: Prisma.StudentWhereInput = {};
+    const whereClause: Prisma.StudentWhereInput = {
+      isArchived: false,
+      status: 'Active',
+    };
 
     if (sourceFilter) {
       whereClause.scholarships = {
