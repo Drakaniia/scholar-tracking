@@ -38,7 +38,7 @@ const COLUMN_MAPPINGS = {
     'middlename',
     'middle_name',
   ],
-  program: ['program', 'course', 'major', 'strand', 'specialization', 'specialization'],
+  program: ['program', 'course', 'major', 'specialization'],
   gradeLevel: ['gradelevel', 'grade_level', 'grade', 'yeargrade', 'year_grade'],
   yearLevel: ['yearlevel', 'year_level', 'year', 'yearnum', 'year_num', 'level'],
   status: [
