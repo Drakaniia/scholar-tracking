@@ -72,7 +72,7 @@ describe('resolvePromotionTarget', () => {
       resolvePromotionTarget({
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 12',
-        program: 'STEM',
+        program: 'Grade 12',
         termType: 'SEMESTER',
       })
     ).toEqual({
@@ -87,7 +87,7 @@ describe('resolvePromotionTarget', () => {
       resolvePromotionTarget({
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 12',
-        program: 'STEM',
+        program: 'Grade 12',
         termType: 'SEMESTER',
         transitionDecision: 'CONTINUE_COLLEGE',
       })

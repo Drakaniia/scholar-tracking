@@ -168,7 +168,7 @@ describe('runDueAcademicYearPromotions', () => {
         lastName: 'Eleven',
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 11',
-        program: 'STEM',
+        program: 'Grade 11',
         termType: 'SEMESTER',
       },
       {
@@ -177,7 +177,7 @@ describe('runDueAcademicYearPromotions', () => {
         lastName: 'Twelve',
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 12',
-        program: 'STEM',
+        program: 'Grade 12',
         termType: 'SEMESTER',
         transitionDecision: 'CONTINUE_COLLEGE',
       },
