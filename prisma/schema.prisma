@@ -72,6 +72,12 @@ model Student {
   graduationStatus String?              @default("Active") @map("graduation_status")
   isArchived       Boolean              @default(false) @map("is_archived")
   termType         String               @default("SEMESTER") @map("term_type")
+  transitionDecision   String?          @map("transition_decision")
+  transitionDecisionAt DateTime?        @map("transition_decision_at")
+  transitionDecisionBy Int?             @map("transition_decision_by")
+  separatedAt          DateTime?        @map("separated_at")
+  separationReason     String?          @map("separation_reason")
+  academicRecords StudentAcademicRecord[]
   disbursements    Disbursement[]
   fees             StudentFees[]
   scholarships     StudentScholarship[]
@@ -82,6 +88,37 @@ model Student {
   @@index([isArchived])
   @@index([graduationStatus])
   @@map("students")
+}
+
+model StudentAcademicRecord {
+  id             Int           @id @default(autoincrement()) @map("student_academic_record_id")
+  studentId      Int           @map("student_id")
+  academicYearId Int?          @map("academic_year_id")
+  academicYear   String        @map("academic_year")
+  gradeLevel     String        @map("grade_level")
+  yearLevel      String        @map("year_level")
+  program        String
+  termType       String        @default("SEMESTER") @map("term_type")
+  status         String        @default("Active")
+  outcome        String?
+  decision       String?
+  nextGradeLevel String?       @map("next_grade_level")
+  nextYearLevel  String?       @map("next_year_level")
+  nextProgram    String?       @map("next_program")
+  nextTermType   String?       @map("next_term_type")
+  isCurrent      Boolean       @default(false) @map("is_current")
+  startedAt      DateTime?     @map("started_at")
+  endedAt        DateTime?     @map("ended_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  academicYearRel AcademicYear? @relation(fields: [academicYearId], references: [id])
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([academicYearId, outcome])
+  @@index([outcome])
+  @@index([isCurrent])
+  @@map("student_academic_records")
 }
 
 model StudentScholarship {
@@ -239,6 +276,7 @@ model AcademicYear {
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
   disbursements        Disbursement[]
+  studentAcademicRecords StudentAcademicRecord[]
   studentFees          StudentFees[]
 
   @@index([isActive])
