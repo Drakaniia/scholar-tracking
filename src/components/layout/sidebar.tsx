@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  TrendingUp,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -40,6 +41,7 @@ const navigation = [
   { name: 'Students', href: '/students', icon: Users },
   { name: 'Registry', href: '/registry', icon: ClipboardList },
   { name: 'Scholarships', href: '/scholarships', icon: GraduationCap },
+  { name: 'Flow', href: '/scholarship-flow', icon: TrendingUp },
   { name: 'Reports', href: '/reports', icon: FileSpreadsheet },
 ];
 

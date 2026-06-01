@@ -468,9 +468,16 @@ function SecondaryChartsSection({
               id: student.id,
               studentName: `${student.firstName} ${student.lastName}`,
               scholarshipName:
-                student.scholarships?.[0]?.scholarship?.scholarshipName || 'Scholarship Program',
+                student.scholarships?.[0]?.scholarship?.scholarshipName || 'No Scholarship',
+              scholarshipCount: student.scholarships?.length || 0,
+              scholarshipNames:
+                student.scholarships
+                  ?.map((award) => award.scholarship?.scholarshipName)
+                  .filter(Boolean) || [],
               type: getScholarshipTypeLabel(
-                student.scholarships?.[0]?.scholarship?.type || 'Grant'
+                (student.scholarships?.length || 0) > 1
+                  ? 'Multiple Programs'
+                  : student.scholarships?.[0]?.scholarship?.type || 'Grant'
               ),
               date: student.updatedAt || new Date().toLocaleDateString(),
               status: 'active' as const,

@@ -12,6 +12,8 @@ interface RecentAward {
   id: number;
   studentName: string;
   scholarshipName: string;
+  scholarshipCount?: number;
+  scholarshipNames?: string[];
   type: string;
   amount?: number;
   date: string;
@@ -65,10 +67,33 @@ export function RecentAwards({ awards, limit = 5 }: RecentAwardsProps) {
                   <Badge className={statusStyles[award.status]} variant="outline">
                     {award.status}
                   </Badge>
+                  {award.scholarshipCount && award.scholarshipCount > 1 && (
+                    <Badge
+                      className="border-amber-200 bg-amber-50 text-amber-900"
+                      variant="outline"
+                    >
+                      {award.scholarshipCount} awards
+                    </Badge>
+                  )}
                 </div>
                 <p className="truncate text-sm text-slate-500">
-                  {award.scholarshipName} / {award.type}
+                  {award.scholarshipCount && award.scholarshipCount > 1
+                    ? `${award.scholarshipCount} scholarships`
+                    : award.scholarshipName}{' '}
+                  / {award.type}
                 </p>
+                {award.scholarshipNames && award.scholarshipNames.length > 1 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {award.scholarshipNames.slice(0, 4).map((name, index) => (
+                      <span
+                        key={`${award.id}-${name}`}
+                        className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900"
+                      >
+                        {index + 1}. {name.length > 24 ? `${name.slice(0, 21)}...` : name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between gap-4 text-sm sm:block sm:text-right">

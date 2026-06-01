@@ -5,11 +5,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Archive,
+  Award,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Filter,
+  Layers,
   Pencil,
   Plus,
   Search,
@@ -59,6 +61,7 @@ import {
   useStudents,
   useUpdateStudent,
 } from '@/hooks/use-queries';
+import { cn, formatCurrency } from '@/lib/utils';
 import {
   CreateStudentInput,
   Disbursement,
@@ -116,6 +119,190 @@ const getScholarshipColor = (scholarshipName: string): string => {
   const index = Math.abs(hash) % PASTEL_COLORS.length;
   return PASTEL_COLORS[index];
 };
+
+function getScholarshipCountLabel(count: number) {
+  if (count === 0) return 'No scholarship';
+  if (count === 1) return '1 scholarship';
+  return `${count} scholarships`;
+}
+
+function getScholarshipLoadText(count: number) {
+  if (count === 0) return 'Unassigned';
+  if (count === 1) return 'Single award';
+  if (count === 2) return 'Dual award';
+  if (count === 3) return 'Triple award';
+  return 'Stacked awards';
+}
+
+function getCompactScholarshipName(name: string) {
+  if (name.length <= 30) return name;
+  return `${name.slice(0, 27)}...`;
+}
+
+function ScholarshipCountPill({ count }: { count: number }) {
+  const isMultiple = count > 1;
+
+  return (
+    <div
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold',
+        count === 0 && 'border-slate-200 bg-slate-50 text-slate-500',
+        count === 1 && 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        isMultiple && 'border-amber-200 bg-amber-50 text-amber-900'
+      )}
+    >
+      {isMultiple ? <Layers className="h-3.5 w-3.5" /> : <Award className="h-3.5 w-3.5" />}
+      {getScholarshipCountLabel(count)}
+    </div>
+  );
+}
+
+function ScholarshipPortfolioCell({
+  scholarships,
+  hoveredScholarshipId,
+  onScholarshipHover,
+}: {
+  scholarships?: StudentScholarship[];
+  hoveredScholarshipId: number | null;
+  onScholarshipHover: (scholarshipId: number | null) => void;
+}) {
+  const assignedScholarships = scholarships?.filter((ss) => ss.scholarship) || [];
+  const scholarshipCount = assignedScholarships.length;
+  const totalGrantAmount = assignedScholarships.reduce(
+    (sum, ss) => sum + Number(ss.grantAmount || 0),
+    0
+  );
+  const multiple = scholarshipCount > 1;
+
+  if (scholarshipCount === 0) {
+    return (
+      <div className="inline-flex min-w-[230px] items-center justify-between gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+        <span>No scholarship assigned</span>
+        <ScholarshipCountPill count={0} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'min-w-[300px] rounded-lg border bg-white p-2 shadow-sm',
+        multiple ? 'border-amber-200 bg-amber-50/40' : 'border-emerald-200 bg-emerald-50/30'
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <ScholarshipCountPill count={scholarshipCount} />
+          <p className="text-xs text-slate-500">{getScholarshipLoadText(scholarshipCount)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] uppercase text-slate-400">Total Grant</p>
+          <p className="text-sm font-semibold text-slate-950">
+            PHP {formatCurrency(totalGrantAmount)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {assignedScholarships.map((ss, index) => {
+          const scholarship = ss.scholarship;
+          if (!scholarship) return null;
+          const scholarshipColor = getScholarshipColor(scholarship.scholarshipName);
+
+          return (
+            <Popover
+              key={ss.id}
+              open={ss.id === hoveredScholarshipId}
+              onOpenChange={(open) => onScholarshipHover(open ? ss.id : null)}
+            >
+              <PopoverTrigger asChild>
+                <Badge
+                  variant="outline"
+                  style={{
+                    backgroundColor: scholarshipColor,
+                    color: '#334155',
+                    borderColor: scholarshipColor,
+                  }}
+                  className="max-w-[220px] cursor-default gap-1.5 truncate py-1"
+                  onMouseEnter={() => onScholarshipHover(ss.id)}
+                  onMouseLeave={() => onScholarshipHover(null)}
+                >
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white/85 px-1 text-[10px] font-bold text-slate-700">
+                    {index + 1}
+                  </span>
+                  <span className="truncate">
+                    {getCompactScholarshipName(scholarship.scholarshipName)}
+                  </span>
+                </Badge>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-72 p-3"
+                align="start"
+                sideOffset={4}
+                avoidCollisions
+                hideWhenDetached={false}
+                onMouseEnter={() => onScholarshipHover(ss.id)}
+                onMouseLeave={() => onScholarshipHover(null)}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-50 text-xs font-bold text-amber-900">
+                        {index + 1}
+                      </span>
+                      <h4 className="text-sm font-semibold">{scholarship.scholarshipName}</h4>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {getScholarshipCountLabel(scholarshipCount)} assigned to this student
+                    </p>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <Badge
+                      variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                    </Badge>
+                    <Badge
+                      variant={ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {ss.scholarshipStatus}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-slate-500">Type</p>
+                      <p className="font-medium text-slate-950">{scholarship.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Amount</p>
+                      <p className="font-medium text-slate-950">
+                        PHP {formatCurrency(Number(ss.grantAmount || 0))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Award Date</p>
+                      <p className="font-medium text-slate-950">
+                        {new Date(ss.awardDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Term</p>
+                      <p className="font-medium text-slate-950">
+                        {ss.startTerm} - {ss.endTerm}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface StudentWithScholarships extends Student {
   scholarships: StudentScholarship[];
@@ -643,179 +830,91 @@ export default function StudentsPage() {
               <p className="text-sm">Add your first student to get started</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Grade Level</TableHead>
-                  <TableHead>Year Level</TableHead>
-                  <TableHead>Program</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Scholarships</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student) => (
-                  <TableRow
-                    key={student.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleViewDetails(student.id)}
-                  >
-                    <TableCell className="font-medium">
-                      {student.lastName}, {student.firstName} {student.middleInitial || ''}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{GRADE_LEVEL_LABELS[student.gradeLevel]}</Badge>
-                    </TableCell>
-                    <TableCell>{student.yearLevel}</TableCell>
-                    <TableCell>{student.program}</TableCell>
-                    <TableCell>
-                      <Badge variant={student.status === 'Active' ? 'default' : 'secondary'}>
-                        {student.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {student.scholarships && student.scholarships.length > 0 ? (
-                          student.scholarships.map((ss) => {
-                            const scholarship = ss.scholarship;
-                            if (!scholarship) return null;
-
-                            return (
-                              <Popover
-                                key={ss.id}
-                                open={ss.id === hoveredScholarshipId}
-                                onOpenChange={(open) => handleScholarshipHover(open ? ss.id : null)}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Badge
-                                    variant="outline"
-                                    style={{
-                                      backgroundColor: getScholarshipColor(
-                                        scholarship.scholarshipName
-                                      ),
-                                      color: '#374151',
-                                      borderColor: getScholarshipColor(scholarship.scholarshipName),
-                                    }}
-                                    className="cursor-default"
-                                    onMouseEnter={() => handleScholarshipHover(ss.id)}
-                                    onMouseLeave={() => handleScholarshipHover(null)}
-                                  >
-                                    {scholarship.scholarshipName}
-                                  </Badge>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-64 p-3"
-                                  align="start"
-                                  sideOffset={4}
-                                  avoidCollisions
-                                  hideWhenDetached={false}
-                                  onMouseEnter={() => handleScholarshipHover(ss.id)}
-                                  onMouseLeave={() => handleScholarshipHover(null)}
-                                >
-                                  <div className="space-y-2">
-                                    <h4 className="font-semibold text-sm">
-                                      {scholarship.scholarshipName}
-                                    </h4>
-                                    <div className="flex justify-between items-center">
-                                      <Badge
-                                        variant={
-                                          scholarship.source === 'INTERNAL'
-                                            ? 'default'
-                                            : 'secondary'
-                                        }
-                                        className="text-xs"
-                                      >
-                                        {scholarship.source === 'INTERNAL'
-                                          ? 'Internal'
-                                          : 'External'}
-                                      </Badge>
-                                      <Badge
-                                        variant={
-                                          ss.scholarshipStatus === 'Active'
-                                            ? 'default'
-                                            : 'secondary'
-                                        }
-                                        className="text-xs"
-                                      >
-                                        {ss.scholarshipStatus}
-                                      </Badge>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-1 text-xs">
-                                      <div>
-                                        <p className="text-muted-foreground">Type</p>
-                                        <p>{scholarship.type}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-muted-foreground">Amount</p>
-                                        <p>₱{ss.grantAmount.toLocaleString()}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-muted-foreground">Award Date</p>
-                                        <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-muted-foreground">Term</p>
-                                        <p>
-                                          {ss.startTerm} - {ss.endTerm}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            );
-                          })
-                        ) : (
-                          <span className="text-muted-foreground">None</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(student)}
-                            className="cursor-pointer zoom-hover"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {!showArchived ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openDeleteDialog(student)}
-                              className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
-                              title="Archive student"
-                            >
-                              <Archive className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                archiveStudentMutation.mutateAsync({
-                                  id: student.id,
-                                  action: 'unarchive',
-                                })
-                              }
-                              className="text-green-600 hover:text-green-700 cursor-pointer zoom-hover"
-                              title="Unarchive student"
-                            >
-                              <Archive className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Grade Level</TableHead>
+                    <TableHead>Year Level</TableHead>
+                    <TableHead>Program</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Scholarships</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {students.map((student) => (
+                    <TableRow
+                      key={student.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleViewDetails(student.id)}
+                    >
+                      <TableCell className="font-medium">
+                        {student.lastName}, {student.firstName} {student.middleInitial || ''}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{GRADE_LEVEL_LABELS[student.gradeLevel]}</Badge>
+                      </TableCell>
+                      <TableCell>{student.yearLevel}</TableCell>
+                      <TableCell>{student.program}</TableCell>
+                      <TableCell>
+                        <Badge variant={student.status === 'Active' ? 'default' : 'secondary'}>
+                          {student.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <ScholarshipPortfolioCell
+                          scholarships={student.scholarships}
+                          hoveredScholarshipId={hoveredScholarshipId}
+                          onScholarshipHover={handleScholarshipHover}
+                        />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(student)}
+                              className="cursor-pointer zoom-hover"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {!showArchived ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openDeleteDialog(student)}
+                                className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
+                                title="Archive student"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  archiveStudentMutation.mutateAsync({
+                                    id: student.id,
+                                    action: 'unarchive',
+                                  })
+                                }
+                                className="text-green-600 hover:text-green-700 cursor-pointer zoom-hover"
+                                title="Unarchive student"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
 
           {/* Pagination Controls */}
@@ -900,9 +999,35 @@ export default function StudentsPage() {
               {/* Scholarships Section - PRIMARY VIEW */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">Scholarships</h3>
+                <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase text-slate-500">Scholarship Load</p>
+                    <div className="mt-2">
+                      <ScholarshipCountPill count={selectedStudent.scholarships?.length || 0} />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase text-slate-500">Load Type</p>
+                    <p className="mt-2 font-semibold text-slate-950">
+                      {getScholarshipLoadText(selectedStudent.scholarships?.length || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase text-slate-500">Total Grant</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                      PHP{' '}
+                      {formatCurrency(
+                        selectedStudent.scholarships?.reduce(
+                          (sum, ss) => sum + Number(ss.grantAmount || 0),
+                          0
+                        ) || 0
+                      )}
+                    </p>
+                  </div>
+                </div>
                 {selectedStudent.scholarships && selectedStudent.scholarships.length > 0 ? (
                   <div className="space-y-4">
-                    {selectedStudent.scholarships.map((ss) => {
+                    {selectedStudent.scholarships.map((ss, index) => {
                       const scholarship = ss.scholarship;
                       if (!scholarship) return null;
 
@@ -914,13 +1039,23 @@ export default function StudentsPage() {
                         >
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-3">
-                              <div>
-                                <h4 className="text-lg font-semibold">
-                                  {scholarship.scholarshipName}
-                                </h4>
-                                <p className="text-sm text-muted-foreground">{scholarship.type}</p>
+                              <div className="flex gap-3">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-50 text-sm font-bold text-amber-900">
+                                  {index + 1}
+                                </span>
+                                <div>
+                                  <h4 className="text-lg font-semibold">
+                                    {scholarship.scholarshipName}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    {scholarship.type}
+                                  </p>
+                                </div>
                               </div>
                               <div className="flex gap-2">
+                                <Badge variant="outline">
+                                  {index + 1} of {selectedStudent.scholarships?.length || 0}
+                                </Badge>
                                 <Badge
                                   variant={
                                     scholarship.source === 'INTERNAL' ? 'default' : 'secondary'
@@ -941,7 +1076,7 @@ export default function StudentsPage() {
                               <div>
                                 <p className="text-muted-foreground">Grant Amount</p>
                                 <p className="text-lg font-semibold">
-                                  ₱{ss.grantAmount.toLocaleString()}
+                                  PHP {formatCurrency(Number(ss.grantAmount || 0))}
                                 </p>
                               </div>
                               <div>
@@ -966,10 +1101,13 @@ export default function StudentsPage() {
                         Total Scholarship Amount
                       </p>
                       <p className="text-2xl font-bold">
-                        ₱
-                        {selectedStudent.scholarships
-                          .reduce((sum, ss) => sum + Number(ss.grantAmount), 0)
-                          .toLocaleString()}
+                        PHP{' '}
+                        {formatCurrency(
+                          selectedStudent.scholarships.reduce(
+                            (sum, ss) => sum + Number(ss.grantAmount || 0),
+                            0
+                          )
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1053,8 +1191,6 @@ export default function StudentsPage() {
                               <div>
                                 <p className="font-medium">{scholarship.scholarshipName}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  {disbursement.term} •{' '}
-                                  {new Date(disbursement.disbursementDate).toLocaleDateString()} •{' '}
                                   {disbursement.method}
                                 </p>
                                 <Badge
@@ -1066,9 +1202,7 @@ export default function StudentsPage() {
                                   {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
                                 </Badge>
                               </div>
-                              <p className="text-lg font-semibold">
-                                ₱{disbursement.amount.toLocaleString()}
-                              </p>
+                              <p className="text-lg font-semibold"></p>
                             </div>
                           );
                         })}
@@ -1076,7 +1210,6 @@ export default function StudentsPage() {
                       <div className="mt-4 p-3 bg-primary/10 rounded-lg">
                         <p className="text-sm font-medium text-muted-foreground">Total Disbursed</p>
                         <p className="text-2xl font-bold">
-                          ₱
                           {selectedStudent.disbursements
                             .reduce((sum, d) => sum + Number(d.amount), 0)
                             .toLocaleString()}

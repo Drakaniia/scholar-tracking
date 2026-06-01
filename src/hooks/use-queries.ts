@@ -50,6 +50,7 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.scholarships.details(), id] as const,
     filterOptions: (filters: ScholarshipFilters = {}) =>
       [...queryKeys.scholarships.all, 'filter-options', filters] as const,
+    flow: (source?: string) => [...queryKeys.scholarships.all, 'flow', source || 'all'] as const,
   },
 
   // Users
@@ -200,6 +201,75 @@ interface ScholarshipCounts {
   total: number;
   internal: number;
   external: number;
+}
+
+export interface ScholarshipFlowData {
+  years: Array<{
+    year: number;
+    label: string;
+    awardCount: number;
+    beneficiaryCount: number;
+    awardedAmount: number;
+    disbursementCount: number;
+    disbursedAmount: number;
+    balance: number;
+    subsidyAmount: number;
+    internalAwards: number;
+    externalAwards: number;
+    internalAmount: number;
+    externalAmount: number;
+  }>;
+  summary: {
+    startYear: number;
+    endYear: number;
+    totalAwarded: number;
+    totalDisbursed: number;
+    totalBalance: number;
+    totalAwards: number;
+    totalBeneficiaries: number;
+    activeStudents: number;
+    singleScholarshipStudents: number;
+    multiScholarshipStudents: number;
+    noScholarshipStudents: number;
+    maxScholarshipsPerStudent: number;
+  };
+  loadDistribution: Array<{
+    key: string;
+    label: string;
+    students: number;
+    percentage: number;
+  }>;
+  multiScholarshipStudents: Array<{
+    id: number;
+    studentName: string;
+    gradeLevel: string;
+    yearLevel: string;
+    program: string;
+    scholarshipCount: number;
+    totalAmount: number;
+    scholarships: Array<{
+      scholarshipName: string;
+      type: string;
+      source: string;
+      amount: number;
+      status: string;
+    }>;
+  }>;
+  topTypes: Array<{
+    type: string;
+    awardCount: number;
+    awardedAmount: number;
+    beneficiaryCount: number;
+  }>;
+  topScholarships: Array<{
+    scholarshipName: string;
+    type: string;
+    source: string;
+    awardCount: number;
+    awardedAmount: number;
+    beneficiaryCount: number;
+  }>;
+  source: string;
 }
 
 interface ApiResponse<T> {
@@ -618,6 +688,31 @@ export function useDeleteScholarship() {
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to archive scholarship');
     },
+  });
+}
+
+export function useScholarshipFlow(
+  source = 'all',
+  options?: Partial<UseQueryOptions<ApiResponse<ScholarshipFlowData>, Error>>
+) {
+  return useQuery<ApiResponse<ScholarshipFlowData>, Error>({
+    queryKey: queryKeys.scholarships.flow(source),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (source && source !== 'all') {
+        params.set('source', source);
+      }
+
+      const url = `/api/scholarships/flow${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch scholarship flow');
+      }
+      return response.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    ...options,
   });
 }
 

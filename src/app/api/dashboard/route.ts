@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
             gradeLevel: true,
             updatedAt: true,
             scholarships: {
-              take: 1,
+              take: 4,
               orderBy: { createdAt: 'desc' },
               select: {
                 scholarshipStatus: true,
