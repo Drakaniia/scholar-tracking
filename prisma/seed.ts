@@ -132,7 +132,7 @@ async function main() {
         lastName: 'GONZALES',
         firstName: 'ANA',
         middleInitial: 'L',
-        program: 'STEM',
+        program: 'Grade 11',
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 11',
         status: 'Active',
@@ -143,7 +143,7 @@ async function main() {
         lastName: 'CRUZ',
         firstName: 'MIGUEL',
         middleInitial: 'D',
-        program: 'ABM',
+        program: 'Grade 12',
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 12',
         status: 'Active',
@@ -154,7 +154,7 @@ async function main() {
         lastName: 'BAUTISTA',
         firstName: 'ELENA',
         middleInitial: 'V',
-        program: 'HUMSS',
+        program: 'Grade 11',
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 11',
         status: 'Active',
@@ -855,7 +855,7 @@ async function main() {
   ]);
 
   // Senior High Students - Both Internal and External
-  // Student 5 (Ana Gonzales - STEM)
+  // Student 5 (Ana Gonzales - Grade 11)
   await Promise.all([
     prisma.studentScholarship.create({
       data: {
@@ -892,7 +892,7 @@ async function main() {
     }), // OLSSEF SHS
   ]);
 
-  // Student 6 (Miguel Cruz - ABM)
+  // Student 6 (Miguel Cruz - Grade 12)
   await Promise.all([
     prisma.studentScholarship.create({
       data: {
@@ -929,7 +929,7 @@ async function main() {
     }), // Individual Sponsorship JHS/SHS
   ]);
 
-  // Student 7 (Elena Bautista - HUMSS)
+  // Student 7 (Elena Bautista - Grade 11)
   await Promise.all([
     prisma.studentScholarship.create({
       data: {
