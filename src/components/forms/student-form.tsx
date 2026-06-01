@@ -6,6 +6,13 @@ import { Filter, Info, Plus, Search, X } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 
 import {
+  COMPACT_DIALOG_CONTENT_CLASS,
+  DIALOG_BODY_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_FORM_CLASS,
+  DIALOG_HEADER_CLASS,
+} from '@/components/shared/dialog-layout';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -481,228 +488,256 @@ export function StudentForm({
   };
 
   return (
-    <form
-      onSubmit={form.handleSubmit(handleFormSubmit)}
-      className="space-y-6 max-h-[75vh] overflow-y-auto px-1 py-2"
-    >
-      <div className="grid grid-cols-3 gap-6">
-        <div className="space-y-3 col-span-1">
-          <Label htmlFor="lastName" className="text-sm font-medium">
-            Last Name
-          </Label>
-          <Input
-            id="lastName"
-            {...form.register('lastName', { required: true })}
-            placeholder="Enter last name"
-            className="h-10"
-            onChange={(e) => {
-              e.target.value = e.target.value.toUpperCase();
-              form.setValue('lastName', e.target.value);
-            }}
-          />
-        </div>
-        <div className="space-y-3 col-span-1">
-          <Label htmlFor="firstName" className="text-sm font-medium">
-            First Name
-          </Label>
-          <Input
-            id="firstName"
-            {...form.register('firstName', { required: true })}
-            placeholder="Enter first name"
-            className="h-10"
-            onChange={(e) => {
-              e.target.value = e.target.value.toUpperCase();
-              form.setValue('firstName', e.target.value);
-            }}
-          />
-        </div>
-        <div className="space-y-3 col-span-1">
-          <Label htmlFor="middleInitial" className="text-sm font-medium">
-            M.I.
-          </Label>
-          <Input
-            id="middleInitial"
-            {...form.register('middleInitial')}
-            placeholder="Enter middle initial"
-            maxLength={1}
-            className="h-10"
-            onChange={(e) => {
-              e.target.value = e.target.value.toUpperCase();
-              form.setValue('middleInitial', e.target.value);
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <Label htmlFor="gradeLevel" className="text-sm font-medium">
-          Grade Level
-        </Label>
-        <Controller
-          name="gradeLevel"
-          control={form.control}
-          render={({ field }) => (
-            <Select
-              value={field.value}
-              onValueChange={(value) => {
-                field.onChange(value);
-                handleGradeLevelChange(value as GradeLevel);
+    <form onSubmit={form.handleSubmit(handleFormSubmit)} className={DIALOG_FORM_CLASS}>
+      <div className={`${DIALOG_BODY_CLASS} flex flex-col gap-6`}>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="space-y-3 col-span-1">
+            <Label htmlFor="lastName" className="text-sm font-medium">
+              Last Name
+            </Label>
+            <Input
+              id="lastName"
+              {...form.register('lastName', { required: true })}
+              placeholder="Enter last name"
+              className="h-10"
+              onChange={(e) => {
+                e.target.value = e.target.value.toUpperCase();
+                form.setValue('lastName', e.target.value);
               }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Select grade level" />
-              </SelectTrigger>
-              <SelectContent>
-                {GRADE_LEVELS.map((level) => (
-                  <SelectItem key={level} value={level}>
-                    {GRADE_LEVEL_LABELS[level]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </div>
+            />
+          </div>
+          <div className="space-y-3 col-span-1">
+            <Label htmlFor="firstName" className="text-sm font-medium">
+              First Name
+            </Label>
+            <Input
+              id="firstName"
+              {...form.register('firstName', { required: true })}
+              placeholder="Enter first name"
+              className="h-10"
+              onChange={(e) => {
+                e.target.value = e.target.value.toUpperCase();
+                form.setValue('firstName', e.target.value);
+              }}
+            />
+          </div>
+          <div className="space-y-3 col-span-1">
+            <Label htmlFor="middleInitial" className="text-sm font-medium">
+              M.I.
+            </Label>
+            <Input
+              id="middleInitial"
+              {...form.register('middleInitial')}
+              placeholder="Enter middle initial"
+              maxLength={1}
+              className="h-10"
+              onChange={(e) => {
+                e.target.value = e.target.value.toUpperCase();
+                form.setValue('middleInitial', e.target.value);
+              }}
+            />
+          </div>
+        </div>
 
-      {/* Term Type Selector - Only for College */}
-      {selectedGradeLevel === 'COLLEGE' && (
         <div className="space-y-3">
-          <Label htmlFor="termType" className="text-sm font-medium">
-            Academic Term System
+          <Label htmlFor="gradeLevel" className="text-sm font-medium">
+            Grade Level
           </Label>
           <Controller
-            name="termType"
+            name="gradeLevel"
             control={form.control}
             render={({ field }) => (
               <Select
-                value={field.value || selectedTermType}
+                value={field.value}
                 onValueChange={(value) => {
                   field.onChange(value);
-                  setSelectedTermType(value as TermType);
+                  handleGradeLevelChange(value as GradeLevel);
                 }}
               >
                 <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select term system" />
+                  <SelectValue placeholder="Select grade level" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TERM_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {TERM_TYPE_LABELS[type]}
+                  {GRADE_LEVELS.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {GRADE_LEVEL_LABELS[level]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
           />
-          <p className="text-xs text-muted-foreground">
-            {selectedTermType === 'TRIMESTER'
-              ? '3 terms per year (typically 3-year programs)'
-              : '2 terms per year (typically 4-year programs)'}
-          </p>
         </div>
-      )}
 
-      {/* College Fields */}
-      {selectedGradeLevel === 'COLLEGE' && (
-        <>
+        {/* Term Type Selector - Only for College */}
+        {selectedGradeLevel === 'COLLEGE' && (
           <div className="space-y-3">
-            <Label htmlFor="course" className="text-sm font-medium">
-              Course
+            <Label htmlFor="termType" className="text-sm font-medium">
+              Academic Term System
             </Label>
-            <Select
-              value={selectedCourse}
-              onValueChange={(value) => {
-                setSelectedCourse(value);
-                if (value !== 'Other') {
-                  form.setValue('program', value);
-                  setCustomCourse('');
-                }
-              }}
-            >
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Select a course" />
-              </SelectTrigger>
-              <SelectContent>
-                {COLLEGE_COURSES.map((course) => (
-                  <SelectItem key={course} value={course}>
-                    {course}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name="termType"
+              control={form.control}
+              render={({ field }) => (
+                <Select
+                  value={field.value || selectedTermType}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    setSelectedTermType(value as TermType);
+                  }}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select term system" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TERM_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {TERM_TYPE_LABELS[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              {selectedTermType === 'TRIMESTER'
+                ? '3 terms per year (typically 3-year programs)'
+                : '2 terms per year (typically 4-year programs)'}
+            </p>
           </div>
+        )}
 
-          {selectedCourse === 'Other' && (
+        {/* College Fields */}
+        {selectedGradeLevel === 'COLLEGE' && (
+          <>
             <div className="space-y-3">
-              <Label htmlFor="customCourse" className="text-sm font-medium">
-                Enter Course Name
-              </Label>
-              <Input
-                id="customCourse"
-                value={customCourse}
-                onChange={(e) => {
-                  setCustomCourse(e.target.value);
-                  form.setValue('program', e.target.value);
-                }}
-                placeholder="Enter custom course name"
-                className="h-10"
-              />
-            </div>
-          )}
-
-          {selectedCourse && (
-            <div className="space-y-3">
-              <Label htmlFor="program" className="text-sm font-medium">
-                Major (Optional)
+              <Label htmlFor="course" className="text-sm font-medium">
+                Course
               </Label>
               <Select
-                value={selectedProgram}
+                value={selectedCourse}
                 onValueChange={(value) => {
-                  setSelectedProgram(value);
-                  if (value === 'None') {
-                    const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
-                    form.setValue('program', courseValue);
-                    setCustomProgram('');
-                  } else if (value !== 'Other') {
-                    const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
-                    form.setValue('program', `${courseValue} - ${value}`);
-                    setCustomProgram('');
+                  setSelectedCourse(value);
+                  if (value !== 'Other') {
+                    form.setValue('program', value);
+                    setCustomCourse('');
                   }
                 }}
               >
                 <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select a major" />
+                  <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
                 <SelectContent>
-                  {COLLEGE_PROGRAMS.map((program) => (
-                    <SelectItem key={program} value={program}>
-                      {program}
+                  {COLLEGE_COURSES.map((course) => (
+                    <SelectItem key={course} value={course}>
+                      {course}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
 
-          {selectedProgram === 'Other' && (
+            {selectedCourse === 'Other' && (
+              <div className="space-y-3">
+                <Label htmlFor="customCourse" className="text-sm font-medium">
+                  Enter Course Name
+                </Label>
+                <Input
+                  id="customCourse"
+                  value={customCourse}
+                  onChange={(e) => {
+                    setCustomCourse(e.target.value);
+                    form.setValue('program', e.target.value);
+                  }}
+                  placeholder="Enter custom course name"
+                  className="h-10"
+                />
+              </div>
+            )}
+
+            {selectedCourse && (
+              <div className="space-y-3">
+                <Label htmlFor="program" className="text-sm font-medium">
+                  Major (Optional)
+                </Label>
+                <Select
+                  value={selectedProgram}
+                  onValueChange={(value) => {
+                    setSelectedProgram(value);
+                    if (value === 'None') {
+                      const courseValue =
+                        selectedCourse === 'Other' ? customCourse : selectedCourse;
+                      form.setValue('program', courseValue);
+                      setCustomProgram('');
+                    } else if (value !== 'Other') {
+                      const courseValue =
+                        selectedCourse === 'Other' ? customCourse : selectedCourse;
+                      form.setValue('program', `${courseValue} - ${value}`);
+                      setCustomProgram('');
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select a major" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COLLEGE_PROGRAMS.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {selectedProgram === 'Other' && (
+              <div className="space-y-3">
+                <Label htmlFor="customProgram" className="text-sm font-medium">
+                  Enter Major Name
+                </Label>
+                <Input
+                  id="customProgram"
+                  value={customProgram}
+                  onChange={(e) => {
+                    setCustomProgram(e.target.value);
+                    const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
+                    form.setValue('program', `${courseValue} - ${e.target.value}`);
+                  }}
+                  placeholder="Enter custom major name"
+                  className="h-10"
+                />
+              </div>
+            )}
+
             <div className="space-y-3">
-              <Label htmlFor="customProgram" className="text-sm font-medium">
-                Enter Major Name
+              <Label htmlFor="yearLevel" className="text-sm font-medium">
+                Year Level
               </Label>
-              <Input
-                id="customProgram"
-                value={customProgram}
-                onChange={(e) => {
-                  setCustomProgram(e.target.value);
-                  const courseValue = selectedCourse === 'Other' ? customCourse : selectedCourse;
-                  form.setValue('program', `${courseValue} - ${e.target.value}`);
-                }}
-                placeholder="Enter custom major name"
-                className="h-10"
+              <Controller
+                name="yearLevel"
+                control={form.control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select year level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YEAR_LEVELS.COLLEGE.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
             </div>
-          )}
+          </>
+        )}
 
+        {/* Senior High Fields */}
+        {selectedGradeLevel === 'SENIOR_HIGH' && (
           <div className="space-y-3">
             <Label htmlFor="yearLevel" className="text-sm font-medium">
               Year Level
@@ -711,12 +746,18 @@ export function StudentForm({
               name="yearLevel"
               control={form.control}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue('program', value);
+                  }}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select year level" />
                   </SelectTrigger>
                   <SelectContent>
-                    {YEAR_LEVELS.COLLEGE.map((level) => (
+                    {YEAR_LEVELS.SENIOR_HIGH.map((level) => (
                       <SelectItem key={level} value={level}>
                         {level}
                       </SelectItem>
@@ -726,505 +767,478 @@ export function StudentForm({
               )}
             />
           </div>
-        </>
-      )}
+        )}
 
-      {/* Senior High Fields */}
-      {selectedGradeLevel === 'SENIOR_HIGH' && (
-        <div className="space-y-3">
-          <Label htmlFor="yearLevel" className="text-sm font-medium">
-            Year Level
-          </Label>
-          <Controller
-            name="yearLevel"
-            control={form.control}
-            render={({ field }) => (
-              <Select
-                value={field.value}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  form.setValue('program', value);
-                }}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select year level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEAR_LEVELS.SENIOR_HIGH.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-      )}
-
-      {/* Grade School Fields */}
-      {selectedGradeLevel === 'GRADE_SCHOOL' && (
-        <div className="space-y-3">
-          <Label htmlFor="yearLevel" className="text-sm font-medium">
-            Select Grade
-          </Label>
-          <Controller
-            name="yearLevel"
-            control={form.control}
-            render={({ field }) => (
-              <Select
-                value={field.value}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  form.setValue('program', value);
-                }}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select grade level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GRADE_SCHOOL_LEVELS.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-      )}
-
-      {/* Junior High Fields */}
-      {selectedGradeLevel === 'JUNIOR_HIGH' && (
-        <div className="space-y-3">
-          <Label htmlFor="yearLevel" className="text-sm font-medium">
-            Year Level
-          </Label>
-          <Controller
-            name="yearLevel"
-            control={form.control}
-            render={({ field }) => (
-              <Select
-                value={field.value}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  form.setValue('program', value);
-                }}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select year level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEAR_LEVELS.JUNIOR_HIGH.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-      )}
-
-      {/* Scholarship Assignment Section */}
-      <div className="border-t pt-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Scholarship Assignment</h3>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowScholarshipSelector(!showScholarshipSelector)}
-            disabled={!currentGradeLevel}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Scholarship
-          </Button>
-        </div>
-
-        {/* Selected Scholarships */}
-        {selectedScholarships.length > 0 && (
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">Assigned Scholarships</h4>
-            <div className="grid grid-cols-1 gap-4">
-              {selectedScholarships.map((scholarship) => {
-                const scholarshipDetails = getSelectedScholarshipDetails(scholarship.scholarshipId);
-                const source =
-                  scholarshipDetails?.source ||
-                  (scholarship.scholarshipName.includes('CHED') ? 'EXTERNAL' : 'INTERNAL');
-                const type = scholarshipDetails?.type || scholarship.scholarshipName;
-
-                return (
-                  <Card key={scholarship.scholarshipId} className="border-2 p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h4 className="font-semibold text-base">{scholarship.scholarshipName}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs text-muted-foreground">{type}</p>
-                          {scholarship.grantType === 'TUITION_ONLY' && (
-                            <Badge variant="outline" className="text-xs">
-                              Free Tuition
-                            </Badge>
-                          )}
-                          {scholarship.grantType === 'NONE' && (
-                            <Badge variant="secondary" className="text-xs">
-                              Honorific
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-xs">
-                            {getCoveredTermsLabel(scholarshipDetails?.coveredTerms)}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => removeScholarship(scholarship.scholarshipId)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Start Term</Label>
-                        <Input
-                          placeholder="Enter start term"
-                          value={scholarship.startTerm}
-                          onChange={(e) =>
-                            updateScholarship(
-                              scholarship.scholarshipId,
-                              'startTerm',
-                              e.target.value
-                            )
-                          }
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">End Term</Label>
-                        <Input
-                          placeholder="Enter end term"
-                          value={scholarship.endTerm}
-                          onChange={(e) =>
-                            updateScholarship(scholarship.scholarshipId, 'endTerm', e.target.value)
-                          }
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      {scholarship.grantType !== 'TUITION_ONLY' &&
-                        scholarship.grantType !== 'NONE' && (
-                          <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">Grant Amount</Label>
-                            <Input
-                              type="number"
-                              placeholder="Enter grant amount"
-                              value={scholarship.grantAmount}
-                              onChange={(e) =>
-                                updateScholarship(
-                                  scholarship.scholarshipId,
-                                  'grantAmount',
-                                  parseFloat(e.target.value)
-                                )
-                              }
-                              className="h-9 text-sm"
-                            />
-                          </div>
-                        )}
-                      {scholarship.grantType === 'TUITION_ONLY' ||
-                      scholarship.grantType === 'NONE' ? (
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Grant Type</Label>
-                          <div className="h-9 flex items-center text-sm text-muted-foreground px-2">
-                            Free Tuition
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Status</Label>
-                        <Select
-                          value={scholarship.scholarshipStatus}
-                          onValueChange={(value) =>
-                            updateScholarship(scholarship.scholarshipId, 'scholarshipStatus', value)
-                          }
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SCHOLARSHIP_STATUSES.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {status}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-2">
-                      <Badge
-                        variant={source === 'INTERNAL' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {source === 'INTERNAL' ? 'Internal' : 'External'}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {getCoveredTermsLabel(scholarshipDetails?.coveredTerms)}
-                      </Badge>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+        {/* Grade School Fields */}
+        {selectedGradeLevel === 'GRADE_SCHOOL' && (
+          <div className="space-y-3">
+            <Label htmlFor="yearLevel" className="text-sm font-medium">
+              Select Grade
+            </Label>
+            <Controller
+              name="yearLevel"
+              control={form.control}
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue('program', value);
+                  }}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select grade level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRADE_SCHOOL_LEVELS.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
         )}
 
-        {/* Scholarship Selector */}
-        {showScholarshipSelector && (
-          <Card className="border-2 border-primary/20 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-lg">Add New Scholarship</h4>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setShowScholarshipSelector(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Search and Filter */}
-            <div className="mb-4">
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search scholarships..."
-                  value={scholarshipSearch}
-                  onChange={(e) => setScholarshipSearch(e.target.value)}
-                  className="pl-10 h-10"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Filter by:</span>
-                </div>
+        {/* Junior High Fields */}
+        {selectedGradeLevel === 'JUNIOR_HIGH' && (
+          <div className="space-y-3">
+            <Label htmlFor="yearLevel" className="text-sm font-medium">
+              Year Level
+            </Label>
+            <Controller
+              name="yearLevel"
+              control={form.control}
+              render={({ field }) => (
                 <Select
-                  value={scholarshipSourceFilter}
-                  onValueChange={(value: 'all' | 'INTERNAL' | 'EXTERNAL') =>
-                    setScholarshipSourceFilter(value)
-                  }
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue('program', value);
+                  }}
                 >
-                  <SelectTrigger className="h-9 text-sm w-[160px]">
-                    <SelectValue />
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select year level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Scholarships</SelectItem>
-                    <SelectItem value="INTERNAL">Internal</SelectItem>
-                    <SelectItem value="EXTERNAL">External</SelectItem>
+                    {YEAR_LEVELS.JUNIOR_HIGH.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {level}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              )}
+            />
+          </div>
+        )}
 
-            {/* Scholarship List */}
-            <div className="max-h-60 overflow-y-auto space-y-3">
-              {loadingScholarships ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                </div>
-              ) : filteredScholarships.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  {!currentGradeLevel
-                    ? 'Select a grade level before adding a scholarship'
-                    : scholarshipSearch || scholarshipSourceFilter !== 'all'
-                      ? 'No scholarships match your filters'
-                      : 'All scholarships have been added'}
-                </p>
-              ) : (
-                filteredScholarships.map((scholarship) => {
+        {/* Scholarship Assignment Section */}
+        <div className="border-t pt-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">Scholarship Assignment</h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowScholarshipSelector(!showScholarshipSelector)}
+              disabled={!currentGradeLevel}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Scholarship
+            </Button>
+          </div>
+
+          {/* Selected Scholarships */}
+          {selectedScholarships.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground">Assigned Scholarships</h4>
+              <div className="grid grid-cols-1 gap-4">
+                {selectedScholarships.map((scholarship) => {
+                  const scholarshipDetails = getSelectedScholarshipDetails(
+                    scholarship.scholarshipId
+                  );
+                  const source =
+                    scholarshipDetails?.source ||
+                    (scholarship.scholarshipName.includes('CHED') ? 'EXTERNAL' : 'INTERNAL');
+                  const type = scholarshipDetails?.type || scholarship.scholarshipName;
+
                   return (
-                    <div
-                      key={scholarship.id}
-                      className="p-4 rounded-lg border hover:bg-muted/50 transition-colors flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="font-medium text-base">{scholarship.scholarshipName}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <p className="text-sm text-muted-foreground">{scholarship.type}</p>
-                          <Badge variant="outline" className="text-xs">
-                            {getCoveredTermsLabel(scholarship.coveredTerms)}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <Badge
-                            variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}
-                            className="text-sm"
-                          >
-                            {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                          </Badge>
-                          <p className="text-sm font-semibold mt-1">
-                            ₱{scholarship.amount.toLocaleString()}
-                          </p>
+                    <Card key={scholarship.scholarshipId} className="border-2 p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold text-base">{scholarship.scholarshipName}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-muted-foreground">{type}</p>
+                            {scholarship.grantType === 'TUITION_ONLY' && (
+                              <Badge variant="outline" className="text-xs">
+                                Free Tuition
+                              </Badge>
+                            )}
+                            {scholarship.grantType === 'NONE' && (
+                              <Badge variant="secondary" className="text-xs">
+                                Honorific
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              {getCoveredTermsLabel(scholarshipDetails?.coveredTerms)}
+                            </Badge>
+                          </div>
                         </div>
                         <Button
                           type="button"
-                          variant="default"
-                          size="sm"
-                          onClick={() => addScholarship(scholarship)}
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => removeScholarship(scholarship.scholarshipId)}
                         >
-                          Add
+                          <X className="h-4 w-4" />
                         </Button>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-        )}
-      </div>
 
-      {/* Fee Information Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Fee Information</h3>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-sm max-w-xs">
-                  Enter the actual amounts this student needs to pay. These vary per student. Total
-                  Fees are auto-calculated.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Start Term</Label>
+                          <Input
+                            placeholder="Enter start term"
+                            value={scholarship.startTerm}
+                            onChange={(e) =>
+                              updateScholarship(
+                                scholarship.scholarshipId,
+                                'startTerm',
+                                e.target.value
+                              )
+                            }
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">End Term</Label>
+                          <Input
+                            placeholder="Enter end term"
+                            value={scholarship.endTerm}
+                            onChange={(e) =>
+                              updateScholarship(
+                                scholarship.scholarshipId,
+                                'endTerm',
+                                e.target.value
+                              )
+                            }
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        {scholarship.grantType !== 'TUITION_ONLY' &&
+                          scholarship.grantType !== 'NONE' && (
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">Grant Amount</Label>
+                              <Input
+                                type="number"
+                                placeholder="Enter grant amount"
+                                value={scholarship.grantAmount}
+                                onChange={(e) =>
+                                  updateScholarship(
+                                    scholarship.scholarshipId,
+                                    'grantAmount',
+                                    parseFloat(e.target.value)
+                                  )
+                                }
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                          )}
+                        {scholarship.grantType === 'TUITION_ONLY' ||
+                        scholarship.grantType === 'NONE' ? (
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Grant Type</Label>
+                            <div className="h-9 flex items-center text-sm text-muted-foreground px-2">
+                              Free Tuition
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Status</Label>
+                          <Select
+                            value={scholarship.scholarshipStatus}
+                            onValueChange={(value) =>
+                              updateScholarship(
+                                scholarship.scholarshipId,
+                                'scholarshipStatus',
+                                value
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-9 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SCHOLARSHIP_STATUSES.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <Badge
+                          variant={source === 'INTERNAL' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {source === 'INTERNAL' ? 'Internal' : 'External'}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {getCoveredTermsLabel(scholarshipDetails?.coveredTerms)}
+                        </Badge>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Scholarship Selector */}
+          {showScholarshipSelector && (
+            <Card className="border-2 border-primary/20 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-lg">Add New Scholarship</h4>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowScholarshipSelector(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Search and Filter */}
+              <div className="mb-4">
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search scholarships..."
+                    value={scholarshipSearch}
+                    onChange={(e) => setScholarshipSearch(e.target.value)}
+                    className="pl-10 h-10"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Filter by:</span>
+                  </div>
+                  <Select
+                    value={scholarshipSourceFilter}
+                    onValueChange={(value: 'all' | 'INTERNAL' | 'EXTERNAL') =>
+                      setScholarshipSourceFilter(value)
+                    }
+                  >
+                    <SelectTrigger className="h-9 text-sm w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Scholarships</SelectItem>
+                      <SelectItem value="INTERNAL">Internal</SelectItem>
+                      <SelectItem value="EXTERNAL">External</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Scholarship List */}
+              <div className="max-h-60 overflow-y-auto space-y-3">
+                {loadingScholarships ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : filteredScholarships.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    {!currentGradeLevel
+                      ? 'Select a grade level before adding a scholarship'
+                      : scholarshipSearch || scholarshipSourceFilter !== 'all'
+                        ? 'No scholarships match your filters'
+                        : 'All scholarships have been added'}
+                  </p>
+                ) : (
+                  filteredScholarships.map((scholarship) => {
+                    return (
+                      <div
+                        key={scholarship.id}
+                        className="p-4 rounded-lg border hover:bg-muted/50 transition-colors flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="font-medium text-base">{scholarship.scholarshipName}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <p className="text-sm text-muted-foreground">{scholarship.type}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {getCoveredTermsLabel(scholarship.coveredTerms)}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <Badge
+                              variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}
+                              className="text-sm"
+                            >
+                              {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                            </Badge>
+                            <p className="text-sm font-semibold mt-1">
+                              ₱{scholarship.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            onClick={() => addScholarship(scholarship)}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Card>
+          )}
         </div>
 
-        <Card className="border-2 p-4">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Tuition Fee */}
-            <div className="space-y-2">
-              <Label htmlFor="tuitionFee" className="text-sm font-medium">
-                Tuition Fee
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  ₱
-                </span>
-                <CurrencyInput
-                  id="tuitionFee"
-                  value={fees.tuitionFee}
-                  onChange={(value) => handleFeeChange('tuitionFee', value)}
-                  placeholder="0.00"
-                  className="pl-7 h-10"
-                />
-              </div>
-            </div>
-
-            {/* Other Fees */}
-            <div className="space-y-2">
-              <Label htmlFor="otherFee" className="text-sm font-medium">
-                Other Fees
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  ₱
-                </span>
-                <CurrencyInput
-                  id="otherFee"
-                  value={fees.otherFee}
-                  onChange={(value) => handleFeeChange('otherFee', value)}
-                  placeholder="0.00"
-                  className="pl-7 h-10"
-                />
-              </div>
-            </div>
-
-            {/* Miscellaneous Fee */}
-            <div className="space-y-2">
-              <Label htmlFor="miscellaneousFee" className="text-sm font-medium">
-                Miscellaneous Fee
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  ₱
-                </span>
-                <CurrencyInput
-                  id="miscellaneousFee"
-                  value={fees.miscellaneousFee}
-                  onChange={(value) => handleFeeChange('miscellaneousFee', value)}
-                  placeholder="0.00"
-                  className="pl-7 h-10"
-                />
-              </div>
-            </div>
-
-            {/* Laboratory Fee */}
-            <div className="space-y-2">
-              <Label htmlFor="laboratoryFee" className="text-sm font-medium">
-                Laboratory Fee
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  ₱
-                </span>
-                <CurrencyInput
-                  id="laboratoryFee"
-                  value={fees.laboratoryFee}
-                  onChange={(value) => handleFeeChange('laboratoryFee', value)}
-                  placeholder="0.00"
-                  className="pl-7 h-10"
-                />
-              </div>
-            </div>
+        {/* Fee Information Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">Fee Information</h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm max-w-xs">
+                    Enter the actual amounts this student needs to pay. These vary per student.
+                    Total Fees are auto-calculated.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          {/* Total Fees Summary */}
-          <div className="mt-4 pt-4 border-t flex items-center justify-between">
-            <span className="text-sm font-medium">Total Fees:</span>
-            <span className="text-lg font-bold text-primary">
-              ₱
-              {getTotalFees().toLocaleString('en-PH', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-        </Card>
+          <Card className="border-2 p-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Tuition Fee */}
+              <div className="space-y-2">
+                <Label htmlFor="tuitionFee" className="text-sm font-medium">
+                  Tuition Fee
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    ₱
+                  </span>
+                  <CurrencyInput
+                    id="tuitionFee"
+                    value={fees.tuitionFee}
+                    onChange={(value) => handleFeeChange('tuitionFee', value)}
+                    placeholder="0.00"
+                    className="pl-7 h-10"
+                  />
+                </div>
+              </div>
+
+              {/* Other Fees */}
+              <div className="space-y-2">
+                <Label htmlFor="otherFee" className="text-sm font-medium">
+                  Other Fees
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    ₱
+                  </span>
+                  <CurrencyInput
+                    id="otherFee"
+                    value={fees.otherFee}
+                    onChange={(value) => handleFeeChange('otherFee', value)}
+                    placeholder="0.00"
+                    className="pl-7 h-10"
+                  />
+                </div>
+              </div>
+
+              {/* Miscellaneous Fee */}
+              <div className="space-y-2">
+                <Label htmlFor="miscellaneousFee" className="text-sm font-medium">
+                  Miscellaneous Fee
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    ₱
+                  </span>
+                  <CurrencyInput
+                    id="miscellaneousFee"
+                    value={fees.miscellaneousFee}
+                    onChange={(value) => handleFeeChange('miscellaneousFee', value)}
+                    placeholder="0.00"
+                    className="pl-7 h-10"
+                  />
+                </div>
+              </div>
+
+              {/* Laboratory Fee */}
+              <div className="space-y-2">
+                <Label htmlFor="laboratoryFee" className="text-sm font-medium">
+                  Laboratory Fee
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    ₱
+                  </span>
+                  <CurrencyInput
+                    id="laboratoryFee"
+                    value={fees.laboratoryFee}
+                    onChange={(value) => handleFeeChange('laboratoryFee', value)}
+                    placeholder="0.00"
+                    className="pl-7 h-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Total Fees Summary */}
+            <div className="mt-4 pt-4 border-t flex items-center justify-between">
+              <span className="text-sm font-medium">Total Fees:</span>
+              <span className="text-lg font-bold text-primary">
+                ₱
+                {getTotalFees().toLocaleString('en-PH', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          </Card>
+        </div>
       </div>
 
-      <DialogFooter className="gap-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} className="h-10 px-4 py-2">
+      <DialogFooter className={DIALOG_FOOTER_CLASS}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={loading}
-          className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white h-10 px-6 py-2"
-        >
+        <Button type="submit" variant="gradient" disabled={loading} className="min-w-32">
           {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Student'}
         </Button>
       </DialogFooter>
 
       {/* Confirmation Dialog for Editing */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
+          <AlertDialogHeader className={DIALOG_HEADER_CLASS}>
             <AlertDialogTitle>Confirm Save Changes</AlertDialogTitle>
             <AlertDialogDescription>
               {studentName ? (
@@ -1240,12 +1254,9 @@ export function StudentForm({
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className={DIALOG_FOOTER_CLASS}>
             <AlertDialogCancel onClick={() => setPendingData(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmSave}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-            >
+            <AlertDialogAction onClick={handleConfirmSave} className="min-w-32">
               Confirm Save
             </AlertDialogAction>
           </AlertDialogFooter>

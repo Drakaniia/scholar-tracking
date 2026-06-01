@@ -20,6 +20,14 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { ScholarshipForm } from '@/components/forms';
 import { PageHeader } from '@/components/layout';
 import { ExportButton } from '@/components/shared';
+import {
+  COMPACT_DIALOG_CONTENT_CLASS,
+  DETAIL_DIALOG_CONTENT_CLASS,
+  DIALOG_BODY_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_HEADER_CLASS,
+  FORM_DIALOG_CONTENT_CLASS,
+} from '@/components/shared/dialog-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +35,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -642,8 +651,8 @@ export default function ScholarshipsPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className={FORM_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>
               {editingScholarship ? 'Edit Scholarship' : 'Create New Scholarship'}
             </DialogTitle>
@@ -692,8 +701,8 @@ export default function ScholarshipsPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>Archive Scholarship</DialogTitle>
             <DialogDescription>
               Are you sure you want to archive &quot;{deletingScholarship?.scholarshipName}&quot;?
@@ -710,330 +719,333 @@ export default function ScholarshipsPage() {
               })()}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
+          <DialogFooter className={DIALOG_FOOTER_CLASS}>
             <Button variant="outline" onClick={closeDeleteDialog} disabled={submitting}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={submitting}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
               {submitting ? 'Archiving...' : 'Archive'}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Scholarship Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className={DETAIL_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>{selectedScholarship && selectedScholarship.scholarshipName}</DialogTitle>
             <DialogDescription>
               Complete scholarship information and assigned students
             </DialogDescription>
           </DialogHeader>
-          {loadingDetail ? (
-            <ScholarshipDetailSkeleton />
-          ) : selectedScholarship ? (
-            <div className="space-y-6">
-              {/* Scholarship Information */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Scholarship Details</h3>
-                <Card className="border-2">
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
+          <div className={DIALOG_BODY_CLASS}>
+            {loadingDetail ? (
+              <ScholarshipDetailSkeleton />
+            ) : selectedScholarship ? (
+              <div className="space-y-6">
+                {/* Scholarship Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Scholarship Details</h3>
+                  <Card className="border-2">
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Scholarship Name
+                          </p>
+                          <p className="text-lg font-semibold">
+                            {selectedScholarship.scholarshipName}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Sponsor</p>
+                          <p className="text-lg">{selectedScholarship.sponsor}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Type</p>
+                          <Badge variant="outline">{selectedScholarship.type}</Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Source</p>
+                          <Badge
+                            variant={
+                              selectedScholarship.source === 'INTERNAL' ? 'default' : 'secondary'
+                            }
+                          >
+                            {selectedScholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Grant Type</p>
+                          <Badge
+                            variant={
+                              selectedScholarship.grantType === 'TUITION_ONLY'
+                                ? 'outline'
+                                : 'default'
+                            }
+                          >
+                            {selectedScholarship.grantType === 'TUITION_ONLY'
+                              ? 'Free Tuition'
+                              : selectedScholarship.grantType === 'FULL'
+                                ? 'Full Grant'
+                                : selectedScholarship.grantType === 'NONE'
+                                  ? 'None'
+                                  : selectedScholarship.grantType.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Covered Terms</p>
+                          <Badge variant="outline">
+                            {getCoveredTermsLabel(selectedScholarship.coveredTerms)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Amount</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {selectedScholarship.grantType === 'TUITION_ONLY' ||
+                            selectedScholarship.grantType === 'NONE' ? (
+                              <span className="text-lg">Free Tuition</span>
+                            ) : (
+                              formatCurrency(selectedScholarship.amount)
+                            )}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Amount Subsidy
+                          </p>
+                          <p className="text-lg font-semibold">
+                            {formatCurrency(selectedScholarship.amountSubsidy)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">% Subsidy</p>
+                          <p className="text-lg font-semibold">
+                            {Number(selectedScholarship.percentSubsidy || 0).toFixed(2)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Status</p>
+                          <Badge
+                            variant={
+                              selectedScholarship.status === 'Active' ? 'default' : 'secondary'
+                            }
+                          >
+                            {selectedScholarship.status}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            FSE (Total % Subsidy)
+                          </p>
+                          <p className="text-2xl font-bold text-primary">
+                            {selectedScholarship.students && selectedScholarship.students.length > 0
+                              ? `${selectedScholarship.students
+                                  .reduce((total, ss) => {
+                                    const studentFees = ss.student.fees;
+                                    if (!studentFees || studentFees.length === 0) return total;
+                                    const studentPercentSubsidy = studentFees.reduce(
+                                      (sum, fee: { percentSubsidy: number | string }) =>
+                                        sum + Number(fee.percentSubsidy),
+                                      0
+                                    );
+                                    return total + studentPercentSubsidy;
+                                  }, 0)
+                                  .toFixed(2)}%`
+                              : '0.00%'}
+                          </p>
+                        </div>
+                        {(selectedScholarship.grantType === 'TUITION_ONLY' ||
+                          selectedScholarship.grantType === 'MISC_ONLY' ||
+                          selectedScholarship.grantType === 'LAB_ONLY') && (
+                          <div className="col-span-2">
+                            <p className="text-sm font-medium text-muted-foreground mb-2">Covers</p>
+                            <div className="flex gap-2">
+                              {selectedScholarship.coversTuition && (
+                                <Badge variant="default">Tuition</Badge>
+                              )}
+                              {selectedScholarship.coversMiscellaneous && (
+                                <Badge variant="secondary">Miscellaneous</Badge>
+                              )}
+                              {selectedScholarship.coversLaboratory && (
+                                <Badge variant="outline">Laboratory</Badge>
+                              )}
+                              {selectedScholarship.coversOther && (
+                                <Badge variant="outline">
+                                  {selectedScholarship.otherFeeName || 'Other'}
+                                </Badge>
+                              )}
+                              {!selectedScholarship.coversTuition &&
+                                !selectedScholarship.coversMiscellaneous &&
+                                !selectedScholarship.coversLaboratory &&
+                                !selectedScholarship.coversOther && (
+                                  <span className="text-sm text-muted-foreground">
+                                    No specific fees selected
+                                  </span>
+                                )}
+                            </div>
+                          </div>
+                        )}
+                        {selectedScholarship.requirements && (
+                          <div className="col-span-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Requirements
+                            </p>
+                            <p className="text-sm mt-1 p-3 bg-muted/50 rounded-lg whitespace-pre-wrap">
+                              {selectedScholarship.requirements}
+                            </p>
+                          </div>
+                        )}
+                        {/* Fee Amounts Section */}
+                        {(selectedScholarship.coversTuition ||
+                          selectedScholarship.coversMiscellaneous ||
+                          selectedScholarship.coversLaboratory ||
+                          selectedScholarship.coversOther) && (
+                          <div className="col-span-2">
+                            <p className="text-sm font-medium text-muted-foreground mb-2">
+                              Fee Amounts
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              {selectedScholarship.coversTuition && (
+                                <div className="p-3 bg-muted/50 rounded-lg">
+                                  <p className="text-xs text-muted-foreground">Tuition Fee</p>
+                                  <p className="text-lg font-semibold text-primary">
+                                    {formatCurrency(selectedScholarship.tuitionFee)}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedScholarship.coversMiscellaneous && (
+                                <div className="p-3 bg-muted/50 rounded-lg">
+                                  <p className="text-xs text-muted-foreground">Miscellaneous Fee</p>
+                                  <p className="text-lg font-semibold text-primary">
+                                    {formatCurrency(selectedScholarship.miscellaneousFee)}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedScholarship.coversLaboratory && (
+                                <div className="p-3 bg-muted/50 rounded-lg">
+                                  <p className="text-xs text-muted-foreground">Laboratory Fee</p>
+                                  <p className="text-lg font-semibold text-primary">
+                                    {formatCurrency(selectedScholarship.laboratoryFee)}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedScholarship.coversOther && (
+                                <div className="p-3 bg-muted/50 rounded-lg">
+                                  <p className="text-xs text-muted-foreground">
+                                    {selectedScholarship.otherFeeName || 'Other'} Fee
+                                  </p>
+                                  <p className="text-lg font-semibold text-primary">
+                                    {formatCurrency(selectedScholarship.otherFee)}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Assigned Students Section */}
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Assigned Students</h3>
+                    <Badge variant="outline" className="text-sm">
+                      {selectedScholarship.students?.length || 0} students
+                    </Badge>
+                  </div>
+                  {selectedScholarship.students && selectedScholarship.students.length > 0 ? (
+                    <div className="space-y-3">
+                      {selectedScholarship.students.map((ss) => (
+                        <Card key={ss.id} className="border">
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <User className="h-5 w-5 text-primary" />
+                                <div>
+                                  <h4 className="text-lg font-semibold">
+                                    {ss.student.lastName}, {ss.student.firstName}{' '}
+                                    {ss.student.middleInitial || ''}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    {ss.student.program}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Badge variant="outline">
+                                  {
+                                    GRADE_LEVEL_LABELS[
+                                      ss.student.gradeLevel as keyof typeof GRADE_LEVEL_LABELS
+                                    ]
+                                  }
+                                </Badge>
+                                <Badge
+                                  variant={ss.student.status === 'Active' ? 'default' : 'secondary'}
+                                >
+                                  {ss.student.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <p className="text-muted-foreground">Grant Amount</p>
+                                <p className="font-semibold">{formatCurrency(ss.grantAmount)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Award Date</p>
+                                <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Term Period</p>
+                                <p>
+                                  {ss.startTerm} - {ss.endTerm}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Status</p>
+                                <Badge
+                                  variant={
+                                    ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'
+                                  }
+                                  className="text-xs"
+                                >
+                                  {ss.scholarshipStatus}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      <div className="mt-4 p-4 bg-primary/10 rounded-lg">
                         <p className="text-sm font-medium text-muted-foreground">
-                          Scholarship Name
+                          Total Grants Awarded
                         </p>
-                        <p className="text-lg font-semibold">
-                          {selectedScholarship.scholarshipName}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Sponsor</p>
-                        <p className="text-lg">{selectedScholarship.sponsor}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Type</p>
-                        <Badge variant="outline">{selectedScholarship.type}</Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Source</p>
-                        <Badge
-                          variant={
-                            selectedScholarship.source === 'INTERNAL' ? 'default' : 'secondary'
-                          }
-                        >
-                          {selectedScholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Grant Type</p>
-                        <Badge
-                          variant={
-                            selectedScholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'
-                          }
-                        >
-                          {selectedScholarship.grantType === 'TUITION_ONLY'
-                            ? 'Free Tuition'
-                            : selectedScholarship.grantType === 'FULL'
-                              ? 'Full Grant'
-                              : selectedScholarship.grantType === 'NONE'
-                                ? 'None'
-                                : selectedScholarship.grantType.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Covered Terms</p>
-                        <Badge variant="outline">
-                          {getCoveredTermsLabel(selectedScholarship.coveredTerms)}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Amount</p>
-                        <p className="text-2xl font-bold text-primary">
-                          {selectedScholarship.grantType === 'TUITION_ONLY' ||
-                          selectedScholarship.grantType === 'NONE' ? (
-                            <span className="text-lg">Free Tuition</span>
-                          ) : (
-                            formatCurrency(selectedScholarship.amount)
+                        <p className="text-2xl font-bold">
+                          {formatCurrency(
+                            selectedScholarship.students.reduce(
+                              (sum, ss) => sum + Number(ss.grantAmount),
+                              0
+                            )
                           )}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Amount Subsidy</p>
-                        <p className="text-lg font-semibold">
-                          {formatCurrency(selectedScholarship.amountSubsidy)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">% Subsidy</p>
-                        <p className="text-lg font-semibold">
-                          {Number(selectedScholarship.percentSubsidy || 0).toFixed(2)}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge
-                          variant={
-                            selectedScholarship.status === 'Active' ? 'default' : 'secondary'
-                          }
-                        >
-                          {selectedScholarship.status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          FSE (Total % Subsidy)
-                        </p>
-                        <p className="text-2xl font-bold text-primary">
-                          {selectedScholarship.students && selectedScholarship.students.length > 0
-                            ? `${selectedScholarship.students
-                                .reduce((total, ss) => {
-                                  const studentFees = ss.student.fees;
-                                  if (!studentFees || studentFees.length === 0) return total;
-                                  const studentPercentSubsidy = studentFees.reduce(
-                                    (sum, fee: { percentSubsidy: number | string }) =>
-                                      sum + Number(fee.percentSubsidy),
-                                    0
-                                  );
-                                  return total + studentPercentSubsidy;
-                                }, 0)
-                                .toFixed(2)}%`
-                            : '0.00%'}
-                        </p>
-                      </div>
-                      {(selectedScholarship.grantType === 'TUITION_ONLY' ||
-                        selectedScholarship.grantType === 'MISC_ONLY' ||
-                        selectedScholarship.grantType === 'LAB_ONLY') && (
-                        <div className="col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground mb-2">Covers</p>
-                          <div className="flex gap-2">
-                            {selectedScholarship.coversTuition && (
-                              <Badge variant="default">Tuition</Badge>
-                            )}
-                            {selectedScholarship.coversMiscellaneous && (
-                              <Badge variant="secondary">Miscellaneous</Badge>
-                            )}
-                            {selectedScholarship.coversLaboratory && (
-                              <Badge variant="outline">Laboratory</Badge>
-                            )}
-                            {selectedScholarship.coversOther && (
-                              <Badge variant="outline">
-                                {selectedScholarship.otherFeeName || 'Other'}
-                              </Badge>
-                            )}
-                            {!selectedScholarship.coversTuition &&
-                              !selectedScholarship.coversMiscellaneous &&
-                              !selectedScholarship.coversLaboratory &&
-                              !selectedScholarship.coversOther && (
-                                <span className="text-sm text-muted-foreground">
-                                  No specific fees selected
-                                </span>
-                              )}
-                          </div>
-                        </div>
-                      )}
-                      {selectedScholarship.requirements && (
-                        <div className="col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground">Requirements</p>
-                          <p className="text-sm mt-1 p-3 bg-muted/50 rounded-lg whitespace-pre-wrap">
-                            {selectedScholarship.requirements}
-                          </p>
-                        </div>
-                      )}
-                      {/* Fee Amounts Section */}
-                      {(selectedScholarship.coversTuition ||
-                        selectedScholarship.coversMiscellaneous ||
-                        selectedScholarship.coversLaboratory ||
-                        selectedScholarship.coversOther) && (
-                        <div className="col-span-2">
-                          <p className="text-sm font-medium text-muted-foreground mb-2">
-                            Fee Amounts
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {selectedScholarship.coversTuition && (
-                              <div className="p-3 bg-muted/50 rounded-lg">
-                                <p className="text-xs text-muted-foreground">Tuition Fee</p>
-                                <p className="text-lg font-semibold text-primary">
-                                  {formatCurrency(selectedScholarship.tuitionFee)}
-                                </p>
-                              </div>
-                            )}
-                            {selectedScholarship.coversMiscellaneous && (
-                              <div className="p-3 bg-muted/50 rounded-lg">
-                                <p className="text-xs text-muted-foreground">Miscellaneous Fee</p>
-                                <p className="text-lg font-semibold text-primary">
-                                  {formatCurrency(selectedScholarship.miscellaneousFee)}
-                                </p>
-                              </div>
-                            )}
-                            {selectedScholarship.coversLaboratory && (
-                              <div className="p-3 bg-muted/50 rounded-lg">
-                                <p className="text-xs text-muted-foreground">Laboratory Fee</p>
-                                <p className="text-lg font-semibold text-primary">
-                                  {formatCurrency(selectedScholarship.laboratoryFee)}
-                                </p>
-                              </div>
-                            )}
-                            {selectedScholarship.coversOther && (
-                              <div className="p-3 bg-muted/50 rounded-lg">
-                                <p className="text-xs text-muted-foreground">
-                                  {selectedScholarship.otherFeeName || 'Other'} Fee
-                                </p>
-                                <p className="text-lg font-semibold text-primary">
-                                  {formatCurrency(selectedScholarship.otherFee)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Assigned Students Section */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Assigned Students</h3>
-                  <Badge variant="outline" className="text-sm">
-                    {selectedScholarship.students?.length || 0} students
-                  </Badge>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <User className="mx-auto h-12 w-12 mb-2 opacity-50" />
+                      <p>No students assigned to this scholarship yet</p>
+                    </div>
+                  )}
                 </div>
-                {selectedScholarship.students && selectedScholarship.students.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedScholarship.students.map((ss) => (
-                      <Card key={ss.id} className="border">
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                              <User className="h-5 w-5 text-primary" />
-                              <div>
-                                <h4 className="text-lg font-semibold">
-                                  {ss.student.lastName}, {ss.student.firstName}{' '}
-                                  {ss.student.middleInitial || ''}
-                                </h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {ss.student.program}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Badge variant="outline">
-                                {
-                                  GRADE_LEVEL_LABELS[
-                                    ss.student.gradeLevel as keyof typeof GRADE_LEVEL_LABELS
-                                  ]
-                                }
-                              </Badge>
-                              <Badge
-                                variant={ss.student.status === 'Active' ? 'default' : 'secondary'}
-                              >
-                                {ss.student.status}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Grant Amount</p>
-                              <p className="font-semibold">{formatCurrency(ss.grantAmount)}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Award Date</p>
-                              <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Term Period</p>
-                              <p>
-                                {ss.startTerm} - {ss.endTerm}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Status</p>
-                              <Badge
-                                variant={
-                                  ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'
-                                }
-                                className="text-xs"
-                              >
-                                {ss.scholarshipStatus}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    <div className="mt-4 p-4 bg-primary/10 rounded-lg">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Total Grants Awarded
-                      </p>
-                      <p className="text-2xl font-bold">
-                        {formatCurrency(
-                          selectedScholarship.students.reduce(
-                            (sum, ss) => sum + Number(ss.grantAmount),
-                            0
-                          )
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <User className="mx-auto h-12 w-12 mb-2 opacity-50" />
-                    <p>No students assigned to this scholarship yet</p>
-                  </div>
-                )}
               </div>
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">No data available</p>
-          )}
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No data available</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

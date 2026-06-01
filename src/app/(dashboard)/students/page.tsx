@@ -23,6 +23,14 @@ import { StudentFeesManager } from '@/components/forms/student-fees-manager';
 import { StudentForm } from '@/components/forms/student-form';
 import { PageHeader } from '@/components/layout';
 import { ExportButton } from '@/components/shared';
+import {
+  COMPACT_DIALOG_CONTENT_CLASS,
+  DETAIL_DIALOG_CONTENT_CLASS,
+  DIALOG_BODY_CLASS,
+  DIALOG_FOOTER_CLASS,
+  DIALOG_HEADER_CLASS,
+  FORM_DIALOG_CONTENT_CLASS,
+} from '@/components/shared/dialog-layout';
 import { ImportButton } from '@/components/shared/import-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +39,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -689,8 +698,8 @@ export default function StudentsPage() {
                   Add Student
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-hidden">
-                <DialogHeader>
+              <DialogContent className={FORM_DIALOG_CONTENT_CLASS}>
+                <DialogHeader className={DIALOG_HEADER_CLASS}>
                   <DialogTitle>{editingStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
                   <DialogDescription>
                     {editingStudent
@@ -1043,8 +1052,8 @@ export default function StudentsPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>Archive Student</DialogTitle>
             <DialogDescription>
               Are you sure you want to archive &quot;{deletingStudent?.firstName}{' '}
@@ -1057,269 +1066,272 @@ export default function StudentsPage() {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
+          <DialogFooter className={DIALOG_FOOTER_CLASS}>
             <Button variant="outline" onClick={closeDeleteDialog} disabled={submitting}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={submitting}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
               {submitting ? 'Archiving...' : 'Archive'}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Student Detail Dialog - Scholarships First */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="sm:max-w-5xl md:max-w-6xl lg:max-w-7xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className={DETAIL_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>
               {selectedStudent &&
                 `${selectedStudent.firstName} ${selectedStudent.lastName}'s Scholarships`}
             </DialogTitle>
             <DialogDescription>View scholarship information and student details</DialogDescription>
           </DialogHeader>
-          {loadingDetail ? (
-            <StudentDetailSkeleton />
-          ) : selectedStudent ? (
-            <div className="space-y-6">
-              {/* Scholarships Section - PRIMARY VIEW */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Scholarships</h3>
-                <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase text-slate-500">Scholarship Load</p>
-                    <div className="mt-2">
-                      <ScholarshipCountPill count={selectedStudent.scholarships?.length || 0} />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase text-slate-500">Load Type</p>
-                    <p className="mt-2 font-semibold text-slate-950">
-                      {getScholarshipLoadText(selectedStudent.scholarships?.length || 0)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase text-slate-500">Total Grant</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">
-                      PHP{' '}
-                      {formatCurrency(
-                        selectedStudent.scholarships?.reduce(
-                          (sum, ss) => sum + Number(ss.grantAmount || 0),
-                          0
-                        ) || 0
-                      )}
-                    </p>
-                  </div>
-                </div>
-                {selectedStudent.scholarships && selectedStudent.scholarships.length > 0 ? (
-                  <div className="space-y-4">
-                    {selectedStudent.scholarships.map((ss, index) => {
-                      const scholarship = ss.scholarship;
-                      if (!scholarship) return null;
-
-                      return (
-                        <Card
-                          key={ss.id}
-                          className="border-2"
-                          style={{ borderColor: getScholarshipColor(scholarship.scholarshipName) }}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex gap-3">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-50 text-sm font-bold text-amber-900">
-                                  {index + 1}
-                                </span>
-                                <div>
-                                  <h4 className="text-lg font-semibold">
-                                    {scholarship.scholarshipName}
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    {scholarship.type}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Badge variant="outline">
-                                  {index + 1} of {selectedStudent.scholarships?.length || 0}
-                                </Badge>
-                                <Badge
-                                  variant={
-                                    scholarship.source === 'INTERNAL' ? 'default' : 'secondary'
-                                  }
-                                >
-                                  {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                                </Badge>
-                                <Badge
-                                  variant={
-                                    ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'
-                                  }
-                                >
-                                  {ss.scholarshipStatus}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Grant Amount</p>
-                                <p className="text-lg font-semibold">
-                                  PHP {formatCurrency(Number(ss.grantAmount || 0))}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Award Date</p>
-                                <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Start Term</p>
-                                <p>{ss.startTerm}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">End Term</p>
-                                <p>{ss.endTerm}</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                    <div className="mt-4 p-4 bg-primary/10 rounded-lg">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Total Scholarship Amount
+          <div className={DIALOG_BODY_CLASS}>
+            {loadingDetail ? (
+              <StudentDetailSkeleton />
+            ) : selectedStudent ? (
+              <div className="space-y-6">
+                {/* Scholarships Section - PRIMARY VIEW */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Scholarships</h3>
+                  <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-medium uppercase text-slate-500">
+                        Scholarship Load
                       </p>
-                      <p className="text-2xl font-bold">
+                      <div className="mt-2">
+                        <ScholarshipCountPill count={selectedStudent.scholarships?.length || 0} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase text-slate-500">Load Type</p>
+                      <p className="mt-2 font-semibold text-slate-950">
+                        {getScholarshipLoadText(selectedStudent.scholarships?.length || 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase text-slate-500">Total Grant</p>
+                      <p className="mt-2 text-lg font-semibold text-slate-950">
                         PHP{' '}
                         {formatCurrency(
-                          selectedStudent.scholarships.reduce(
+                          selectedStudent.scholarships?.reduce(
                             (sum, ss) => sum + Number(ss.grantAmount || 0),
                             0
-                          )
+                          ) || 0
                         )}
                       </p>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">No scholarships assigned</p>
+                  {selectedStudent.scholarships && selectedStudent.scholarships.length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedStudent.scholarships.map((ss, index) => {
+                        const scholarship = ss.scholarship;
+                        if (!scholarship) return null;
+
+                        return (
+                          <Card
+                            key={ss.id}
+                            className="border-2"
+                            style={{
+                              borderColor: getScholarshipColor(scholarship.scholarshipName),
+                            }}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex gap-3">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-50 text-sm font-bold text-amber-900">
+                                    {index + 1}
+                                  </span>
+                                  <div>
+                                    <h4 className="text-lg font-semibold">
+                                      {scholarship.scholarshipName}
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {scholarship.type}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Badge variant="outline">
+                                    {index + 1} of {selectedStudent.scholarships?.length || 0}
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      scholarship.source === 'INTERNAL' ? 'default' : 'secondary'
+                                    }
+                                  >
+                                    {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      ss.scholarshipStatus === 'Active' ? 'default' : 'secondary'
+                                    }
+                                  >
+                                    {ss.scholarshipStatus}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Grant Amount</p>
+                                  <p className="text-lg font-semibold">
+                                    PHP {formatCurrency(Number(ss.grantAmount || 0))}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Award Date</p>
+                                  <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Start Term</p>
+                                  <p>{ss.startTerm}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">End Term</p>
+                                  <p>{ss.endTerm}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                      <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Total Scholarship Amount
+                        </p>
+                        <p className="text-2xl font-bold">
+                          PHP{' '}
+                          {formatCurrency(
+                            selectedStudent.scholarships.reduce(
+                              (sum, ss) => sum + Number(ss.grantAmount || 0),
+                              0
+                            )
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">No scholarships assigned</p>
+                  )}
+                </div>
+
+                {/* Show Full Details Button */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowFullDetails(!showFullDetails)}
+                >
+                  {showFullDetails ? (
+                    <>
+                      <ChevronUp className="mr-2 h-4 w-4" />
+                      Hide Full Details
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="mr-2 h-4 w-4" />
+                      Show Full Details
+                    </>
+                  )}
+                </Button>
+
+                {/* Full Student Details - Hidden by default */}
+                {showFullDetails && (
+                  <>
+                    {/* Basic Information */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-lg font-semibold mb-4">Student Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Full Name</p>
+                          <p className="text-lg">
+                            {selectedStudent.lastName}, {selectedStudent.firstName}{' '}
+                            {selectedStudent.middleInitial || ''}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Status</p>
+                          <Badge
+                            variant={selectedStudent.status === 'Active' ? 'default' : 'secondary'}
+                          >
+                            {selectedStudent.status}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
+                          <Badge variant="outline">
+                            {GRADE_LEVEL_LABELS[selectedStudent.gradeLevel]}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Year Level</p>
+                          <p className="text-lg">{selectedStudent.yearLevel}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-sm font-medium text-muted-foreground">Program</p>
+                          <p className="text-lg">{selectedStudent.program}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Disbursements */}
+                    {selectedStudent.disbursements && selectedStudent.disbursements.length > 0 && (
+                      <div className="border-t border-gray-200 pt-4">
+                        <h3 className="text-lg font-semibold mb-4">Disbursement History</h3>
+                        <div className="space-y-2">
+                          {selectedStudent.disbursements.map((disbursement) => {
+                            const scholarship = disbursement.scholarship;
+                            if (!scholarship) return null;
+
+                            return (
+                              <div
+                                key={disbursement.id}
+                                className="flex justify-between items-center p-3 bg-muted/50 rounded-lg"
+                              >
+                                <div>
+                                  <p className="font-medium">{scholarship.scholarshipName}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {disbursement.method}
+                                  </p>
+                                  <Badge
+                                    variant={
+                                      scholarship.source === 'INTERNAL' ? 'default' : 'secondary'
+                                    }
+                                    className="mt-1"
+                                  >
+                                    {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                                  </Badge>
+                                </div>
+                                <p className="text-lg font-semibold"></p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Total Disbursed
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {selectedStudent.disbursements
+                              .reduce((sum, d) => sum + Number(d.amount), 0)
+                              .toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fees Information */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
+                      <StudentFeesManager studentId={selectedStudent.id} readOnly={false} />
+                    </div>
+                  </>
                 )}
               </div>
-
-              {/* Show Full Details Button */}
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowFullDetails(!showFullDetails)}
-              >
-                {showFullDetails ? (
-                  <>
-                    <ChevronUp className="mr-2 h-4 w-4" />
-                    Hide Full Details
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="mr-2 h-4 w-4" />
-                    Show Full Details
-                  </>
-                )}
-              </Button>
-
-              {/* Full Student Details - Hidden by default */}
-              {showFullDetails && (
-                <>
-                  {/* Basic Information */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h3 className="text-lg font-semibold mb-4">Student Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                        <p className="text-lg">
-                          {selectedStudent.lastName}, {selectedStudent.firstName}{' '}
-                          {selectedStudent.middleInitial || ''}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge
-                          variant={selectedStudent.status === 'Active' ? 'default' : 'secondary'}
-                        >
-                          {selectedStudent.status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
-                        <Badge variant="outline">
-                          {GRADE_LEVEL_LABELS[selectedStudent.gradeLevel]}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Year Level</p>
-                        <p className="text-lg">{selectedStudent.yearLevel}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-sm font-medium text-muted-foreground">Program</p>
-                        <p className="text-lg">{selectedStudent.program}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Disbursements */}
-                  {selectedStudent.disbursements && selectedStudent.disbursements.length > 0 && (
-                    <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-lg font-semibold mb-4">Disbursement History</h3>
-                      <div className="space-y-2">
-                        {selectedStudent.disbursements.map((disbursement) => {
-                          const scholarship = disbursement.scholarship;
-                          if (!scholarship) return null;
-
-                          return (
-                            <div
-                              key={disbursement.id}
-                              className="flex justify-between items-center p-3 bg-muted/50 rounded-lg"
-                            >
-                              <div>
-                                <p className="font-medium">{scholarship.scholarshipName}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {disbursement.method}
-                                </p>
-                                <Badge
-                                  variant={
-                                    scholarship.source === 'INTERNAL' ? 'default' : 'secondary'
-                                  }
-                                  className="mt-1"
-                                >
-                                  {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                                </Badge>
-                              </div>
-                              <p className="text-lg font-semibold"></p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="mt-4 p-3 bg-primary/10 rounded-lg">
-                        <p className="text-sm font-medium text-muted-foreground">Total Disbursed</p>
-                        <p className="text-2xl font-bold">
-                          {selectedStudent.disbursements
-                            .reduce((sum, d) => sum + Number(d.amount), 0)
-                            .toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Fees Information */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
-                    <StudentFeesManager studentId={selectedStudent.id} readOnly={false} />
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">No data available</p>
-          )}
+            ) : (
+              <p className="text-center text-muted-foreground py-8">No data available</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
