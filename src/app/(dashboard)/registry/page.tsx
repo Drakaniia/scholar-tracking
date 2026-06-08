@@ -3,24 +3,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
+  AlertTriangle,
   ArrowRight,
   BookOpenCheck,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  ListFilter,
   Loader2,
   Save,
+  School,
   Search,
   ShieldCheck,
-  School,
   UserRoundX,
   UsersRound,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/components/auth/auth-provider';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -40,12 +54,70 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
-import {
-  STUDENT_TRANSITION_DECISION_LABELS,
-  StudentTransitionDecision,
-} from '@/types';
+import { STUDENT_TRANSITION_DECISION_LABELS, StudentTransitionDecision } from '@/types';
 
 type RegistryLane = 'all' | 'grade-school-to-jhs' | 'jhs-to-shs' | 'shs-to-college' | 'separated';
+type PromotionFilter = 'all-eligible' | 'grade-6' | 'grade-11' | 'grade-12' | 'graduating';
+
+type PromotionPreviewStudent = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  gradeLevel: string;
+  yearLevel: string;
+  program: string;
+  termType: string;
+  nextGradeLevel: string | null;
+  nextYearLevel: string | null;
+  nextProgram: string | null;
+  nextTermType: string | null;
+  action: 'PROMOTE' | 'GRADUATE' | 'RETAIN' | 'SEPARATE' | 'SKIP';
+  transitionDecision: StudentTransitionDecision | null;
+  requiresDecision: boolean;
+  reason?: string;
+};
+
+type PromotionPreview = {
+  activeAcademicYear: {
+    id: number;
+    year: string;
+    promotionProcessedAt: string | null;
+  } | null;
+  totalStudents: number;
+  preview: PromotionPreviewStudent[];
+};
+
+type PromotionPreviewResponse = {
+  success: boolean;
+  data?: PromotionPreview;
+  error?: string;
+};
+
+type BulkPromotionStudentResult = {
+  studentId: number;
+  studentName: string;
+  fromLevel: string;
+  toLevel: string | null;
+  action: PromotionPreviewStudent['action'];
+  success: boolean;
+  error?: string;
+};
+
+type BulkPromotionRunResult = {
+  selectedCount: number;
+  promotedCount: number;
+  graduatedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  results: BulkPromotionStudentResult[];
+};
+
+type BulkPromotionResponse = {
+  success: boolean;
+  message?: string;
+  data?: BulkPromotionRunResult;
+  error?: string;
+};
 
 type RegistryRow = {
   id: string;
@@ -95,6 +167,20 @@ const LANE_LABELS: Record<RegistryRow['lane'], string> = {
   separated: 'Separated Registry',
   other: 'Other',
 };
+const PROMOTION_FILTER_LABELS: Record<PromotionFilter, string> = {
+  'all-eligible': 'All Eligible Students',
+  'grade-6': 'Grade 6',
+  'grade-11': 'Grade 11',
+  'grade-12': 'Grade 12',
+  graduating: 'Graduating Students',
+};
+const PROMOTION_FILTERS: PromotionFilter[] = [
+  'all-eligible',
+  'grade-6',
+  'grade-11',
+  'grade-12',
+  'graduating',
+];
 const OUTCOME_LABELS: Record<string, string> = {
   COMPLETED_JHS: 'Completed JHS',
   GRADUATED_SHS: 'Graduated SHS',
@@ -136,13 +222,67 @@ function formatOutcome(outcome: string) {
 
 function outcomeClassName(outcome: string) {
   if (outcome === 'PENDING_DECISION') return 'border-amber-200 bg-amber-50 text-amber-800';
-  if (outcome === 'READY_FOR_PROMOTION')
-    return 'border-cyan-200 bg-cyan-50 text-cyan-700';
+  if (outcome === 'READY_FOR_PROMOTION') return 'border-cyan-200 bg-cyan-50 text-cyan-700';
   if (outcome === 'PROMOTED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (outcome === 'RETAINED') return 'border-amber-200 bg-amber-50 text-amber-800';
   if (outcome === 'TRANSFERRED_OUT') return 'border-sky-200 bg-sky-50 text-sky-700';
   if (outcome === 'WITHDRAWN') return 'border-rose-200 bg-rose-50 text-rose-700';
   return 'border-stone-200 bg-stone-50 text-stone-700';
+}
+
+function isPromotionSelectable(student: PromotionPreviewStudent) {
+  return (
+    student.action === 'PROMOTE' || student.action === 'GRADUATE' || student.action === 'SEPARATE'
+  );
+}
+
+function isGraduatingPromotionStudent(student: PromotionPreviewStudent) {
+  return (
+    student.action === 'GRADUATE' ||
+    student.action === 'SEPARATE' ||
+    student.yearLevel === 'Grade 6' ||
+    student.yearLevel === 'Grade 10' ||
+    student.yearLevel === 'Grade 12'
+  );
+}
+
+function matchesPromotionFilter(student: PromotionPreviewStudent, filter: PromotionFilter) {
+  if (filter === 'grade-6') return student.yearLevel === 'Grade 6';
+  if (filter === 'grade-11') return student.yearLevel === 'Grade 11';
+  if (filter === 'grade-12') return student.yearLevel === 'Grade 12';
+  if (filter === 'graduating') return isGraduatingPromotionStudent(student);
+  return isPromotionSelectable(student);
+}
+
+function getPromotionActionLabel(student: PromotionPreviewStudent) {
+  if (student.action === 'PROMOTE') return 'Promote to next grade level';
+  if (student.action === 'GRADUATE') return 'Mark as Graduated/Completed';
+  if (student.action === 'SEPARATE') {
+    if (student.nextYearLevel === 'Graduated SHS' || student.nextYearLevel === 'Completed JHS') {
+      return 'Mark as Graduated/Completed';
+    }
+    return 'Move to separated registry';
+  }
+  if (student.action === 'RETAIN') return 'Retain in current grade';
+  return 'Decision required';
+}
+
+function getPromotionActionClassName(action: PromotionPreviewStudent['action']) {
+  if (action === 'PROMOTE') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (action === 'GRADUATE') return 'border-orange-200 bg-orange-50 text-orange-700';
+  if (action === 'SEPARATE') return 'border-rose-200 bg-rose-50 text-rose-700';
+  if (action === 'RETAIN') return 'border-amber-200 bg-amber-50 text-amber-800';
+  return 'border-slate-200 bg-slate-50 text-slate-600';
+}
+
+function formatPromotionTarget(student: PromotionPreviewStudent) {
+  if (student.action === 'PROMOTE') {
+    return `${student.nextGradeLevel} - ${student.nextYearLevel}`;
+  }
+  if (student.action === 'GRADUATE') return 'Graduated';
+  if (student.action === 'SEPARATE') return student.nextYearLevel || 'Separated';
+  if (student.action === 'RETAIN') return `Retain in ${student.yearLevel}`;
+  return student.reason || 'Needs a transition decision';
 }
 
 function getDecisionOptions(row: RegistryRow) {
@@ -185,6 +325,35 @@ function RegistryTableLoading() {
   );
 }
 
+function PromotionQueueLoading() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <TableRow key={index}>
+          <TableCell className="w-12">
+            <Skeleton className="h-4 w-4 rounded-sm" />
+          </TableCell>
+          <TableCell>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-28" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-6 w-44 rounded-full" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-4 w-40" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
 export default function RegistryPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState<RegistryRow[]>([]);
@@ -205,6 +374,16 @@ export default function RegistryPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [promotionPreview, setPromotionPreview] = useState<PromotionPreview | null>(null);
+  const [promotionLoading, setPromotionLoading] = useState(true);
+  const [promotionErrorMessage, setPromotionErrorMessage] = useState<string | null>(null);
+  const [promotionFilter, setPromotionFilter] = useState<PromotionFilter>('all-eligible');
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(() => new Set());
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [isBulkPromoting, setIsBulkPromoting] = useState(false);
+  const [bulkPromotionResult, setBulkPromotionResult] = useState<BulkPromotionRunResult | null>(
+    null
+  );
   const [pendingDecisions, setPendingDecisions] = useState<
     Partial<Record<number, StudentTransitionDecision>>
   >({});
@@ -266,6 +445,45 @@ export default function RegistryPage() {
     fetchRegistry();
   }, [fetchRegistry]);
 
+  const fetchPromotionPreview = useCallback(async () => {
+    setPromotionLoading(true);
+    setPromotionErrorMessage(null);
+    try {
+      const response = await fetch('/api/academic-years/auto-promote', {
+        credentials: 'include',
+      });
+      const result: PromotionPreviewResponse = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.error || 'Failed to load promotion preview');
+      }
+
+      setPromotionPreview(result.data);
+      const selectableIds = new Set(
+        result.data.preview.filter(isPromotionSelectable).map((student) => student.id)
+      );
+      setSelectedStudentIds((current) => {
+        const next = new Set<number>();
+        current.forEach((studentId) => {
+          if (selectableIds.has(studentId)) next.add(studentId);
+        });
+        return next;
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load promotion preview';
+      setPromotionPreview(null);
+      setSelectedStudentIds(new Set());
+      setPromotionErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setPromotionLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPromotionPreview();
+  }, [fetchPromotionPreview]);
+
   const handleDecisionChange = (studentId: number, decision: StudentTransitionDecision) => {
     setPendingDecisions((current) => ({
       ...current,
@@ -297,10 +515,9 @@ export default function RegistryPage() {
       }
 
       toast.success(result.message || 'Transition decision saved.');
-      await fetchRegistry();
+      await Promise.all([fetchRegistry(), fetchPromotionPreview()]);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to save transition decision';
+      const message = error instanceof Error ? error.message : 'Failed to save transition decision';
       toast.error(message);
     } finally {
       setSavingDecisionStudentId(null);
@@ -308,6 +525,125 @@ export default function RegistryPage() {
   };
 
   const selectedLaneLabel = useMemo(() => LANE_LABELS[lane], [lane]);
+  const promotionStudents = useMemo(() => promotionPreview?.preview || [], [promotionPreview]);
+  const filteredPromotionStudents = useMemo(
+    () => promotionStudents.filter((student) => matchesPromotionFilter(student, promotionFilter)),
+    [promotionFilter, promotionStudents]
+  );
+  const selectableFilteredPromotionStudents = useMemo(
+    () => filteredPromotionStudents.filter(isPromotionSelectable),
+    [filteredPromotionStudents]
+  );
+  const selectedPromotionStudents = useMemo(
+    () => promotionStudents.filter((student) => selectedStudentIds.has(student.id)),
+    [promotionStudents, selectedStudentIds]
+  );
+  const selectedPromotionSummary = useMemo(
+    () => ({
+      promote: selectedPromotionStudents.filter((student) => student.action === 'PROMOTE').length,
+      graduate: selectedPromotionStudents.filter(
+        (student) => student.action === 'GRADUATE' || student.action === 'SEPARATE'
+      ).length,
+    }),
+    [selectedPromotionStudents]
+  );
+  const allVisiblePromotionStudentsSelected =
+    selectableFilteredPromotionStudents.length > 0 &&
+    selectableFilteredPromotionStudents.every((student) => selectedStudentIds.has(student.id));
+  const someVisiblePromotionStudentsSelected = selectableFilteredPromotionStudents.some((student) =>
+    selectedStudentIds.has(student.id)
+  );
+  const visibleSelectAllState = allVisiblePromotionStudentsSelected
+    ? true
+    : someVisiblePromotionStudentsSelected
+      ? 'indeterminate'
+      : false;
+
+  const togglePromotionStudent = (student: PromotionPreviewStudent, checked: boolean) => {
+    if (!isAdmin || !isPromotionSelectable(student)) return;
+    setSelectedStudentIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(student.id);
+      } else {
+        next.delete(student.id);
+      }
+      return next;
+    });
+  };
+
+  const toggleVisiblePromotionStudents = (checked: boolean) => {
+    if (!isAdmin) return;
+    setSelectedStudentIds((current) => {
+      const next = new Set(current);
+      selectableFilteredPromotionStudents.forEach((student) => {
+        if (checked) {
+          next.add(student.id);
+        } else {
+          next.delete(student.id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleOpenBulkDialog = () => {
+    if (!isAdmin) {
+      toast.error('Only administrators can promote students.');
+      return;
+    }
+
+    if (selectedPromotionStudents.length === 0) {
+      toast.error('Select at least one eligible student first.');
+      return;
+    }
+
+    setIsBulkDialogOpen(true);
+  };
+
+  const handleBulkPromotion = async () => {
+    if (selectedPromotionStudents.length === 0) return;
+
+    setIsBulkPromoting(true);
+    try {
+      const response = await fetch('/api/academic-years/auto-promote/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentIds: selectedPromotionStudents.map((student) => student.id),
+        }),
+        credentials: 'include',
+      });
+      const result: BulkPromotionResponse = await response.json();
+
+      if (result.data) {
+        setBulkPromotionResult(result.data);
+      }
+
+      if (!response.ok || !result.success) {
+        toast.error(result.error || result.message || 'Failed to promote selected students.');
+        return;
+      }
+
+      if (result.data?.errorCount) {
+        toast.error(
+          `Bulk promotion completed with ${result.data.errorCount} issue(s). Review the summary.`
+        );
+      } else {
+        toast.success(result.message || 'Selected students promoted.');
+      }
+
+      setSelectedStudentIds(new Set());
+      setIsBulkDialogOpen(false);
+      await Promise.all([fetchRegistry(), fetchPromotionPreview()]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to promote selected students.';
+      toast.error(message);
+    } finally {
+      setIsBulkPromoting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -419,6 +755,316 @@ export default function RegistryPage() {
           </div>
         </div>
       </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <ListFilter className="h-5 w-5 text-emerald-700" />
+              <h2 className="text-lg font-semibold text-slate-950">Bulk Promotion Queue</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              {promotionPreview?.activeAcademicYear
+                ? `${promotionPreview.activeAcademicYear.year} active promotion preview`
+                : 'Active promotion preview'}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="rounded-md border border-slate-200 px-3 py-2 text-sm">
+              <span className="font-semibold text-slate-950">
+                {selectedPromotionStudents.length}
+              </span>{' '}
+              <span className="text-slate-500">selected</span>
+            </div>
+            <Button
+              type="button"
+              onClick={handleOpenBulkDialog}
+              disabled={
+                !isAdmin ||
+                promotionLoading ||
+                selectedPromotionStudents.length === 0 ||
+                !!promotionPreview?.activeAcademicYear?.promotionProcessedAt
+              }
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {isBulkPromoting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <GraduationCap className="h-4 w-4" />
+              )}
+              Promote/Graduate Selected
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {PROMOTION_FILTERS.map((filter) => (
+              <Button
+                key={filter}
+                type="button"
+                variant={promotionFilter === filter ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPromotionFilter(filter)}
+                className={cn(
+                  'h-9',
+                  promotionFilter === filter && 'bg-slate-950 text-white hover:bg-slate-800'
+                )}
+              >
+                {PROMOTION_FILTER_LABELS[filter]}
+              </Button>
+            ))}
+          </div>
+          <div className="grid gap-2 text-sm sm:grid-cols-3 xl:min-w-[420px]">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <p className="text-xs font-medium text-emerald-700">Promote</p>
+              <p className="font-semibold text-emerald-950">{selectedPromotionSummary.promote}</p>
+            </div>
+            <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+              <p className="text-xs font-medium text-orange-700">Graduate/Complete</p>
+              <p className="font-semibold text-orange-950">{selectedPromotionSummary.graduate}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs font-medium text-slate-500">Visible Eligible</p>
+              <p className="font-semibold text-slate-950">
+                {selectableFilteredPromotionStudents.length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {promotionPreview?.activeAcademicYear?.promotionProcessedAt && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            This academic year has already been promoted. Selected bulk promotion is unavailable
+            until the last promotion is undone.
+          </div>
+        )}
+
+        {bulkPromotionResult && (
+          <div
+            className={cn(
+              'border-b px-4 py-3',
+              bulkPromotionResult.errorCount > 0
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-emerald-200 bg-emerald-50'
+            )}
+          >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex gap-3">
+                {bulkPromotionResult.errorCount > 0 ? (
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                ) : (
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+                )}
+                <div>
+                  <p className="font-semibold text-slate-950">Last bulk promotion summary</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {bulkPromotionResult.promotedCount} promoted,{' '}
+                    {bulkPromotionResult.graduatedCount} graduated/completed,{' '}
+                    {bulkPromotionResult.skippedCount} skipped, {bulkPromotionResult.errorCount}{' '}
+                    issue(s).
+                  </p>
+                </div>
+              </div>
+              {bulkPromotionResult.errorCount > 0 && (
+                <div className="max-w-xl text-sm text-amber-900">
+                  {bulkPromotionResult.results
+                    .filter((result) => !result.success)
+                    .slice(0, 3)
+                    .map((result) => (
+                      <p key={result.studentId}>
+                        {result.studentName}: {result.error}
+                      </p>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead className="w-12">
+                  <Checkbox
+                    aria-label="Select all visible eligible students"
+                    checked={visibleSelectAllState}
+                    onCheckedChange={(checked) => toggleVisiblePromotionStudents(checked === true)}
+                    disabled={
+                      !isAdmin ||
+                      promotionLoading ||
+                      selectableFilteredPromotionStudents.length === 0 ||
+                      !!promotionPreview?.activeAcademicYear?.promotionProcessedAt
+                    }
+                  />
+                </TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Current Level</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Next Level</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {promotionLoading ? (
+                <PromotionQueueLoading />
+              ) : promotionErrorMessage ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center text-sm text-rose-600">
+                    Promotion preview could not load: {promotionErrorMessage}
+                  </TableCell>
+                </TableRow>
+              ) : filteredPromotionStudents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-32 text-center text-sm text-slate-500">
+                    No students match this promotion filter.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredPromotionStudents.map((student) => {
+                  const selectable =
+                    isAdmin &&
+                    isPromotionSelectable(student) &&
+                    !promotionPreview?.activeAcademicYear?.promotionProcessedAt;
+                  const selected = selectedStudentIds.has(student.id);
+
+                  return (
+                    <TableRow
+                      key={student.id}
+                      className={cn(
+                        selected && 'bg-emerald-50/50',
+                        !isPromotionSelectable(student) && 'bg-slate-50/60'
+                      )}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          aria-label={`Select ${student.lastName}, ${student.firstName}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            togglePromotionStudent(student, checked === true)
+                          }
+                          disabled={!selectable || isBulkPromoting}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-slate-950">
+                            {student.lastName}, {student.firstName}
+                          </p>
+                          <p className="text-xs text-slate-500">{student.program}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-slate-700">
+                        {student.gradeLevel} - {student.yearLevel}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'whitespace-nowrap',
+                            getPromotionActionClassName(student.action)
+                          )}
+                        >
+                          {getPromotionActionLabel(student)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-[340px] text-sm text-slate-700">
+                          <p className="font-medium">{formatPromotionTarget(student)}</p>
+                          {student.nextProgram && student.action === 'PROMOTE' && (
+                            <p className="text-xs text-slate-500">
+                              {student.nextProgram}
+                              {student.nextTermType ? ` - ${student.nextTermType}` : ''}
+                            </p>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-slate-200 p-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            Showing {filteredPromotionStudents.length} of {promotionPreview?.totalStudents || 0}{' '}
+            active students
+          </p>
+          {!isAdmin && <p>Administrator access is required for bulk promotion.</p>}
+        </div>
+      </section>
+
+      <AlertDialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Promote/Graduate Selected Students</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirm the selected bulk operation before student records are updated.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-medium text-slate-500">Selected</p>
+                <p className="mt-1 text-xl font-semibold text-slate-950">
+                  {selectedPromotionStudents.length}
+                </p>
+              </div>
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs font-medium text-emerald-700">Promote</p>
+                <p className="mt-1 text-xl font-semibold text-emerald-950">
+                  {selectedPromotionSummary.promote}
+                </p>
+              </div>
+              <div className="rounded-md border border-orange-200 bg-orange-50 p-3">
+                <p className="text-xs font-medium text-orange-700">Graduate/Complete</p>
+                <p className="mt-1 text-xl font-semibold text-orange-950">
+                  {selectedPromotionSummary.graduate}
+                </p>
+              </div>
+            </div>
+
+            <div className="max-h-56 overflow-y-auto rounded-md border border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Next Level</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedPromotionStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell>
+                        {student.lastName}, {student.firstName}
+                      </TableCell>
+                      <TableCell>{getPromotionActionLabel(student)}</TableCell>
+                      <TableCell>{formatPromotionTarget(student)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkPromoting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleBulkPromotion();
+              }}
+              disabled={isBulkPromoting}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {isBulkPromoting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirm Bulk Promotion
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">

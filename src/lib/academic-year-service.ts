@@ -1,11 +1,6 @@
 import type { Prisma } from '@prisma/client';
 
-import {
-  GradeLevel,
-  StudentAcademicOutcome,
-  StudentTransitionDecision,
-  TermType,
-} from '@/types';
+import { GradeLevel, StudentAcademicOutcome, StudentTransitionDecision, TermType } from '@/types';
 
 import { logAudit } from './auth';
 import prisma from './prisma';
@@ -87,6 +82,23 @@ export interface DuePromotionRunResult extends PromotionRunResult {
   results: AcademicYearPromotionResult[];
 }
 
+export interface SelectedPromotionStudentResult {
+  studentId: number;
+  studentName: string;
+  fromLevel: string;
+  toLevel: string | null;
+  action: PromotionTarget['action'];
+  success: boolean;
+  error?: string;
+}
+
+export interface SelectedPromotionRunResult extends PromotionRunResult {
+  selectedCount: number;
+  results: SelectedPromotionStudentResult[];
+}
+
+type PromotionSource = 'MANUAL' | 'MANUAL_SELECTED' | 'CRON';
+
 const GRADE_10_DECISIONS = new Set<StudentTransitionDecision>([
   'CONTINUE_SENIOR_HIGH',
   'COMPLETED_JHS',
@@ -108,10 +120,9 @@ function normalizeTransitionDecision(decision?: string | null): StudentTransitio
   return decision as StudentTransitionDecision;
 }
 
-function buildSeparateTarget(decision: StudentTransitionDecision): Extract<
-  PromotionTarget,
-  { action: 'SEPARATE' }
-> {
+function buildSeparateTarget(
+  decision: StudentTransitionDecision
+): Extract<PromotionTarget, { action: 'SEPARATE' }> {
   if (decision === 'COMPLETED_JHS') {
     return {
       action: 'SEPARATE',
@@ -457,9 +468,7 @@ async function createAcademicRecordForTransition(
       nextGradeLevel: params.target.action === 'PROMOTE' ? params.target.gradeLevel : null,
       nextYearLevel: params.target.action === 'PROMOTE' ? params.target.yearLevel : null,
       nextProgram:
-        params.target.action === 'PROMOTE'
-          ? params.target.program || params.student.program
-          : null,
+        params.target.action === 'PROMOTE' ? params.target.program || params.student.program : null,
       nextTermType:
         params.target.action === 'PROMOTE'
           ? params.target.termType || params.student.termType
@@ -477,7 +486,7 @@ function isBlockingPromotionTarget(target: PromotionTarget) {
 
 async function processAcademicYearPromotion(
   academicYear: AcademicYearPromotionRecord,
-  options: { userId?: number; now: Date; source: 'MANUAL' | 'CRON' }
+  options: { userId?: number; now: Date; source: PromotionSource }
 ): Promise<AcademicYearPromotionResult> {
   return prisma.$transaction(async (tx) => {
     const claim = await tx.academicYear.updateMany({
@@ -1198,6 +1207,542 @@ export async function autoPromoteStudents(
     errorCount: result.errorCount,
     errors: result.errors,
   };
+}
+
+function getPromotionTargetToLevel(
+  student: { gradeLevel: string; yearLevel: string },
+  target: PromotionTarget
+) {
+  if (target.action === 'PROMOTE') return `${target.gradeLevel} - ${target.yearLevel}`;
+  if (target.action === 'GRADUATE') return 'Graduated';
+  if (target.action === 'SEPARATE') return target.status;
+  if (target.action === 'RETAIN') return `${student.gradeLevel} - ${student.yearLevel}`;
+  return null;
+}
+
+/**
+ * Manually promotes only the selected students and records their transition results.
+ * This does not claim the whole academic year promotion run.
+ */
+export async function promoteSelectedStudents(
+  studentIds: number[],
+  userId?: number,
+  academicYearId?: number
+): Promise<SelectedPromotionRunResult> {
+  const selectedIds = [...new Set(studentIds.filter((id) => Number.isInteger(id)))];
+
+  if (selectedIds.length === 0) {
+    return {
+      success: false,
+      error: 'Select at least one student to promote.',
+      selectedCount: 0,
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+      results: [],
+    };
+  }
+
+  const activeAcademicYear = academicYearId
+    ? await prisma.academicYear.findUnique({ where: { id: academicYearId } })
+    : await getActiveAcademicYear();
+
+  if (!activeAcademicYear) {
+    return {
+      success: false,
+      error: academicYearId
+        ? 'Academic year not found. Please refresh the registry and try again.'
+        : 'No active academic year found. Please configure an active academic year first.',
+      selectedCount: selectedIds.length,
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: selectedIds.length,
+      results: selectedIds.map((studentId) => ({
+        studentId,
+        studentName: `Student #${studentId}`,
+        fromLevel: '-',
+        toLevel: null,
+        action: 'SKIP',
+        success: false,
+        error: 'No active academic year found.',
+      })),
+    };
+  }
+
+  if (activeAcademicYear.promotionProcessedAt) {
+    return {
+      success: false,
+      error:
+        'This academic year has already been promoted. Undo the last promotion before running selected promotions again.',
+      selectedCount: selectedIds.length,
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: selectedIds.length,
+      errorCount: selectedIds.length,
+      results: selectedIds.map((studentId) => ({
+        studentId,
+        studentName: `Student #${studentId}`,
+        fromLevel: '-',
+        toLevel: null,
+        action: 'SKIP',
+        success: false,
+        error: 'Academic year promotion has already been processed.',
+      })),
+    };
+  }
+
+  const now = new Date();
+
+  return prisma.$transaction(async (tx) => {
+    const students = await tx.student.findMany({
+      where: {
+        id: { in: selectedIds },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        gradeLevel: true,
+        yearLevel: true,
+        program: true,
+        termType: true,
+        status: true,
+        graduationStatus: true,
+        graduatedAt: true,
+        isArchived: true,
+        transitionDecision: true,
+        transitionDecisionAt: true,
+        transitionDecisionBy: true,
+        separatedAt: true,
+        separationReason: true,
+      },
+    });
+    const studentsById = new Map(students.map((student) => [student.id, student]));
+
+    let promotedCount = 0;
+    let graduatedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    const errors: Array<{ studentId?: number; error: string }> = [];
+    const results: SelectedPromotionStudentResult[] = [];
+
+    for (const studentId of selectedIds) {
+      const student = studentsById.get(studentId);
+      const studentName = student
+        ? `${student.firstName} ${student.lastName}`
+        : `Student #${studentId}`;
+      const fromLevel = student ? `${student.gradeLevel} - ${student.yearLevel}` : '-';
+
+      if (!student) {
+        const error = 'Student was not found.';
+        skippedCount++;
+        errorCount++;
+        errors.push({ studentId, error });
+        results.push({
+          studentId,
+          studentName,
+          fromLevel,
+          toLevel: null,
+          action: 'SKIP',
+          success: false,
+          error,
+        });
+        continue;
+      }
+
+      if (
+        student.isArchived ||
+        student.status !== 'Active' ||
+        student.graduationStatus === 'Graduated'
+      ) {
+        const error = 'Only active, unarchived, non-graduated students can be promoted.';
+        skippedCount++;
+        errorCount++;
+        errors.push({ studentId, error });
+        results.push({
+          studentId,
+          studentName,
+          fromLevel,
+          toLevel: null,
+          action: 'SKIP',
+          success: false,
+          error,
+        });
+        continue;
+      }
+
+      const target = resolvePromotionTarget(student);
+      const toLevel = getPromotionTargetToLevel(student, target);
+
+      if (target.action === 'SKIP') {
+        skippedCount++;
+        errorCount++;
+        errors.push({ studentId, error: target.reason });
+        results.push({
+          studentId,
+          studentName,
+          fromLevel,
+          toLevel,
+          action: target.action,
+          success: false,
+          error: target.reason,
+        });
+        continue;
+      }
+
+      if (target.action === 'GRADUATE') {
+        await createAcademicRecordForTransition(tx, {
+          academicYear: activeAcademicYear,
+          student,
+          target,
+          now,
+        });
+
+        const [activeScholarships, futureDisbursements] = await Promise.all([
+          tx.studentScholarship.findMany({
+            where: {
+              studentId: student.id,
+              scholarshipStatus: 'Active',
+            },
+            select: {
+              studentId: true,
+              scholarshipId: true,
+              awardDate: true,
+              startTerm: true,
+              endTerm: true,
+              grantAmount: true,
+              scholarshipStatus: true,
+              grantType: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }),
+          tx.disbursement.findMany({
+            where: {
+              studentId: student.id,
+              disbursementDate: { gte: now },
+            },
+            select: {
+              disbursementDate: true,
+              amount: true,
+              term: true,
+              method: true,
+              remarks: true,
+              scholarshipId: true,
+              studentId: true,
+              academicYearId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }),
+        ]);
+
+        await backupStudentBeforePromotion(tx, {
+          academicYearId: activeAcademicYear.id,
+          userId,
+          operation: 'AUTO_GRADUATE_STUDENT',
+          student,
+          scholarships: activeScholarships,
+          disbursements: futureDisbursements,
+        });
+
+        await tx.student.update({
+          where: { id: student.id },
+          data: {
+            graduationStatus: 'Graduated',
+            graduatedAt: now,
+            status: 'Graduated',
+          },
+        });
+
+        await tx.studentScholarship.deleteMany({
+          where: {
+            studentId: student.id,
+            scholarshipStatus: 'Active',
+          },
+        });
+
+        await tx.disbursement.deleteMany({
+          where: {
+            studentId: student.id,
+            disbursementDate: { gte: now },
+          },
+        });
+
+        await createAudit(
+          tx,
+          userId || null,
+          'MANUAL_SELECTED_GRADUATE_STUDENT',
+          'STUDENT',
+          student.id,
+          {
+            studentName,
+            previousGradeLevel: student.gradeLevel,
+            previousYearLevel: student.yearLevel,
+            academicYear: activeAcademicYear.year,
+            reason: 'Selected bulk promotion reached graduation',
+            source: 'MANUAL_SELECTED',
+          }
+        );
+
+        graduatedCount++;
+        results.push({
+          studentId,
+          studentName,
+          fromLevel,
+          toLevel,
+          action: target.action,
+          success: true,
+        });
+        continue;
+      }
+
+      if (target.action === 'RETAIN') {
+        await backupStudentBeforePromotion(tx, {
+          academicYearId: activeAcademicYear.id,
+          userId,
+          operation: 'AUTO_PROMOTE_STUDENT',
+          student,
+        });
+
+        await createAcademicRecordForTransition(tx, {
+          academicYear: activeAcademicYear,
+          student,
+          target,
+          now,
+        });
+
+        await tx.student.update({
+          where: { id: student.id },
+          data: {
+            graduationStatus: 'Active',
+            graduatedAt: null,
+            status: 'Active',
+            transitionDecision: null,
+            transitionDecisionAt: null,
+            transitionDecisionBy: null,
+            separatedAt: null,
+            separationReason: null,
+          },
+        });
+
+        await createAudit(
+          tx,
+          userId || null,
+          'MANUAL_SELECTED_RETAIN_STUDENT',
+          'STUDENT',
+          student.id,
+          {
+            studentName,
+            gradeLevel: student.gradeLevel,
+            yearLevel: student.yearLevel,
+            academicYear: activeAcademicYear.year,
+            reason: target.reason,
+            source: 'MANUAL_SELECTED',
+          }
+        );
+
+        skippedCount++;
+        results.push({
+          studentId,
+          studentName,
+          fromLevel,
+          toLevel,
+          action: target.action,
+          success: true,
+        });
+        continue;
+      }
+
+      if (target.action === 'SEPARATE') {
+        const [activeScholarships, futureDisbursements] = await Promise.all([
+          tx.studentScholarship.findMany({
+            where: {
+              studentId: student.id,
+              scholarshipStatus: 'Active',
+            },
+            select: {
+              studentId: true,
+              scholarshipId: true,
+              awardDate: true,
+              startTerm: true,
+              endTerm: true,
+              grantAmount: true,
+              scholarshipStatus: true,
+              grantType: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }),
+          tx.disbursement.findMany({
+            where: {
+              studentId: student.id,
+              disbursementDate: { gte: now },
+            },
+            select: {
+              disbursementDate: true,
+              amount: true,
+              term: true,
+              method: true,
+              remarks: true,
+              scholarshipId: true,
+              studentId: true,
+              academicYearId: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }),
+        ]);
+
+        await backupStudentBeforePromotion(tx, {
+          academicYearId: activeAcademicYear.id,
+          userId,
+          operation: 'AUTO_GRADUATE_STUDENT',
+          student,
+          scholarships: activeScholarships,
+          disbursements: futureDisbursements,
+        });
+
+        await createAcademicRecordForTransition(tx, {
+          academicYear: activeAcademicYear,
+          student,
+          target,
+          now,
+        });
+
+        await tx.student.update({
+          where: { id: student.id },
+          data: {
+            graduationStatus: target.graduationStatus,
+            graduatedAt:
+              target.outcome === 'COMPLETED_JHS' || target.outcome === 'GRADUATED_SHS' ? now : null,
+            status: target.status,
+            separatedAt: now,
+            separationReason: target.reason,
+          },
+        });
+
+        await tx.studentScholarship.deleteMany({
+          where: {
+            studentId: student.id,
+            scholarshipStatus: 'Active',
+          },
+        });
+
+        await tx.disbursement.deleteMany({
+          where: {
+            studentId: student.id,
+            disbursementDate: { gte: now },
+          },
+        });
+
+        await createAudit(
+          tx,
+          userId || null,
+          'MANUAL_SELECTED_SEPARATE_STUDENT',
+          'STUDENT',
+          student.id,
+          {
+            studentName,
+            previousGradeLevel: student.gradeLevel,
+            previousYearLevel: student.yearLevel,
+            academicYear: activeAcademicYear.year,
+            outcome: target.outcome,
+            reason: target.reason,
+            source: 'MANUAL_SELECTED',
+          }
+        );
+
+        graduatedCount++;
+        results.push({
+          studentId,
+          studentName,
+          fromLevel,
+          toLevel,
+          action: target.action,
+          success: true,
+        });
+        continue;
+      }
+
+      await backupStudentBeforePromotion(tx, {
+        academicYearId: activeAcademicYear.id,
+        userId,
+        operation: 'AUTO_PROMOTE_STUDENT',
+        student,
+      });
+
+      await createAcademicRecordForTransition(tx, {
+        academicYear: activeAcademicYear,
+        student,
+        target,
+        now,
+      });
+
+      await tx.student.update({
+        where: { id: student.id },
+        data: buildPromotionUpdate(target),
+      });
+
+      await createAudit(
+        tx,
+        userId || null,
+        'MANUAL_SELECTED_PROMOTE_STUDENT',
+        'STUDENT',
+        student.id,
+        {
+          studentName,
+          previousGradeLevel: student.gradeLevel,
+          previousYearLevel: student.yearLevel,
+          previousProgram: student.program,
+          previousTermType: student.termType,
+          newGradeLevel: target.gradeLevel,
+          newYearLevel: target.yearLevel,
+          newProgram: target.program || student.program,
+          newTermType: target.termType || student.termType,
+          academicYear: activeAcademicYear.year,
+          reason: 'Selected bulk promotion',
+          source: 'MANUAL_SELECTED',
+        }
+      );
+
+      promotedCount++;
+      results.push({
+        studentId,
+        studentName,
+        fromLevel,
+        toLevel,
+        action: target.action,
+        success: true,
+      });
+    }
+
+    await createAudit(tx, userId || null, 'MANUAL_SELECTED_PROMOTE_STUDENTS', 'SYSTEM', undefined, {
+      academicYear: activeAcademicYear.year,
+      academicYearId: activeAcademicYear.id,
+      selectedCount: selectedIds.length,
+      promotedCount,
+      graduatedCount,
+      skippedCount,
+      errorCount,
+      source: 'MANUAL_SELECTED',
+      errors: errors.length > 0 ? errors : undefined,
+    });
+
+    return {
+      success: errorCount < selectedIds.length,
+      error: errorCount === selectedIds.length ? 'No selected students were promoted.' : undefined,
+      selectedCount: selectedIds.length,
+      promotedCount,
+      graduatedCount,
+      skippedCount,
+      errorCount,
+      errors: errors.length > 0 ? errors : undefined,
+      results,
+    };
+  });
 }
 
 /**

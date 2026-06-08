@@ -264,6 +264,201 @@ describe('runDueAcademicYearPromotions', () => {
   });
 });
 
+describe('promoteSelectedStudents', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.$transaction.mockImplementation((callback) => callback(txMock));
+    prismaMock.academicYear.findFirst.mockResolvedValue({
+      id: 1,
+      year: '2026-2027',
+      semester: '1ST',
+      startDate: new Date('2025-06-01T00:00:00.000Z'),
+      promotionDate: new Date('2026-05-22T00:00:00.000Z'),
+      promotionProcessedAt: null,
+    });
+    txMock.auditLog.create.mockResolvedValue({});
+    txMock.backup.create.mockResolvedValue({});
+    txMock.disbursement.deleteMany.mockResolvedValue({ count: 0 });
+    txMock.disbursement.findMany.mockResolvedValue([]);
+    txMock.student.update.mockResolvedValue({});
+    txMock.studentAcademicRecord.create.mockResolvedValue({});
+    txMock.studentScholarship.deleteMany.mockResolvedValue({ count: 0 });
+    txMock.studentScholarship.findMany.mockResolvedValue([]);
+  });
+
+  function activeStudent(overrides: Record<string, unknown>) {
+    return {
+      id: 1,
+      firstName: 'Test',
+      lastName: 'Student',
+      gradeLevel: 'GRADE_SCHOOL',
+      yearLevel: 'Grade 1',
+      program: 'Grade School',
+      termType: 'SEMESTER',
+      status: 'Active',
+      graduationStatus: 'Active',
+      graduatedAt: null,
+      isArchived: false,
+      transitionDecision: null,
+      transitionDecisionAt: null,
+      transitionDecisionBy: null,
+      separatedAt: null,
+      separationReason: null,
+      ...overrides,
+    };
+  }
+
+  it('promotes only selected active students without claiming the whole academic year', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 2,
+        firstName: 'Grade',
+        lastName: 'Six',
+        gradeLevel: 'GRADE_SCHOOL',
+        yearLevel: 'Grade 6',
+      }),
+      activeStudent({
+        id: 11,
+        firstName: 'Grade',
+        lastName: 'Eleven',
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 11',
+        program: 'STEM',
+      }),
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const result = await promoteSelectedStudents([2, 11], 23);
+
+    expect(result).toMatchObject({
+      success: true,
+      selectedCount: 2,
+      promotedCount: 2,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+    });
+    expect(txMock.academicYear.updateMany).not.toHaveBeenCalled();
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 7' }),
+    });
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 11 },
+      data: expect.objectContaining({ gradeLevel: 'SENIOR_HIGH', yearLevel: 'Grade 12' }),
+    });
+    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('marks selected Grade 12 completers separately and clears active aid', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 12,
+        firstName: 'Maria',
+        lastName: 'Santos',
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 12',
+        program: 'ABM',
+        transitionDecision: 'GRADUATED_SHS',
+      }),
+    ]);
+    txMock.studentScholarship.findMany.mockResolvedValueOnce([
+      {
+        studentId: 12,
+        scholarshipId: 5,
+        awardDate: new Date('2026-01-01T00:00:00.000Z'),
+        startTerm: '1ST',
+        endTerm: '2ND',
+        grantAmount: '1000',
+        scholarshipStatus: 'Active',
+        grantType: 'FULL',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]);
+    txMock.disbursement.findMany.mockResolvedValueOnce([
+      {
+        disbursementDate: new Date('2026-06-01T00:00:00.000Z'),
+        amount: '1000',
+        term: '1ST',
+        method: 'Cash',
+        remarks: null,
+        scholarshipId: 5,
+        studentId: 12,
+        academicYearId: 1,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const result = await promoteSelectedStudents([12], 23);
+
+    expect(result).toMatchObject({
+      success: true,
+      selectedCount: 1,
+      promotedCount: 0,
+      graduatedCount: 1,
+      errorCount: 0,
+    });
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 12 },
+      data: expect.objectContaining({
+        graduationStatus: 'Graduated SHS',
+        status: 'Graduated SHS',
+        graduatedAt: expect.any(Date),
+        separatedAt: expect.any(Date),
+      }),
+    });
+    expect(txMock.studentScholarship.deleteMany).toHaveBeenCalledWith({
+      where: { studentId: 12, scholarshipStatus: 'Active' },
+    });
+    expect(txMock.disbursement.deleteMany).toHaveBeenCalledWith({
+      where: { studentId: 12, disbursementDate: { gte: expect.any(Date) } },
+    });
+    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        studentId: 12,
+        outcome: 'GRADUATED_SHS',
+        decision: 'GRADUATED_SHS',
+      }),
+    });
+  });
+
+  it('returns per-student errors when selected students still need decisions', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 12,
+        firstName: 'Maria',
+        lastName: 'Santos',
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 12',
+        program: 'ABM',
+      }),
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const result = await promoteSelectedStudents([12], 23);
+
+    expect(result).toMatchObject({
+      success: false,
+      selectedCount: 1,
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: 1,
+      errorCount: 1,
+    });
+    expect(result.errors?.[0]).toEqual(
+      expect.objectContaining({
+        studentId: 12,
+        error: expect.stringContaining('Grade 12 requires an end-of-year decision'),
+      })
+    );
+    expect(txMock.student.update).not.toHaveBeenCalled();
+    expect(txMock.studentAcademicRecord.create).not.toHaveBeenCalled();
+  });
+});
+
 describe('undoLastAcademicYearPromotion', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -281,11 +476,11 @@ describe('undoLastAcademicYearPromotion', () => {
   it('restores students and reopens the active academic year promotion marker', async () => {
     const promotionProcessedAt = new Date('2026-05-22T02:00:00.000Z');
     prismaMock.academicYear.findFirst.mockResolvedValueOnce({
-        id: 1,
-        year: '2026-2027',
-        semester: '1ST',
-        startDate: new Date('2025-06-01T00:00:00.000Z'),
-        promotionDate: new Date('2026-05-22T00:00:00.000Z'),
+      id: 1,
+      year: '2026-2027',
+      semester: '1ST',
+      startDate: new Date('2025-06-01T00:00:00.000Z'),
+      promotionDate: new Date('2026-05-22T00:00:00.000Z'),
       promotionProcessedAt,
     });
     txMock.backup.findMany.mockResolvedValueOnce([
