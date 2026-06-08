@@ -71,6 +71,11 @@ import {
   useStudents,
   useUpdateStudent,
 } from '@/hooks/use-queries';
+import {
+  canManageStudentFees as canManageStudentFeesForRole,
+  canManageStudentsAndScholarships,
+  isAdminRole,
+} from '@/lib/rbac';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
   CreateStudentInput,
@@ -318,8 +323,8 @@ interface StudentWithScholarships extends Student {
   scholarships: StudentScholarship[];
 }
 
-function StudentsTableLoading({ isAdmin }: { isAdmin: boolean }) {
-  const bodyColumns = isAdmin ? 7 : 6;
+function StudentsTableLoading({ canManageStudents }: { canManageStudents: boolean }) {
+  const bodyColumns = canManageStudents ? 7 : 6;
 
   return (
     <div className="overflow-x-auto">
@@ -332,7 +337,7 @@ function StudentsTableLoading({ isAdmin }: { isAdmin: boolean }) {
             <TableHead>Program</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Scholarships</TableHead>
-            {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+            {canManageStudents && <TableHead className="text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -349,7 +354,7 @@ function StudentsTableLoading({ isAdmin }: { isAdmin: boolean }) {
                       columnIndex === 3 && 'w-36',
                       columnIndex === 4 && 'w-20 rounded-full',
                       columnIndex === 5 && 'h-16 w-[300px] rounded-lg',
-                      columnIndex === bodyColumns - 1 && isAdmin && 'ml-auto w-20'
+                      columnIndex === bodyColumns - 1 && canManageStudents && 'ml-auto w-20'
                     )}
                   />
                 </TableCell>
@@ -419,7 +424,9 @@ interface StudentDetail extends Student {
 
 export default function StudentsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = isAdminRole(user?.role);
+  const canManageStudents = canManageStudentsAndScholarships(user?.role);
+  const canManageStudentFees = canManageStudentFeesForRole(user?.role);
   const queryClient = useQueryClient();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -705,7 +712,7 @@ export default function StudentsPage() {
               }}
             />
           )}
-          {isAdmin && (
+          {canManageStudents && (
             <Dialog
               open={dialogOpen}
               onOpenChange={(open) => {
@@ -768,6 +775,7 @@ export default function StudentsPage() {
                   onCancel={() => setDialogOpen(false)}
                   isEditing={!!editingStudent}
                   loading={submitting}
+                  canEditFees={canManageStudentFees}
                   studentName={
                     editingStudent
                       ? `${editingStudent.firstName} ${editingStudent.lastName}`
@@ -948,7 +956,7 @@ export default function StudentsPage() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <StudentsTableLoading isAdmin={isAdmin} />
+            <StudentsTableLoading canManageStudents={canManageStudents} />
           ) : students.length === 0 ? (
             <div className="flex h-48 flex-col items-center justify-center text-muted-foreground">
               <p>No students found</p>
@@ -965,7 +973,7 @@ export default function StudentsPage() {
                     <TableHead>Program</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Scholarships</TableHead>
-                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                    {canManageStudents && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -995,7 +1003,7 @@ export default function StudentsPage() {
                           onScholarshipHover={handleScholarshipHover}
                         />
                       </TableCell>
-                      {isAdmin && (
+                      {canManageStudents && (
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             <Button
@@ -1006,32 +1014,33 @@ export default function StudentsPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            {!showArchived ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openDeleteDialog(student)}
-                                className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
-                                title="Archive student"
-                              >
-                                <Archive className="h-4 w-4" />
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  archiveStudentMutation.mutateAsync({
-                                    id: student.id,
-                                    action: 'unarchive',
-                                  })
-                                }
-                                className="text-green-600 hover:text-green-700 cursor-pointer zoom-hover"
-                                title="Unarchive student"
-                              >
-                                <Archive className="h-4 w-4" />
-                              </Button>
-                            )}
+                            {isAdmin &&
+                              (!showArchived ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteDialog(student)}
+                                  className="text-destructive hover:text-destructive cursor-pointer zoom-hover"
+                                  title="Archive student"
+                                >
+                                  <Archive className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    archiveStudentMutation.mutateAsync({
+                                      id: student.id,
+                                      action: 'unarchive',
+                                    })
+                                  }
+                                  className="text-green-600 hover:text-green-700 cursor-pointer zoom-hover"
+                                  title="Unarchive student"
+                                >
+                                  <Archive className="h-4 w-4" />
+                                </Button>
+                              ))}
                           </div>
                         </TableCell>
                       )}
@@ -1346,7 +1355,10 @@ export default function StudentsPage() {
                     {/* Fees Information */}
                     <div className="border-t border-gray-200 pt-4">
                       <h3 className="text-lg font-semibold mb-4">Fee Information</h3>
-                      <StudentFeesManager studentId={selectedStudent.id} readOnly={false} />
+                      <StudentFeesManager
+                        studentId={selectedStudent.id}
+                        readOnly={!canManageStudentFees}
+                      />
                     </div>
                   </>
                 )}

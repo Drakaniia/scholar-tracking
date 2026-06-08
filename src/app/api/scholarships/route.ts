@@ -8,6 +8,7 @@ import {
   getPaginationParams,
   queryOptimizer,
 } from '@/lib/query-optimizer';
+import { canManageStudentsAndScholarships } from '@/lib/rbac';
 import { DEFAULT_COVERED_TERMS, LGU_COVERED_TERMS } from '@/lib/terms';
 import { CreateScholarshipInput } from '@/types';
 
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
 
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || !canManageStudentsAndScholarships(session.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

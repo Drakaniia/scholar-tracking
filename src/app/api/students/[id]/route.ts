@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth';
 import { hasStudentGraduated } from '@/lib/graduation-service';
 import prisma from '@/lib/prisma';
 import { queryOptimizer } from '@/lib/query-optimizer';
+import { canManageStudentFees, canManageStudentsAndScholarships } from '@/lib/rbac';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
 import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 import { UpdateStudentInput } from '@/types';
@@ -109,7 +110,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const session = await getSession();
 
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || !canManageStudentsAndScholarships(session.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -126,6 +127,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     } catch (parseError) {
       console.error('Error parsing request body:', parseError);
       return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+    }
+
+    if (body.fees && !canManageStudentFees(session.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized to manage student fees' },
+        { status: 403 }
+      );
     }
 
     // Extract scholarships from body

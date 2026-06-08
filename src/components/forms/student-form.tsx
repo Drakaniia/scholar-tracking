@@ -121,6 +121,7 @@ interface StudentFormProps {
   onCancel: () => void;
   isEditing?: boolean;
   loading?: boolean;
+  canEditFees?: boolean;
   studentName?: string; // Name of student being edited for confirmation display
 }
 
@@ -130,6 +131,7 @@ export function StudentForm({
   onCancel,
   isEditing = false,
   loading = false,
+  canEditFees = true,
   studentName,
 }: StudentFormProps) {
   const [selectedGradeLevel, setSelectedGradeLevel] = useState<GradeLevel | ''>(
@@ -462,13 +464,16 @@ export function StudentForm({
       ...data,
       program,
       scholarships: selectedScholarships.length > 0 ? selectedScholarships : undefined,
-      fees: {
+    };
+
+    if (canEditFees) {
+      submitData.fees = {
         tuitionFee: fees.tuitionFee,
         otherFee: fees.otherFee,
         miscellaneousFee: fees.miscellaneousFee,
         laboratoryFee: fees.laboratoryFee,
-      },
-    };
+      };
+    }
 
     // Show confirmation dialog when editing
     if (isEditing) {
@@ -1114,116 +1119,118 @@ export function StudentForm({
         </div>
 
         {/* Fee Information Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">Fee Information</h3>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm max-w-xs">
-                    Enter the actual amounts this student needs to pay. These vary per student.
-                    Total Fees are auto-calculated.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+        {canEditFees && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Fee Information</h3>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-sm max-w-xs">
+                      Enter the actual amounts this student needs to pay. These vary per student.
+                      Total Fees are auto-calculated.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            <Card className="border-2 p-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Tuition Fee */}
+                <div className="space-y-2">
+                  <Label htmlFor="tuitionFee" className="text-sm font-medium">
+                    Tuition Fee
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      ₱
+                    </span>
+                    <CurrencyInput
+                      id="tuitionFee"
+                      value={fees.tuitionFee}
+                      onChange={(value) => handleFeeChange('tuitionFee', value)}
+                      placeholder="0.00"
+                      className="pl-7 h-10"
+                    />
+                  </div>
+                </div>
+
+                {/* Other Fees */}
+                <div className="space-y-2">
+                  <Label htmlFor="otherFee" className="text-sm font-medium">
+                    Other Fees
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      ₱
+                    </span>
+                    <CurrencyInput
+                      id="otherFee"
+                      value={fees.otherFee}
+                      onChange={(value) => handleFeeChange('otherFee', value)}
+                      placeholder="0.00"
+                      className="pl-7 h-10"
+                    />
+                  </div>
+                </div>
+
+                {/* Miscellaneous Fee */}
+                <div className="space-y-2">
+                  <Label htmlFor="miscellaneousFee" className="text-sm font-medium">
+                    Miscellaneous Fee
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      ₱
+                    </span>
+                    <CurrencyInput
+                      id="miscellaneousFee"
+                      value={fees.miscellaneousFee}
+                      onChange={(value) => handleFeeChange('miscellaneousFee', value)}
+                      placeholder="0.00"
+                      className="pl-7 h-10"
+                    />
+                  </div>
+                </div>
+
+                {/* Laboratory Fee */}
+                <div className="space-y-2">
+                  <Label htmlFor="laboratoryFee" className="text-sm font-medium">
+                    Laboratory Fee
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      ₱
+                    </span>
+                    <CurrencyInput
+                      id="laboratoryFee"
+                      value={fees.laboratoryFee}
+                      onChange={(value) => handleFeeChange('laboratoryFee', value)}
+                      placeholder="0.00"
+                      className="pl-7 h-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Fees Summary */}
+              <div className="mt-4 pt-4 border-t flex items-center justify-between">
+                <span className="text-sm font-medium">Total Fees:</span>
+                <span className="text-lg font-bold text-primary">
+                  ₱
+                  {getTotalFees().toLocaleString('en-PH', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            </Card>
           </div>
-
-          <Card className="border-2 p-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* Tuition Fee */}
-              <div className="space-y-2">
-                <Label htmlFor="tuitionFee" className="text-sm font-medium">
-                  Tuition Fee
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    ₱
-                  </span>
-                  <CurrencyInput
-                    id="tuitionFee"
-                    value={fees.tuitionFee}
-                    onChange={(value) => handleFeeChange('tuitionFee', value)}
-                    placeholder="0.00"
-                    className="pl-7 h-10"
-                  />
-                </div>
-              </div>
-
-              {/* Other Fees */}
-              <div className="space-y-2">
-                <Label htmlFor="otherFee" className="text-sm font-medium">
-                  Other Fees
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    ₱
-                  </span>
-                  <CurrencyInput
-                    id="otherFee"
-                    value={fees.otherFee}
-                    onChange={(value) => handleFeeChange('otherFee', value)}
-                    placeholder="0.00"
-                    className="pl-7 h-10"
-                  />
-                </div>
-              </div>
-
-              {/* Miscellaneous Fee */}
-              <div className="space-y-2">
-                <Label htmlFor="miscellaneousFee" className="text-sm font-medium">
-                  Miscellaneous Fee
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    ₱
-                  </span>
-                  <CurrencyInput
-                    id="miscellaneousFee"
-                    value={fees.miscellaneousFee}
-                    onChange={(value) => handleFeeChange('miscellaneousFee', value)}
-                    placeholder="0.00"
-                    className="pl-7 h-10"
-                  />
-                </div>
-              </div>
-
-              {/* Laboratory Fee */}
-              <div className="space-y-2">
-                <Label htmlFor="laboratoryFee" className="text-sm font-medium">
-                  Laboratory Fee
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    ₱
-                  </span>
-                  <CurrencyInput
-                    id="laboratoryFee"
-                    value={fees.laboratoryFee}
-                    onChange={(value) => handleFeeChange('laboratoryFee', value)}
-                    placeholder="0.00"
-                    className="pl-7 h-10"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Total Fees Summary */}
-            <div className="mt-4 pt-4 border-t flex items-center justify-between">
-              <span className="text-sm font-medium">Total Fees:</span>
-              <span className="text-lg font-bold text-primary">
-                ₱
-                {getTotalFees().toLocaleString('en-PH', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-          </Card>
-        </div>
+        )}
       </div>
 
       <DialogFooter className={DIALOG_FOOTER_CLASS}>

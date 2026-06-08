@@ -65,6 +65,7 @@ import {
   useScholarships,
   useUpdateScholarship,
 } from '@/hooks/use-queries';
+import { canManageStudentsAndScholarships, isAdminRole } from '@/lib/rbac';
 import { getCoveredTermsLabel } from '@/lib/terms';
 import { formatCurrency } from '@/lib/utils';
 import type { CreateScholarshipInput, GrantType, Scholarship, StudentScholarship } from '@/types';
@@ -121,8 +122,8 @@ interface ScholarshipCounts {
   external: number;
 }
 
-function ScholarshipTableLoading({ isAdmin }: { isAdmin: boolean }) {
-  const columns = isAdmin ? 9 : 8;
+function ScholarshipTableLoading({ canManageScholarships }: { canManageScholarships: boolean }) {
+  const columns = canManageScholarships ? 9 : 8;
 
   return (
     <div className="overflow-x-auto">
@@ -137,7 +138,7 @@ function ScholarshipTableLoading({ isAdmin }: { isAdmin: boolean }) {
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Students</TableHead>
             <TableHead>Status</TableHead>
-            {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+            {canManageScholarships && <TableHead className="text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -151,7 +152,7 @@ function ScholarshipTableLoading({ isAdmin }: { isAdmin: boolean }) {
                         ? 'w-36'
                         : columnIndex === 5
                           ? 'ml-auto w-20'
-                          : isAdmin && columnIndex === columns - 1
+                          : canManageScholarships && columnIndex === columns - 1
                             ? 'ml-auto w-16'
                             : 'w-24'
                     }`}
@@ -239,7 +240,8 @@ function ScholarshipDetailSkeleton() {
 
 export default function ScholarshipsPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const isAdmin = !authLoading && user?.role === 'ADMIN';
+  const isAdmin = !authLoading && isAdminRole(user?.role);
+  const canManageScholarships = !authLoading && canManageStudentsAndScholarships(user?.role);
   const [scholarships, setScholarships] = useState<ScholarshipWithCount[]>([]);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
@@ -402,7 +404,7 @@ export default function ScholarshipsPage() {
       <PageHeader title="Scholarships" description="Manage scholarship programs and grants">
         <div className="flex gap-2">
           <ExportButton endpoint="/api/export/scholarships" filename="scholarships-report" />
-          {isAdmin && (
+          {canManageScholarships && (
             <Button onClick={openCreateDialog} variant="gradient">
               <Plus className="mr-2 h-4 w-4" />
               Add Scholarship
@@ -494,13 +496,13 @@ export default function ScholarshipsPage() {
         </CardHeader>
         <CardContent aria-busy={listLoading}>
           {listLoading ? (
-            <ScholarshipTableLoading isAdmin={isAdmin} />
+            <ScholarshipTableLoading canManageScholarships={canManageScholarships} />
           ) : scholarships.length === 0 ? (
             <div className="text-center py-12">
               <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-semibold">No scholarships found</h3>
               <p className="text-muted-foreground">Get started by adding a new scholarship.</p>
-              {isAdmin && (
+              {canManageScholarships && (
                 <Button className="mt-4" onClick={openCreateDialog}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Scholarship
@@ -521,7 +523,7 @@ export default function ScholarshipsPage() {
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Students</TableHead>
                     <TableHead>Status</TableHead>
-                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                    {canManageScholarships && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -588,7 +590,7 @@ export default function ScholarshipsPage() {
                           {scholarship.status}
                         </Badge>
                       </TableCell>
-                      {isAdmin && (
+                      {canManageScholarships && (
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             <Button
@@ -599,15 +601,17 @@ export default function ScholarshipsPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openDeleteDialog(scholarship)}
-                              title="Archive scholarship"
-                              className="cursor-pointer zoom-hover"
-                            >
-                              <Archive className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openDeleteDialog(scholarship)}
+                                title="Archive scholarship"
+                                className="cursor-pointer zoom-hover"
+                              >
+                                <Archive className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       )}

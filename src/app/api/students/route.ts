@@ -8,6 +8,7 @@ import {
   getPaginationParams,
   queryOptimizer,
 } from '@/lib/query-optimizer';
+import { canManageStudentFees, canManageStudentsAndScholarships } from '@/lib/rbac';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
 import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 import { CreateStudentInput, SEPARATED_STUDENT_STATUSES } from '@/types';
@@ -200,11 +201,18 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
 
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || !canManageStudentsAndScholarships(session.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
     const body: CreateStudentInput = await request.json();
+
+    if (body.fees && !canManageStudentFees(session.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized to manage student fees' },
+        { status: 403 }
+      );
+    }
 
     // Check if student with same name already exists
     const existingStudent = await prisma.student.findFirst({

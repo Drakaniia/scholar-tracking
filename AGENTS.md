@@ -374,15 +374,15 @@ npm run erd:view
 ### User Roles
 
 1. **ADMIN**: Full access to all features, can manage users
-2. **STAFF**: Read-only access to students and scholarships
+2. **STAFF**: Can add and edit students and scholarships; other modules remain view-only
 3. **VIEWER**: Read-only access for stakeholders
 
 ### Admin-Only Features
 
 - Settings page (`/settings`)
 - User management (create, edit, delete, change roles)
-- Student CRUD operations
-- Scholarship CRUD operations
+- Student archive/unarchive, fee-only editing, and import operations
+- Scholarship archive/unarchive operations
 - Graduation management
 
 ### Access Control Implementation

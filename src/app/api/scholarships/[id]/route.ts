@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { queryOptimizer } from '@/lib/query-optimizer';
+import { canManageStudentsAndScholarships } from '@/lib/rbac';
 import { UpdateScholarshipInput } from '@/types';
 
 type ArchiveAction = 'archive' | 'unarchive';
@@ -156,7 +157,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const session = await getSession();
 
-    if (!session || session.role !== 'ADMIN') {
+    if (!session || !canManageStudentsAndScholarships(session.role)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 
