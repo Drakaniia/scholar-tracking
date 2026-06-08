@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -29,25 +29,34 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 import { useSidebar } from './layout-wrapper';
 
 const LOGO_IMAGE_URL = '/images/logo.webp';
 
-const navigation = [
+const navigationItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Students', href: '/students', icon: Users },
   { name: 'Registry', href: '/registry', icon: ClipboardList },
   { name: 'Scholarships', href: '/scholarships', icon: GraduationCap },
   { name: 'Flow', href: '/scholarship-flow', icon: TrendingUp },
   { name: 'Reports', href: '/reports', icon: FileSpreadsheet },
+  { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];
 
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+}
+
+function isActivePath(pathname: string, href: string) {
+  if (href === '/') {
+    return pathname === '/';
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
@@ -71,28 +80,10 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     }
   }, [user]);
 
-  // Morphing border animation state
-  const [borderStyle, setBorderStyle] = useState({ left: 0, width: 0 });
-  const navRef = useRef<HTMLDivElement>(null);
-
-  // Calculate border position and width based on active link
-  useEffect(() => {
-    if (navRef.current) {
-      const activeIndex = navigation.findIndex((item) => item.href === pathname);
-      if (activeIndex !== -1) {
-        const links = navRef.current.querySelectorAll('a');
-        const activeLink = links[activeIndex] as HTMLElement;
-        if (activeLink) {
-          const navRect = navRef.current.getBoundingClientRect();
-          const linkRect = activeLink.getBoundingClientRect();
-          setBorderStyle({
-            left: linkRect.left - navRect.left,
-            width: linkRect.width,
-          });
-        }
-      }
-    }
-  }, [pathname]);
+  const visibleNavigationItems = navigationItems.filter((item) => !item.adminOnly || isAdmin);
+  const displayName = displayUser?.username || 'User';
+  const roleLabel = displayUser?.role || 'Guest';
+  const avatarInitial = displayName.charAt(0).toUpperCase();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -125,68 +116,82 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   return (
     <>
       {/* Mobile Menu Sheet */}
-      <Sheet open={mobileOpen} onOpenChange={onMobileClose}>
-        <SheetContent side="left" className="w-64 p-4 bg-[#22c55e] border-[#22c55e]">
-          <div className="mb-6 flex items-center gap-3 px-3">
-            <div className="h-8 w-8 relative shrink-0">
-              <Image
-                src={LOGO_IMAGE_URL}
-                alt="ScholarTrack Logo"
-                width={32}
-                height={32}
-                className="h-full w-full object-contain"
-                priority
-                unoptimized
-              />
-            </div>
-            <span className="text-lg font-bold text-white">ScholarTrack</span>
-          </div>
-          <nav className="flex flex-col gap-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
+      <Sheet
+        open={mobileOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onMobileClose?.();
+          }
+        }}
+      >
+        <SheetContent side="left" className="w-[20rem] gap-0 border-slate-200 bg-white p-0">
+          <SheetHeader className="border-b border-slate-200 px-5 py-4 text-left">
+            <SheetTitle className="flex items-center gap-3">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50">
+                <Image
+                  src={LOGO_IMAGE_URL}
+                  alt="ScholarTrack Logo"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 object-contain"
+                  priority
+                  unoptimized
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-base font-semibold leading-tight text-slate-950">
+                  ScholarTrack
+                </span>
+                <span className="block text-xs font-medium text-slate-500">
+                  Scholarship Management
+                </span>
+              </span>
+            </SheetTitle>
+          </SheetHeader>
+
+          <nav aria-label="Mobile navigation" className="flex-1 space-y-1 px-3 py-4">
+            {visibleNavigationItems.map((item) => {
+              const isActive = isActivePath(pathname, item.href);
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  prefetch={true} // Enable prefetching for instant navigation
+                  prefetch={true}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => onMobileClose?.()}
                   className={cn(
-                    'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                      ? 'bg-emerald-50 text-emerald-900 ring-1 ring-inset ring-emerald-200'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                   )}
                 >
-                  <item.icon className="h-5 w-5 mr-3" />
+                  <item.icon
+                    className={cn('h-4 w-4', isActive ? 'text-emerald-700' : 'text-slate-500')}
+                  />
                   {item.name}
                 </Link>
               );
             })}
           </nav>
-          <div className="border-t border-white/20 pt-4 space-y-2 mt-4">
-            {isAdmin && (
-              <Link
-                href="/settings"
-                prefetch={true} // Enable prefetching for instant navigation
-                onClick={() => onMobileClose?.()}
-                className={cn(
-                  'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  pathname === '/settings'
-                    ? 'bg-[#84cc16] text-white hover:bg-[#84cc16]/90'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                )}
-              >
-                <Settings className="h-5 w-5 mr-3" />
-                Settings
-              </Link>
-            )}
+
+          <div className="border-t border-slate-200 px-4 py-4">
+            <div className="mb-3 flex items-center gap-3 rounded-md bg-slate-50 px-3 py-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-emerald-700 text-sm font-semibold text-white">
+                {avatarInitial}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-950">{displayName}</p>
+                <p className="truncate text-xs text-slate-500">{roleLabel}</p>
+              </div>
+            </div>
             <Button
               variant="ghost"
-              className="w-full justify-start gap-3 text-sm font-medium text-white/80 hover:text-white hover:bg-white/10"
+              className="h-10 w-full justify-start gap-3 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-700"
               onClick={handleLogout}
               disabled={isLoggingOut}
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4" />
               {isLoggingOut ? 'Logging out...' : 'Logout'}
             </Button>
           </div>
@@ -194,51 +199,58 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       </Sheet>
 
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-gradient-to-r from-[#166534] to-[#14532d] border-b border-[#14532d] shadow-sm">
-        <div className="h-full px-4 flex items-center justify-between">
+      <header className="fixed left-0 right-0 top-0 z-40 h-16 border-b border-slate-200 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.04),0_12px_32px_rgba(15,23,42,0.06)] backdrop-blur">
+        <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
           {/* Left: Logo and Brand */}
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 relative shrink-0">
+          <Link
+            href="/"
+            prefetch={true}
+            className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+          >
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50">
               <Image
                 src={LOGO_IMAGE_URL}
                 alt="ScholarTrack Logo"
-                width={32}
-                height={32}
-                className="h-full w-full object-contain"
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain"
                 priority
                 unoptimized
               />
             </div>
-            <span className="text-lg font-bold text-white hidden sm:block">ScholarTrack</span>
-          </div>
+            <div className="hidden min-w-0 sm:block">
+              <span className="block text-base font-semibold leading-tight text-slate-950">
+                ScholarTrack
+              </span>
+              <span className="block text-xs font-medium text-slate-500">
+                Scholarship Management
+              </span>
+            </div>
+          </Link>
 
-          {/* Center: Desktop Navigation with Morphing Border */}
-          <nav ref={navRef} className="hidden md:flex items-center gap-1 relative">
-            {/* Morphing border indicator */}
-            <div
-              className="absolute bottom-0 h-[3px] transition-all duration-300 ease-out"
-              style={{
-                left: `${borderStyle.left}px`,
-                width: `${borderStyle.width}px`,
-                background:
-                  'linear-gradient(90deg, hsl(var(--pastel-purple)), hsl(var(--pastel-blue)), hsl(var(--pastel-pink)), hsl(var(--pastel-orange)))',
-              }}
-            />
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
+          {/* Center: Desktop Navigation */}
+          <nav
+            aria-label="Primary navigation"
+            className="hidden items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1 xl:flex"
+          >
+            {visibleNavigationItems.map((item) => {
+              const isActive = isActivePath(pathname, item.href);
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  prefetch={true} // Enable prefetching for instant navigation
+                  prefetch={true}
+                  aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out relative',
+                    'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-white/20 text-white'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                      ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-inset ring-emerald-100'
+                      : 'text-slate-600 hover:bg-white hover:text-slate-950'
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon
+                    className={cn('h-4 w-4', isActive ? 'text-emerald-700' : 'text-slate-500')}
+                  />
                   {item.name}
                 </Link>
               );
@@ -249,19 +261,24 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           <div className="flex items-center gap-2">
             {/* Desktop User Dropdown */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild className="hidden md:flex">
-                <Button variant="ghost" className="text-white hover:bg-white/10 gap-2">
-                  <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold text-white">
-                    {displayUser ? displayUser.username.charAt(0).toUpperCase() : 'U'}
+              <DropdownMenuTrigger asChild className="hidden sm:flex">
+                <Button
+                  variant="ghost"
+                  className="h-10 gap-2 rounded-lg border border-transparent px-2 text-slate-700 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-700 text-sm font-semibold text-white">
+                    {avatarInitial}
                   </div>
-                  <span className="text-sm">{displayUser ? displayUser.username : 'User'}</span>
+                  <span className="hidden max-w-32 truncate text-sm font-medium lg:inline">
+                    {displayName}
+                  </span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <div className="px-2 py-1.5 text-sm">
-                  <p className="font-medium">{displayUser?.username || 'User'}</p>
-                  <p className="text-xs text-muted-foreground">{displayUser?.role || 'Guest'}</p>
+                  <p className="font-medium">{displayName}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel}</p>
                 </div>
                 <DropdownMenuSeparator />
                 {isAdmin && (
@@ -284,7 +301,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               variant="ghost"
               size="icon"
               onClick={() => setMobileOpen(true)}
-              className="md:hidden text-white hover:bg-white/10"
+              className="xl:hidden text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+              aria-label="Open navigation menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
