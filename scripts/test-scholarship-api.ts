@@ -11,6 +11,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8080';
+const TEST_ADMIN_USERNAME = process.env.TEST_ADMIN_USERNAME || 'admin';
+const TEST_ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD;
 
 interface ApiResponse<T> {
   success: boolean;
@@ -105,15 +107,20 @@ class ScholarshipApiTester {
   }
 
   private async login(): Promise<boolean> {
-    this.log('Attempting to login as admin...', 'info');
+    this.log('Attempting to login as configured admin user...', 'info');
+
+    if (!TEST_ADMIN_PASSWORD) {
+      this.log('TEST_ADMIN_PASSWORD is required for authenticated integration tests', 'error');
+      return false;
+    }
 
     try {
       const response = await fetch(`${BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: 'admin',
-          password: 'admin123',
+          username: TEST_ADMIN_USERNAME,
+          password: TEST_ADMIN_PASSWORD,
         }),
       });
 

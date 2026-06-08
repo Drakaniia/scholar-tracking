@@ -138,6 +138,8 @@ NEXTAUTH_SECRET="your-nextauth-secret"
 MAX_LOGIN_ATTEMPTS=5
 LOCKOUT_DURATION_MINUTES=15
 SESSION_DURATION_HOURS=8
+SEED_ADMIN_PASSWORD="set-a-unique-admin-password"
+SEED_STAFF_PASSWORD="set-a-unique-staff-password"
 ```
 
 **Note**: The DATABASE_URL now includes connection pool parameters for Prisma Accelerate:
@@ -201,16 +203,9 @@ npm start
 | `npm run erd:view`       | Open ERD in browser                           |
 | `npm run clean`          | Clean node_modules and .next, reinstall       |
 
-## Default Credentials
+## Initial Users
 
-After seeding the database:
-
-| Username | Password   | Role  | Email                  |
-| -------- | ---------- | ----- | ---------------------- |
-| `admin`  | `admin123` | ADMIN | admin@scholartrack.com |
-| `user`   | `user123`  | STAFF | user@scholartrack.com  |
-
-⚠️ **Security Note**: Change default credentials immediately in production.
+The seed scripts create initial admin and staff users, but they do not use public shared passwords. Set `SEED_ADMIN_PASSWORD` and `SEED_STAFF_PASSWORD` in the environment before running `npm run db:seed`.
 
 ## Database Schema
 
@@ -520,7 +515,7 @@ NEXTAUTH_SECRET=<secure-random-string>
 
 ### Production Checklist
 
-- [ ] Change default admin password
+- [ ] Set unique seed/admin passwords in environment variables
 - [ ] Configure connection pooling for production database
 - [ ] Apply database indexes (`npm run db:add-indexes`)
 - [ ] Set appropriate `connection_limit` based on plan
@@ -535,7 +530,7 @@ NEXTAUTH_SECRET=<secure-random-string>
 
 1. **Never commit secrets**: Ensure `.env` is in `.gitignore`
 2. **Use environment variables**: All secrets must be in environment variables
-3. **Change default credentials**: Update admin password immediately
+3. **Use unique seeded-user passwords**: Provide them through environment variables
 4. **Implement rate limiting**: Protect against brute force attacks
 5. **Regular audits**: Review audit logs for suspicious activity
 6. **Keep dependencies updated**: Regular security updates

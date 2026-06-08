@@ -29,7 +29,8 @@ npm run test:api
 **Prerequisites:**
 
 - Development server must be running (`npm run dev`)
-- Default admin credentials: `admin` / `admin123`
+- `TEST_ADMIN_PASSWORD` must be set for the admin test account
+- Optionally set `TEST_ADMIN_USERNAME` if the test admin account uses a different username
 
 ### What Integration Tests Cover
 

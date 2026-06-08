@@ -1,6 +1,20 @@
 import { hashPassword } from './auth';
 import { prisma } from './prisma';
 
+function getRequiredSeedPassword(envName: string, label: string) {
+  const password = process.env[envName];
+
+  if (!password) {
+    throw new Error(`${envName} must be set before seeding the ${label} user.`);
+  }
+
+  if (password.length < 12) {
+    throw new Error(`${envName} must be at least 12 characters long.`);
+  }
+
+  return password;
+}
+
 export async function seedUsers() {
   console.log('🌱 Seeding users...');
 
@@ -14,8 +28,8 @@ export async function seedUsers() {
     return;
   }
 
-  // Create default admin user
-  const adminPassword = await hashPassword('admin123');
+  // Create initial admin user
+  const adminPassword = await hashPassword(getRequiredSeedPassword('SEED_ADMIN_PASSWORD', 'admin'));
 
   const admin = await prisma.user.create({
     data: {
@@ -31,8 +45,8 @@ export async function seedUsers() {
 
   console.log('✅ Created admin user:', admin.username);
 
-  // Create sample staff user
-  const staffPassword = await hashPassword('staff123');
+  // Create initial staff user
+  const staffPassword = await hashPassword(getRequiredSeedPassword('SEED_STAFF_PASSWORD', 'staff'));
 
   const staff = await prisma.user.create({
     data: {
@@ -50,11 +64,7 @@ export async function seedUsers() {
 
   console.log('🎉 User seeding completed!');
   console.log('');
-  console.log('📋 Default Login Credentials:');
-  console.log('Admin - Username: admin, Password: admin123');
-  console.log('Staff - Username: staff, Password: staff123');
-  console.log('');
-  console.log('⚠️  IMPORTANT: Change these passwords immediately in production!');
+  console.log('Initial user passwords were read from seed environment variables.');
 }
 
 // Run this script directly

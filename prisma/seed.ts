@@ -19,7 +19,24 @@ const prisma = new PrismaClient({
   adapter,
 });
 
+function getRequiredSeedPassword(envName: string, label: string) {
+  const password = process.env[envName];
+
+  if (!password) {
+    throw new Error(`${envName} must be set before seeding the ${label} user.`);
+  }
+
+  if (password.length < 12) {
+    throw new Error(`${envName} must be at least 12 characters long.`);
+  }
+
+  return password;
+}
+
 async function main() {
+  const adminPassword = await bcrypt.hash(getRequiredSeedPassword('SEED_ADMIN_PASSWORD', 'admin'), 12);
+  const userPassword = await bcrypt.hash(getRequiredSeedPassword('SEED_STAFF_PASSWORD', 'staff'), 12);
+
   console.log('🌱 Starting seed...');
 
   // Clear existing data (in reverse order of dependencies)
@@ -33,8 +50,6 @@ async function main() {
   await prisma.user.deleteMany();
 
   // Create Users with upsert to avoid duplicates
-  const adminPassword = await bcrypt.hash('admin123', 12);
-  const userPassword = await bcrypt.hash('user123', 12);
 
   const adminUser = await prisma.user.upsert({
     where: { username: 'admin' },
@@ -66,7 +81,7 @@ async function main() {
 
   const users = [adminUser, regularUser];
 
-  console.log(`✅ Created ${users.length} users (admin/admin123, user/user123)`);
+  console.log(`✅ Created ${users.length} users with passwords from seed environment variables`);
 
   // Create Students (without studentNo)
   const students = await Promise.all([

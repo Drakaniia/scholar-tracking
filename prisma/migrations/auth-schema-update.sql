@@ -60,21 +60,5 @@ CREATE INDEX "idx_audit_logs_user_id" ON "audit_logs"("user_id");
 CREATE INDEX "idx_audit_logs_action" ON "audit_logs"("action");
 CREATE INDEX "idx_audit_logs_created_at" ON "audit_logs"("created_at");
 
--- ============================================
--- DEFAULT ADMIN USER (Change password immediately)
--- ============================================
-INSERT INTO "users" (
-  "username", 
-  "email", 
-  "password_hash", 
-  "first_name", 
-  "last_name", 
-  "role"
-) VALUES (
-  'admin',
-  'admin@scholarship.edu',
-  '$2b$12$LQv3c1yqBwlVHpPjrEyLa.4F8/YQnckioc2ZWGd1hjh98k2PmHm4i', -- password: admin123 (CHANGE THIS!)
-  'System',
-  'Administrator',
-  'ADMIN'
-);
+-- No default users are inserted here. Create initial users through the seed
+-- scripts with explicit seed password environment variables.

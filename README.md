@@ -97,6 +97,8 @@ CRON_SECRET="your-secure-cron-secret"
 MAX_LOGIN_ATTEMPTS=5
 LOCKOUT_DURATION_MINUTES=15
 SESSION_DURATION_HOURS=8
+SEED_ADMIN_PASSWORD="set-a-unique-admin-password"
+SEED_STAFF_PASSWORD="set-a-unique-staff-password"
 ```
 
 4. Set up the database:
@@ -120,14 +122,9 @@ npm run dev
 
 Access the application at: `http://localhost:8080`
 
-## Default Credentials
+## Initial Users
 
-After seeding the database:
-
-| Username | Password   | Role  | Email                  |
-| -------- | ---------- | ----- | ---------------------- |
-| `admin`  | `admin123` | ADMIN | admin@scholartrack.com |
-| `user`   | `user123`  | STAFF | user@scholartrack.com  |
+The seed scripts create initial admin and staff users, but they do not use public shared passwords. Set `SEED_ADMIN_PASSWORD` and `SEED_STAFF_PASSWORD` in the environment before running `npm run db:seed`.
 
 ## Deployment
 
