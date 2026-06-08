@@ -1,173 +1,106 @@
-# ScholarTrack - Scholarship Tracking System
-
 <div align="center">
-  <img src="src/assets/images/logo.png" alt="ScholarTrack Logo" width="200">
+  <img src="public/images/logo.png" alt="ScholarTrack logo" width="128" />
+  <h1>ScholarTrack</h1>
+  <p><strong>Scholarship management, fee tracking, and reporting for academic institutions.</strong></p>
+  <p>
+    <img alt="Next.js" src="https://img.shields.io/badge/Next.js-App%20Router-111827?style=for-the-badge&logo=nextdotjs&logoColor=white" />
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+    <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" />
+    <img alt="Prisma" src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" />
+  </p>
 </div>
 
-A comprehensive web-based scholarship management system built with **Next.js 16** and **PostgreSQL**. ScholarTrack provides administrative tools for managing student records, scholarship programs, fee tracking, disbursements, academic years, and generating detailed reports with advanced role-based access control.
+ScholarTrack is a web-based scholarship tracking system designed for administrators who need a reliable way to manage student records, scholarship assignments, academic-year fees, disbursements, and compliance-ready reports.
 
-## Features
+The system combines role-based access control, audit logging, fee aggregation, export workflows, and dashboard analytics into a single administrative workspace.
 
-- **User Management**: Role-based access control (ADMIN, STAFF, VIEWER) with account lockout protection
-- **Student Management**: CRUD operations for student records with grade level tracking, graduation status, and archiving
-- **Scholarship Management**: Multiple scholarship types (PAED, CHED, LGU, SCHOOL_GRANT) with flexible grant types and fee coverage options
-- **Academic Year Management**: Track multiple academic years with semester support
-- **Fee Tracking**: Detailed breakdown of tuition, miscellaneous, laboratory, and other fees with subsidy calculations
-- **Disbursement Tracking**: Monitor scholarship payments and distributions linked to academic years
-- **Graduation Management**: Track student graduation status and archive graduated students
-- **Reports & Analytics**: Dashboard with statistics, charts, and exportable reports
-- **Data Export**: PDF, Excel (XLSX), and CSV export capabilities
-- **Audit Logging**: Complete activity tracking for accountability
-- **Performance Optimization**: Database indexing, connection pooling, query optimization, and caching
+## Product Highlights
+
+- **Student registry**: Manage student profiles, grade levels, academic status, graduation records, and archival state.
+- **Scholarship administration**: Track scholarship types, grant rules, eligible programs, subsidy amounts, and covered fee categories.
+- **Academic-year tracking**: Organize records by academic year and semester for cleaner financial and reporting workflows.
+- **Fee management**: Record tuition, miscellaneous, laboratory, and other fees with automatic subsidy calculations.
+- **Annual fee aggregation**: Summarize multi-semester student fees for accurate yearly reporting and EFC calculations.
+- **Disbursement monitoring**: Connect scholarship payments to students, scholarships, and academic years.
+- **Reports and analytics**: Review dashboard statistics, visual summaries, and exportable reports.
+- **Role-based access control**: Support ADMIN, STAFF, and VIEWER roles with permission-aware screens and API protection.
+- **Audit trail**: Log important system activity for accountability and operational review.
+- **Performance-oriented data access**: Use indexed queries, Prisma aggregation, connection pooling, and client-side query caching.
 
 ## Screenshots
 
-### Dashboard
+| Dashboard | Student Management |
+| --- | --- |
+| <img src="src/screenshots/dashboard.png" alt="ScholarTrack dashboard" /> | <img src="src/screenshots/students.png" alt="ScholarTrack student management" /> |
 
-<div align="center">
-  <img src="src/screenshots/dashboard.png" alt="Dashboard">
-</div>
+| Scholarship Management | Reports and Analytics |
+| --- | --- |
+| <img src="src/screenshots/scholarships.png" alt="ScholarTrack scholarship management" /> | <img src="src/screenshots/reports.png" alt="ScholarTrack reports and analytics" /> |
 
-### Student Management
+## Platform
 
-<div align="center">
-  <img src="src/screenshots/students.png" alt="Student Management">
-</div>
+| Category | Technology |
+| --- | --- |
+| Framework | Next.js App Router |
+| Language | TypeScript |
+| Database | PostgreSQL |
+| ORM | Prisma |
+| Authentication | JWT, HTTP-only cookies, bcryptjs |
+| UI | React, shadcn/ui, Radix UI |
+| Styling | Tailwind CSS |
+| Data fetching | TanStack Query |
+| Charts | Recharts |
+| Exports | PDF, XLSX, CSV |
+| Testing | Vitest |
 
-### Scholarship Management
+## System Modules
 
-<div align="center">
-  <img src="src/screenshots/scholarships.png" alt="Scholarship Management">
-</div>
+ScholarTrack is organized around the main workflows used by scholarship administrators:
 
-### Reports & Analytics
+- **Dashboard**: Central overview of student counts, scholarship distribution, recent activity, and financial summaries.
+- **Students**: CRUD workflows for student records, scholarship assignments, fee records, graduation status, and archiving.
+- **Scholarships**: Scholarship program setup, coverage rules, subsidy configuration, eligibility, and status management.
+- **Academic Years**: Year and semester structures used by fees, reports, and disbursements.
+- **Disbursements**: Scholarship release tracking with links to students, programs, and academic periods.
+- **Reports**: Aggregated scholarship, student, fee, and disbursement data with export support.
+- **Settings**: User administration and role management for authorized administrators.
 
-<div align="center">
-  <img src="src/screenshots/reports.png" alt="Reports & Analytics">
-</div>
+## Architecture
 
-## Tech Stack
+```text
+src/
++-- app/                    # Next.js App Router pages and API routes
++-- components/             # UI, layout, dashboard, chart, form, and shared components
++-- hooks/                  # TanStack Query and API interaction hooks
++-- lib/                    # Auth, Prisma, validation, caching, scheduling, and domain services
++-- types/                  # Shared TypeScript definitions
 
-| Category             | Technology                                |
-| -------------------- | ----------------------------------------- |
-| **Framework**        | Next.js 16 (App Router)                   |
-| **Language**         | TypeScript                                |
-| **Database**         | PostgreSQL (via Prisma ORM v7)            |
-| **Authentication**   | JWT + HTTP-only cookies (jose + bcryptjs) |
-| **UI Library**       | React 19 + shadcn/ui + Radix UI           |
-| **Styling**          | Tailwind CSS v4                           |
-| **State Management** | TanStack Query (React Query v5)           |
-| **Charts**           | Recharts                                  |
-| **Testing**          | Vitest                                    |
-| **Deployment**       | Vercel                                    |
-| **Animation**        | GSAP, Motion, OGL                         |
+prisma/
++-- schema.prisma           # Database schema
++-- migrations/             # Database migrations
++-- seed.ts                 # Seed workflow
 
-## Installation
-
-### Prerequisites
-
-- **Node.js** 18.x or higher
-- **PostgreSQL** 14.x or higher (or use the configured Prisma Accelerate URL)
-- **npm** or **yarn**
-
-### Steps
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/your-repo/scholarship-tracking-system.git
-cd scholarship-tracking-system
+docs/                       # ERD and feature documentation
+tests/                      # Vitest test coverage
 ```
 
-2. Install dependencies:
+## Security and Governance
 
-```bash
-npm install
-```
+- JWT sessions are stored in HTTP-only cookies.
+- Protected API routes enforce authentication and role-based authorization.
+- Admin-only workflows include user management, student mutation, scholarship mutation, and graduation management.
+- Account lockout settings help reduce brute-force login risk.
+- Zod schemas validate request payloads before database operations.
+- Audit logs capture important user and system activity.
 
-3. Create a `.env` file with the following variables:
+## Documentation
 
-```env
-DATABASE_URL="prisma+postgres://user:password@host:port/db?connection_limit=10&pool_timeout=20&connect_timeout=10"
-JWT_SECRET="your-secure-secret-key-min-32-characters"
-SESSION_SECRET="your-session-secret"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-nextauth-secret"
-CRON_SECRET="your-secure-cron-secret"
-MAX_LOGIN_ATTEMPTS=5
-LOCKOUT_DURATION_MINUTES=15
-SESSION_DURATION_HOURS=8
-SEED_ADMIN_PASSWORD="set-a-unique-admin-password"
-SEED_STAFF_PASSWORD="set-a-unique-staff-password"
-```
-
-4. Set up the database:
-
-```bash
-# Generate Prisma client and push schema
-npx prisma db push
-
-# Apply database indexes for performance optimization
-npm run db:add-indexes
-
-# Seed the database with initial data
-npm run db:seed
-```
-
-5. Start the development server:
-
-```bash
-npm run dev
-```
-
-Access the application at: `http://localhost:8080`
-
-## Initial Users
-
-The seed scripts create initial admin and staff users, but they do not use public shared passwords. Set `SEED_ADMIN_PASSWORD` and `SEED_STAFF_PASSWORD` in the environment before running `npm run db:seed`.
-
-## Deployment
-
-### Vercel
-
-1. Connect repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy (automatic on push to main branch)
-
-### Environment Variables for Production
-
-```env
-DATABASE_URL=<production-postgresql-url-with-pool-params>
-JWT_SECRET=<secure-random-32-char-string>
-SESSION_SECRET=<secure-random-string>
-NEXTAUTH_URL=https://your-domain.vercel.app
-NEXTAUTH_SECRET=<secure-random-string>
-CRON_SECRET=<secure-random-cron-secret>
-```
-
-## Contributing
-
-When contributing to this project:
-
-1. Follow existing code conventions and patterns
-2. Use TypeScript strictly with proper typing
-3. Write tests for new features
-4. Update documentation for new features
-5. Run type checking: `npm run typecheck`
-6. Run tests: `npm run test`
-7. Check for performance implications
-8. Ensure RBAC is properly implemented
-9. Add database indexes for new queries
-10. Update changelog with changes
+- [Architecture overview](ARCHITECTURE.md)
+- [Documentation index](docs/README.md)
+- [Annual fee aggregation guide](docs/ANNUAL-FEE-AGGREGATION-GUIDE.md)
+- [Feature location guide](docs/WHERE-TO-FIND-NEW-FEATURES.md)
+- [Entity relationship diagram](docs/ERD.svg)
 
 ## License
 
-See LICENSE file for details.
-
-## Support
-
-For issues, questions, or feature requests, please open an issue on the GitHub repository.
-
----
-
-© 2024 ScholarTrack. All rights reserved.
+See [LICENSE](LICENSE) for details.
