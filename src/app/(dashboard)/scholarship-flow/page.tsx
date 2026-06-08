@@ -700,8 +700,8 @@ export default function ScholarshipFlowPage() {
                   Five-year scholarship comparison
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                  This view separates funding data from student load, so one-scholarship students and
-                  students carrying 2, 3, or 4 scholarships are visible immediately.
+                  This view separates funding data from student load, so one-scholarship students
+                  and students carrying 2, 3, or 4 scholarships are visible immediately.
                 </p>
               </div>
               <StaggeredReveal
@@ -822,6 +822,7 @@ export default function ScholarshipFlowPage() {
                               className="rounded-md border border-white bg-white px-2 py-1 text-xs text-slate-700 shadow-sm"
                             >
                               {index + 1}. {scholarship.scholarshipName}
+                              {scholarship.academicYear ? ` / ${scholarship.academicYear}` : ''}
                             </span>
                           ))}
                         </div>
@@ -848,6 +849,7 @@ export default function ScholarshipFlowPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Scholarship</TableHead>
+                      <TableHead>Year</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead className="text-right">Awards</TableHead>
@@ -860,6 +862,9 @@ export default function ScholarshipFlowPage() {
                       <TableRow key={scholarship.scholarshipName}>
                         <TableCell className="min-w-[280px] font-medium text-slate-950">
                           {scholarship.scholarshipName}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{scholarship.academicYear || 'No Year'}</Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{scholarship.type}</Badge>

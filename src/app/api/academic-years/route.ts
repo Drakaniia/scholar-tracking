@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { queryOptimizer } from '@/lib/query-optimizer';
+import { canManageStudentsAndScholarships } from '@/lib/rbac';
 import { normalizeTermCode } from '@/lib/terms';
 
 interface AcademicYearData {
@@ -91,6 +93,13 @@ function getPrismaErrorCode(error: unknown) {
   return undefined;
 }
 
+function invalidateAcademicYearDependentCaches() {
+  queryOptimizer.invalidatePattern('students-list');
+  queryOptimizer.invalidatePattern('students-filter-options');
+  queryOptimizer.invalidatePattern('scholarship-flow');
+  queryOptimizer.invalidatePattern('dashboard');
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
@@ -161,8 +170,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
 
-    // Only ADMIN can create academic years
-    if (payload.role !== 'ADMIN') {
+    if (!canManageStudentsAndScholarships(payload.role)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -235,6 +243,8 @@ export async function POST(request: NextRequest) {
       });
     });
 
+    invalidateAcademicYearDependentCaches();
+
     return NextResponse.json({ success: true, data: academicYear });
   } catch (error) {
     console.error('Error creating academic year:', error);
@@ -266,8 +276,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
 
-    // Only ADMIN can update academic years
-    if (payload.role !== 'ADMIN') {
+    if (!canManageStudentsAndScholarships(payload.role)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -360,6 +369,8 @@ export async function PUT(request: NextRequest) {
       });
     });
 
+    invalidateAcademicYearDependentCaches();
+
     return NextResponse.json({ success: true, data: academicYear });
   } catch (error) {
     console.error('Error updating academic year:', error);
@@ -391,8 +402,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
 
-    // Only ADMIN can delete academic years
-    if (payload.role !== 'ADMIN') {
+    if (!canManageStudentsAndScholarships(payload.role)) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
@@ -411,6 +421,7 @@ export async function DELETE(request: NextRequest) {
       include: {
         studentFees: true,
         disbursements: true,
+        studentScholarships: true,
       },
     });
 
@@ -422,11 +433,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if academic year is in use
-    if (academicYear.studentFees.length > 0 || academicYear.disbursements.length > 0) {
+    if (
+      academicYear.studentFees.length > 0 ||
+      academicYear.disbursements.length > 0 ||
+      academicYear.studentScholarships.length > 0
+    ) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Cannot delete academic year that is in use by student fees or disbursements',
+          error:
+            'Cannot delete academic year that is in use by student scholarship assignments, student fees, or disbursements',
         },
         { status: 400 }
       );
@@ -435,6 +451,8 @@ export async function DELETE(request: NextRequest) {
     await prisma.academicYear.delete({
       where: { id: parseInt(id) },
     });
+
+    invalidateAcademicYearDependentCaches();
 
     return NextResponse.json({ success: true });
   } catch (error) {

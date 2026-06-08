@@ -57,30 +57,30 @@ model AuditLog {
 }
 
 model Student {
-  createdAt        DateTime             @default(now()) @map("created_at")
-  program          String
-  status           String
-  id               Int                  @id @default(autoincrement()) @map("student_id")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
-  yearLevel        String               @map("year_level")
-  firstName        String               @map("first_name")
-  gradeLevel       String               @map("grade_level")
-  lastName         String               @map("last_name")
-  middleInitial    String?              @map("middle_initial")
-  birthDate        DateTime?            @map("birth_date")
-  graduatedAt      DateTime?            @map("graduated_at")
-  graduationStatus String?              @default("Active") @map("graduation_status")
-  isArchived       Boolean              @default(false) @map("is_archived")
-  termType         String               @default("SEMESTER") @map("term_type")
-  transitionDecision   String?          @map("transition_decision")
-  transitionDecisionAt DateTime?        @map("transition_decision_at")
-  transitionDecisionBy Int?             @map("transition_decision_by")
-  separatedAt          DateTime?        @map("separated_at")
-  separationReason     String?          @map("separation_reason")
-  academicRecords StudentAcademicRecord[]
-  disbursements    Disbursement[]
-  fees             StudentFees[]
-  scholarships     StudentScholarship[]
+  createdAt            DateTime                @default(now()) @map("created_at")
+  program              String
+  status               String
+  id                   Int                     @id @default(autoincrement()) @map("student_id")
+  updatedAt            DateTime                @updatedAt @map("updated_at")
+  yearLevel            String                  @map("year_level")
+  firstName            String                  @map("first_name")
+  gradeLevel           String                  @map("grade_level")
+  lastName             String                  @map("last_name")
+  middleInitial        String?                 @map("middle_initial")
+  birthDate            DateTime?               @map("birth_date")
+  graduatedAt          DateTime?               @map("graduated_at")
+  graduationStatus     String?                 @default("Active") @map("graduation_status")
+  isArchived           Boolean                 @default(false) @map("is_archived")
+  termType             String                  @default("SEMESTER") @map("term_type")
+  transitionDecision   String?                 @map("transition_decision")
+  transitionDecisionAt DateTime?               @map("transition_decision_at")
+  transitionDecisionBy Int?                    @map("transition_decision_by")
+  separatedAt          DateTime?               @map("separated_at")
+  separationReason     String?                 @map("separation_reason")
+  academicRecords      StudentAcademicRecord[]
+  disbursements        Disbursement[]
+  fees                 StudentFees[]
+  scholarships         StudentScholarship[]
 
   @@index([lastName, firstName])
   @@index([gradeLevel, status])
@@ -91,28 +91,28 @@ model Student {
 }
 
 model StudentAcademicRecord {
-  id             Int           @id @default(autoincrement()) @map("student_academic_record_id")
-  studentId      Int           @map("student_id")
-  academicYearId Int?          @map("academic_year_id")
-  academicYear   String        @map("academic_year")
-  gradeLevel     String        @map("grade_level")
-  yearLevel      String        @map("year_level")
-  program        String
-  termType       String        @default("SEMESTER") @map("term_type")
-  status         String        @default("Active")
-  outcome        String?
-  decision       String?
-  nextGradeLevel String?       @map("next_grade_level")
-  nextYearLevel  String?       @map("next_year_level")
-  nextProgram    String?       @map("next_program")
-  nextTermType   String?       @map("next_term_type")
-  isCurrent      Boolean       @default(false) @map("is_current")
-  startedAt      DateTime?     @map("started_at")
-  endedAt        DateTime?     @map("ended_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  id              Int           @id @default(autoincrement()) @map("student_academic_record_id")
+  studentId       Int           @map("student_id")
+  academicYearId  Int?          @map("academic_year_id")
+  academicYear    String        @map("academic_year")
+  gradeLevel      String        @map("grade_level")
+  yearLevel       String        @map("year_level")
+  program         String
+  termType        String        @default("SEMESTER") @map("term_type")
+  status          String        @default("Active")
+  outcome         String?
+  decision        String?
+  nextGradeLevel  String?       @map("next_grade_level")
+  nextYearLevel   String?       @map("next_year_level")
+  nextProgram     String?       @map("next_program")
+  nextTermType    String?       @map("next_term_type")
+  isCurrent       Boolean       @default(false) @map("is_current")
+  startedAt       DateTime?     @map("started_at")
+  endedAt         DateTime?     @map("ended_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
   academicYearRel AcademicYear? @relation(fields: [academicYearId], references: [id])
-  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([academicYearId, outcome])
@@ -122,23 +122,26 @@ model StudentAcademicRecord {
 }
 
 model StudentScholarship {
-  id                Int         @id @default(autoincrement()) @map("student_scholarship_id")
-  studentId         Int         @map("student_id")
-  scholarshipId     Int         @map("scholarship_id")
-  awardDate         DateTime    @map("award_date")
-  startTerm         String      @map("start_term")
-  endTerm           String      @map("end_term")
-  grantAmount       Decimal     @map("grant_amount") @db.Decimal(10, 2)
-  scholarshipStatus String      @map("scholarship_status")
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
-  grantType         String      @default("FULL") @map("grant_type")
-  scholarship       Scholarship @relation(fields: [scholarshipId], references: [id])
-  student           Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id                Int           @id @default(autoincrement()) @map("student_scholarship_id")
+  studentId         Int           @map("student_id")
+  scholarshipId     Int           @map("scholarship_id")
+  academicYearId    Int?          @map("academic_year_id")
+  awardDate         DateTime      @map("award_date")
+  startTerm         String        @map("start_term")
+  endTerm           String        @map("end_term")
+  grantAmount       Decimal       @map("grant_amount") @db.Decimal(10, 2)
+  scholarshipStatus String        @map("scholarship_status")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  grantType         String        @default("FULL") @map("grant_type")
+  academicYearRel   AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  scholarship       Scholarship   @relation(fields: [scholarshipId], references: [id])
+  student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, scholarshipId])
+  @@unique([studentId, scholarshipId, academicYearId])
   @@index([studentId])
   @@index([scholarshipId])
+  @@index([academicYearId])
   @@index([scholarshipStatus])
   @@index([grantType])
   @@map("student_scholarships")
@@ -265,19 +268,20 @@ model PromotionRun {
 }
 
 model AcademicYear {
-  id                   Int            @id @default(autoincrement()) @map("academic_year_id")
-  year                 String         @unique @map("year")
-  startDate            DateTime       @map("start_date")
-  endDate              DateTime       @map("end_date")
-  semester             String         @default("1ST") @map("semester")
-  isActive             Boolean        @default(false) @map("is_active")
-  promotionDate        DateTime?      @map("promotion_date")
-  promotionProcessedAt DateTime?      @map("promotion_processed_at")
-  createdAt            DateTime       @default(now()) @map("created_at")
-  updatedAt            DateTime       @updatedAt @map("updated_at")
-  disbursements        Disbursement[]
+  id                     Int                     @id @default(autoincrement()) @map("academic_year_id")
+  year                   String                  @unique @map("year")
+  startDate              DateTime                @map("start_date")
+  endDate                DateTime                @map("end_date")
+  semester               String                  @default("1ST") @map("semester")
+  isActive               Boolean                 @default(false) @map("is_active")
+  promotionDate          DateTime?               @map("promotion_date")
+  promotionProcessedAt   DateTime?               @map("promotion_processed_at")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  disbursements          Disbursement[]
+  studentScholarships    StudentScholarship[]
   studentAcademicRecords StudentAcademicRecord[]
-  studentFees          StudentFees[]
+  studentFees            StudentFees[]
 
   @@index([isActive])
   @@index([year])

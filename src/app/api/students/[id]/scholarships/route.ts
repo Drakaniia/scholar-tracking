@@ -5,6 +5,39 @@ import prisma from '@/lib/prisma';
 import { validateStudentScholarshipEligibility } from '@/lib/scholarship-validation';
 import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 
+function parseOptionalAcademicYearId(value: unknown) {
+  if (value === undefined || value === null || value === '' || value === 'all') {
+    return null;
+  }
+
+  const academicYearId = Number(value);
+  if (!Number.isInteger(academicYearId) || academicYearId <= 0) {
+    throw new Error('Invalid academic year');
+  }
+
+  return academicYearId;
+}
+
+async function resolveAssignmentAcademicYear(value: unknown) {
+  const requestedAcademicYearId = parseOptionalAcademicYearId(value);
+
+  if (requestedAcademicYearId) {
+    const academicYear = await prisma.academicYear.findUnique({
+      where: { id: requestedAcademicYearId },
+    });
+
+    if (!academicYear) {
+      throw new Error('Academic year not found');
+    }
+
+    return academicYear;
+  }
+
+  return prisma.academicYear.findFirst({
+    where: { isActive: true },
+  });
+}
+
 // GET /api/students/[id]/scholarships - Get all scholarships for a student
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,6 +69,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       include: {
         scholarship: true,
+        academicYearRel: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -76,6 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       grantAmount,
       grantType,
       scholarshipStatus,
+      academicYearId,
     } = body;
 
     // Validate required fields
@@ -106,6 +141,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Validate student-scholarship eligibility
     await validateStudentScholarshipEligibility(studentId, scholarshipId);
+    const assignmentAcademicYear = await resolveAssignmentAcademicYear(academicYearId);
+    const existingAssignment = await prisma.studentScholarship.findFirst({
+      where: {
+        studentId,
+        scholarshipId,
+        academicYearId: assignmentAcademicYear?.id || null,
+      },
+    });
+
+    if (existingAssignment) {
+      return NextResponse.json(
+        { success: false, error: 'Duplicate scholarship assignment for academic year' },
+        { status: 409 }
+      );
+    }
 
     // Determine the actual grant type and amount
     const actualGrantType = grantType || scholarship.grantType || 'FULL';
@@ -125,6 +175,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         grantAmount: actualGrantAmount,
         grantType: actualGrantType,
         scholarshipStatus: scholarshipStatus || 'Active',
+        academicYearId: assignmentAcademicYear?.id || null,
       },
     });
 
@@ -135,18 +186,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       scholarship.coversLaboratory ||
       scholarship.coversOther;
 
-    const currentAcademicYear = await prisma.academicYear.findFirst({
-      where: { isActive: true },
-    });
-    const termCode = getAcademicTermCode(currentAcademicYear?.semester);
+    const termCode = getAcademicTermCode(assignmentAcademicYear?.semester);
     const shouldCreateFees =
       hasFeeCoverage && scholarshipCoversTerm(scholarship.coveredTerms, termCode);
 
     if (shouldCreateFees) {
       // Get current academic year and term
       const currentYear = new Date().getFullYear();
-      const academicYear = currentAcademicYear?.year || `${currentYear}-${currentYear + 1}`;
-      const academicYearId = currentAcademicYear?.id || null;
+      const academicYear = assignmentAcademicYear?.year || `${currentYear}-${currentYear + 1}`;
+      const feeAcademicYearId = assignmentAcademicYear?.id || null;
       const term = getAcademicTermLabel(termCode);
 
       // Calculate total fees from scholarship limits
@@ -183,7 +231,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           otherFee: scholarship.otherFee || 0,
           amountSubsidy,
           percentSubsidy,
-          academicYearId,
+          academicYearId: feeAcademicYearId,
         },
         create: {
           studentId,
@@ -195,7 +243,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           percentSubsidy,
           term,
           academicYear,
-          academicYearId,
+          academicYearId: feeAcademicYearId,
         },
       });
     }
@@ -212,6 +260,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Handle validation errors specifically
     if (error instanceof Error && error.message.includes('not eligible')) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+    if (
+      error instanceof Error &&
+      (error.message === 'Invalid academic year' || error.message === 'Academic year not found')
+    ) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 

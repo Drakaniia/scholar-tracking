@@ -64,6 +64,7 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
+  useAcademicYears,
   useArchiveStudent,
   useCreateStudent,
   useStudent,
@@ -78,6 +79,7 @@ import {
 } from '@/lib/rbac';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
+  AcademicYear,
   CreateStudentInput,
   Disbursement,
   GRADE_LEVELS,
@@ -113,6 +115,7 @@ type StudentMutationData = {
     grantAmount: number;
     grantType?: GrantType;
     scholarshipStatus: string;
+    academicYearId?: number | null;
   }>;
 };
 
@@ -248,6 +251,11 @@ function ScholarshipPortfolioCell({
                   <span className="truncate">
                     {getCompactScholarshipName(scholarship.scholarshipName)}
                   </span>
+                  {ss.academicYearRel?.year && (
+                    <span className="shrink-0 text-[10px] font-medium text-slate-600">
+                      {ss.academicYearRel.year}
+                    </span>
+                  )}
                 </Badge>
               </PopoverTrigger>
               <PopoverContent
@@ -300,6 +308,12 @@ function ScholarshipPortfolioCell({
                       <p className="text-slate-500">Award Date</p>
                       <p className="font-medium text-slate-950">
                         {new Date(ss.awardDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Academic Year</p>
+                      <p className="font-medium text-slate-950">
+                        {ss.academicYearRel?.year || 'No year'}
                       </p>
                     </div>
                     <div>
@@ -437,6 +451,7 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>('all');
   const [scholarshipFilter, setScholarshipFilter] = useState<string>('all');
+  const [academicYearFilter, setAcademicYearFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithScholarships | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -478,6 +493,7 @@ export default function StudentsPage() {
     status: statusFilter === 'all' ? undefined : statusFilter,
     scholarshipSource: scholarshipSourceFilter === 'all' ? undefined : scholarshipSourceFilter,
     scholarshipId: scholarshipFilter === 'all' ? undefined : scholarshipFilter,
+    academicYearId: academicYearFilter === 'all' ? undefined : academicYearFilter,
     archived: showArchived,
     population: studentPopulation,
     page,
@@ -491,6 +507,12 @@ export default function StudentsPage() {
   const createStudentMutation = useCreateStudent();
   const updateStudentMutation = useUpdateStudent();
   const archiveStudentMutation = useArchiveStudent();
+  const { data: academicYearsData } = useAcademicYears();
+  const academicYears = ((academicYearsData?.data || []) as AcademicYear[]).slice().sort((a, b) => {
+    const left = new Date(a.startDate).getTime();
+    const right = new Date(b.startDate).getTime();
+    return right - left;
+  });
 
   const { data: filterOptionsData } = useStudentFilterOptions({
     search: debouncedSearch,
@@ -499,6 +521,7 @@ export default function StudentsPage() {
     status: statusFilter,
     scholarshipSource: scholarshipSourceFilter,
     scholarshipId: scholarshipFilter,
+    academicYearId: academicYearFilter,
     archived: showArchived,
     population: studentPopulation,
   });
@@ -574,6 +597,7 @@ export default function StudentsPage() {
     statusFilter,
     scholarshipSourceFilter,
     scholarshipFilter,
+    academicYearFilter,
     showArchived,
   ]);
 
@@ -652,6 +676,7 @@ export default function StudentsPage() {
           grantAmount: s.grantAmount,
           grantType: s.grantType,
           scholarshipStatus: s.scholarshipStatus,
+          academicYearId: s.academicYearId ?? null,
         })),
       };
 
@@ -761,11 +786,14 @@ export default function StudentsPage() {
                               : undefined,
                           scholarships:
                             editingStudent.scholarships?.map((ss) => ({
+                              id: ss.id,
                               scholarshipId: ss.scholarshipId,
+                              academicYearId: ss.academicYearId ?? null,
                               awardDate: new Date(ss.awardDate),
                               startTerm: ss.startTerm,
                               endTerm: ss.endTerm,
                               grantAmount: ss.grantAmount,
+                              grantType: ss.grantType,
                               scholarshipStatus: ss.scholarshipStatus,
                             })) || [],
                         }
@@ -776,6 +804,7 @@ export default function StudentsPage() {
                   isEditing={!!editingStudent}
                   loading={submitting}
                   canEditFees={canManageStudentFees}
+                  canManageAcademicYears={canManageStudents}
                   studentName={
                     editingStudent
                       ? `${editingStudent.firstName} ${editingStudent.lastName}`
@@ -796,7 +825,7 @@ export default function StudentsPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by name or program..."
+                placeholder="Search by name, program, or scholarship year..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 h-9"
@@ -891,12 +920,28 @@ export default function StudentsPage() {
                   </SelectContent>
                 </Select>
 
+                <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue placeholder="Academic Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {academicYears.map((academicYear) => (
+                      <SelectItem key={academicYear.id} value={String(academicYear.id)}>
+                        {academicYear.year}
+                        {academicYear.isActive ? ' (Active)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 {/* Clear Filters Button */}
                 {(gradeLevelFilter !== 'all' ||
                   programFilter !== 'all' ||
                   statusFilter !== 'all' ||
                   scholarshipSourceFilter !== 'all' ||
                   scholarshipFilter !== 'all' ||
+                  academicYearFilter !== 'all' ||
                   search) && (
                   <Button
                     variant="ghost"
@@ -908,6 +953,7 @@ export default function StudentsPage() {
                       setStatusFilter('all');
                       setScholarshipSourceFilter('all');
                       setScholarshipFilter('all');
+                      setAcademicYearFilter('all');
                     }}
                     className="h-8 px-2 text-xs"
                   >
@@ -1214,6 +1260,10 @@ export default function StudentsPage() {
                                 <div>
                                   <p className="text-muted-foreground">Award Date</p>
                                   <p>{new Date(ss.awardDate).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Academic Year</p>
+                                  <p>{ss.academicYearRel?.year || 'No year'}</p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground">Start Term</p>

@@ -12,6 +12,7 @@ import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from
 import { UpdateStudentInput } from '@/types';
 
 type ArchiveAction = 'archive' | 'unarchive';
+type StudentScholarshipAssignmentInput = NonNullable<UpdateStudentInput['scholarships']>[number];
 
 async function readArchiveBody(request: NextRequest) {
   const text = await request.text();
@@ -68,6 +69,71 @@ async function updateStudentArchiveState(studentId: number, action: ArchiveActio
   });
 }
 
+function parseOptionalAcademicYearId(value: unknown) {
+  if (value === undefined || value === null || value === '' || value === 'all') {
+    return null;
+  }
+
+  const academicYearId = Number(value);
+  if (!Number.isInteger(academicYearId) || academicYearId <= 0) {
+    throw new Error('Invalid academic year');
+  }
+
+  return academicYearId;
+}
+
+async function createAcademicYearResolver(
+  tx: Prisma.TransactionClient,
+  assignments: StudentScholarshipAssignmentInput[]
+) {
+  const requestedIds = Array.from(
+    new Set(
+      assignments
+        .map((assignment) => parseOptionalAcademicYearId(assignment.academicYearId))
+        .filter((id): id is number => id !== null)
+    )
+  );
+
+  const [activeAcademicYear, academicYears] = await Promise.all([
+    tx.academicYear.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    }),
+    requestedIds.length > 0
+      ? tx.academicYear.findMany({
+          where: { id: { in: requestedIds } },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const foundIds = new Set(academicYears.map((academicYear) => academicYear.id));
+  const missingId = requestedIds.find((id) => !foundIds.has(id));
+  if (missingId) {
+    throw new Error('Academic year not found');
+  }
+
+  return (value: unknown) => parseOptionalAcademicYearId(value) ?? activeAcademicYear?.id ?? null;
+}
+
+function assertUniqueScholarshipAssignments(
+  assignments: StudentScholarshipAssignmentInput[],
+  resolveAcademicYearId: (value: unknown) => number | null
+) {
+  const seen = new Set<string>();
+
+  for (const assignment of assignments) {
+    const academicYearId = resolveAcademicYearId(assignment.academicYearId);
+    const key = `${assignment.scholarshipId}:${academicYearId ?? 'none'}`;
+
+    if (seen.has(key)) {
+      throw new Error('Duplicate scholarship assignment for academic year');
+    }
+
+    seen.add(key);
+  }
+}
+
 // GET /api/students/[id] - Get single student
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -80,6 +146,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         scholarships: {
           include: {
             scholarship: true,
+            academicYearRel: true,
           },
         },
         fees: true,
@@ -252,6 +319,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (scholarships !== undefined && Array.isArray(scholarships)) {
         // Validate scholarship assignments before creating them
         const scholarshipIds = scholarships.map((s) => s.scholarshipId);
+        const resolveAcademicYearId = await createAcademicYearResolver(tx, scholarships);
+        assertUniqueScholarshipAssignments(scholarships, resolveAcademicYearId);
         try {
           await validateMultipleStudentScholarshipEligibility(studentId, scholarshipIds);
         } catch (validationError) {
@@ -278,6 +347,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
               grantAmount: scholarship.grantAmount || 0,
               grantType: scholarship.grantType || 'FULL',
               scholarshipStatus: scholarship.scholarshipStatus || 'Active',
+              academicYearId: resolveAcademicYearId(scholarship.academicYearId),
             })),
           });
         }
@@ -294,6 +364,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           scholarships: {
             include: {
               scholarship: true,
+              academicYearRel: true,
             },
           },
           fees: true,
@@ -336,6 +407,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
       if (error.message.includes('Scholarship validation failed')) {
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+      if (
+        error.message === 'Invalid academic year' ||
+        error.message === 'Academic year not found'
+      ) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+      if (error.message === 'Duplicate scholarship assignment for academic year') {
+        return NextResponse.json({ success: false, error: error.message }, { status: 409 });
       }
       if (error.message.includes('Prisma')) {
         return NextResponse.json(

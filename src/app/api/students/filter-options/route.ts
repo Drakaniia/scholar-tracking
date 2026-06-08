@@ -22,6 +22,7 @@ type StudentFilterInput = {
   status: string;
   scholarshipId: string;
   scholarshipSource: string;
+  academicYearId: string;
   includeArchived: boolean;
   population: string;
 };
@@ -31,7 +32,56 @@ type OmittedStudentFacet =
   | 'program'
   | 'status'
   | 'scholarshipId'
-  | 'scholarshipSource';
+  | 'scholarshipSource'
+  | 'academicYearId';
+
+function parseAcademicYearFilter(value: string) {
+  if (!value || value === 'all') return null;
+
+  const academicYearId = Number(value);
+  if (!Number.isInteger(academicYearId) || academicYearId <= 0) {
+    throw new Error('Invalid academic year');
+  }
+
+  return academicYearId;
+}
+
+function appendAcademicYearSearch(where: Prisma.StudentWhereInput, search: string) {
+  const trimmedSearch = search.trim();
+  if (!trimmedSearch) {
+    return where;
+  }
+
+  const academicYearSearch: Prisma.StudentWhereInput = {
+    scholarships: {
+      some: {
+        academicYearRel: {
+          is: {
+            year: {
+              contains: trimmedSearch,
+              mode: 'insensitive',
+            },
+          },
+        },
+      },
+    },
+  };
+
+  if (Array.isArray(where.AND)) {
+    const firstCondition = where.AND[0] as Prisma.StudentWhereInput | undefined;
+    if (firstCondition && Array.isArray(firstCondition.OR)) {
+      firstCondition.OR.push(academicYearSearch);
+      return where;
+    }
+  }
+
+  if (Array.isArray(where.OR)) {
+    where.OR.push(academicYearSearch);
+    return where;
+  }
+
+  return where;
+}
 
 function sortProgramOptions(programs: string[]) {
   return programs.sort((a, b) => {
@@ -74,36 +124,48 @@ function buildStudentWhere(
     ];
   }
 
+  const scholarshipRelationWhere: Prisma.StudentScholarshipWhereInput = {};
+
   if (filters.scholarshipId && filters.scholarshipId !== 'all' && !omitted.has('scholarshipId')) {
     if (filters.scholarshipId === 'none') {
       additionalFilters.scholarships = {
         none: {},
       };
     } else {
-      additionalFilters.scholarships = {
-        some: {
-          scholarshipId: parseInt(filters.scholarshipId),
-        },
-      };
+      scholarshipRelationWhere.scholarshipId = parseInt(filters.scholarshipId);
     }
-  } else if (
+  }
+
+  if (
     filters.scholarshipSource &&
     filters.scholarshipSource !== 'all' &&
     !omitted.has('scholarshipSource')
   ) {
-    additionalFilters.scholarships = {
-      some: {
-        scholarship: {
-          source: filters.scholarshipSource,
-        },
-      },
+    scholarshipRelationWhere.scholarship = {
+      source: filters.scholarshipSource,
     };
   }
 
-  return buildSearchWhere(filters.search, STUDENT_SEARCH_FIELDS, {
+  if (
+    filters.academicYearId &&
+    filters.academicYearId !== 'all' &&
+    !omitted.has('academicYearId')
+  ) {
+    scholarshipRelationWhere.academicYearId = parseAcademicYearFilter(filters.academicYearId);
+  }
+
+  if (Object.keys(scholarshipRelationWhere).length > 0 && filters.scholarshipId !== 'none') {
+    additionalFilters.scholarships = {
+      some: scholarshipRelationWhere,
+    };
+  }
+
+  const where = buildSearchWhere(filters.search, STUDENT_SEARCH_FIELDS, {
     ...additionalFilters,
     isArchived: filters.includeArchived,
   }) as Prisma.StudentWhereInput;
+
+  return appendAcademicYearSearch(where, filters.search);
 }
 
 // GET /api/students/filter-options - Get filter options with counts based on current filters
@@ -117,6 +179,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || '';
     const scholarshipId = searchParams.get('scholarshipId') || '';
     const scholarshipSource = searchParams.get('scholarshipSource') || '';
+    const academicYearId = searchParams.get('academicYearId') || '';
     const includeArchived = searchParams.get('archived') === 'true';
     const population = searchParams.get('population') || (includeArchived ? 'archived' : 'active');
     const filters: StudentFilterInput = {
@@ -126,6 +189,7 @@ export async function GET(request: NextRequest) {
       status,
       scholarshipId,
       scholarshipSource,
+      academicYearId,
       includeArchived,
       population,
     };
@@ -156,6 +220,9 @@ export async function GET(request: NextRequest) {
         isArchived: false,
         ...(scholarshipSource && scholarshipSource !== 'all' ? { source: scholarshipSource } : {}),
       },
+      ...(academicYearId && academicYearId !== 'all'
+        ? { academicYearId: parseAcademicYearFilter(academicYearId) }
+        : {}),
     };
 
     // Use Promise.all to execute aggregation queries in parallel
@@ -301,6 +368,9 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error fetching filter options:', error);
+    if (error instanceof Error && error.message === 'Invalid academic year') {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { success: false, error: 'Failed to fetch filter options' },
       { status: 500 }

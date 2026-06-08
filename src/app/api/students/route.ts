@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import type { Prisma } from '@prisma/client';
+
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import {
@@ -13,6 +15,111 @@ import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship
 import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
 import { CreateStudentInput, SEPARATED_STUDENT_STATUSES } from '@/types';
 
+type StudentScholarshipAssignmentInput = NonNullable<CreateStudentInput['scholarships']>[number];
+
+function parseOptionalAcademicYearId(value: unknown) {
+  if (value === undefined || value === null || value === '' || value === 'all') {
+    return null;
+  }
+
+  const academicYearId = Number(value);
+  if (!Number.isInteger(academicYearId) || academicYearId <= 0) {
+    throw new Error('Invalid academic year');
+  }
+
+  return academicYearId;
+}
+
+function appendAcademicYearSearch(where: Record<string, unknown>, search: string) {
+  const trimmedSearch = search.trim();
+  if (!trimmedSearch) {
+    return where;
+  }
+
+  const academicYearSearch = {
+    scholarships: {
+      some: {
+        academicYearRel: {
+          is: {
+            year: {
+              contains: trimmedSearch,
+              mode: 'insensitive' as const,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  const andConditions = where.AND;
+  if (Array.isArray(andConditions)) {
+    const searchCondition = andConditions[0] as { OR?: unknown[] } | undefined;
+    if (searchCondition && Array.isArray(searchCondition.OR)) {
+      searchCondition.OR.push(academicYearSearch);
+      return where;
+    }
+  }
+
+  const orConditions = where.OR;
+  if (Array.isArray(orConditions)) {
+    orConditions.push(academicYearSearch);
+  }
+
+  return where;
+}
+
+async function createAcademicYearResolver(
+  client: Prisma.TransactionClient | typeof prisma,
+  assignments: StudentScholarshipAssignmentInput[]
+) {
+  const requestedIds = Array.from(
+    new Set(
+      assignments
+        .map((assignment) => parseOptionalAcademicYearId(assignment.academicYearId))
+        .filter((id): id is number => id !== null)
+    )
+  );
+
+  const [activeAcademicYear, academicYears] = await Promise.all([
+    client.academicYear.findFirst({
+      where: { isActive: true },
+      select: { id: true },
+    }),
+    requestedIds.length > 0
+      ? client.academicYear.findMany({
+          where: { id: { in: requestedIds } },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const foundIds = new Set(academicYears.map((academicYear) => academicYear.id));
+  const missingId = requestedIds.find((id) => !foundIds.has(id));
+  if (missingId) {
+    throw new Error('Academic year not found');
+  }
+
+  return (value: unknown) => parseOptionalAcademicYearId(value) ?? activeAcademicYear?.id ?? null;
+}
+
+function assertUniqueScholarshipAssignments(
+  assignments: StudentScholarshipAssignmentInput[],
+  resolveAcademicYearId: (value: unknown) => number | null
+) {
+  const seen = new Set<string>();
+
+  for (const assignment of assignments) {
+    const academicYearId = resolveAcademicYearId(assignment.academicYearId);
+    const key = `${assignment.scholarshipId}:${academicYearId ?? 'none'}`;
+
+    if (seen.has(key)) {
+      throw new Error('Duplicate scholarship assignment for academic year');
+    }
+
+    seen.add(key);
+  }
+}
+
 // GET /api/students - Get all students
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +132,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || '';
     const scholarshipId = searchParams.get('scholarshipId') || '';
     const scholarshipSource = searchParams.get('scholarshipSource') || '';
+    const academicYearFilter = parseOptionalAcademicYearId(searchParams.get('academicYearId'));
     const archivedParam = searchParams.get('archived');
     const includeArchived = archivedParam === 'true';
     const population = searchParams.get('population') || (includeArchived ? 'archived' : 'active');
@@ -39,6 +147,7 @@ export async function GET(request: NextRequest) {
       status,
       scholarshipId,
       scholarshipSource,
+      academicYearId: academicYearFilter,
       archived: includeArchived,
       population,
     });
@@ -80,12 +189,15 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const where = buildSearchWhere(search, ['lastName', 'firstName', 'program'], {
-      ...additionalFilters,
-      isArchived: includeArchived ? true : false,
-    });
+    const where = appendAcademicYearSearch(
+      buildSearchWhere(search, ['lastName', 'firstName', 'program'], {
+        ...additionalFilters,
+        isArchived: includeArchived ? true : false,
+      }),
+      search
+    );
 
-    // Add scholarship filter if specified
+    // Add scholarship filters if specified
     if (scholarshipId) {
       if (scholarshipId === 'none') {
         // Filter students with no scholarships
@@ -100,17 +212,23 @@ export async function GET(request: NextRequest) {
           scholarships: {
             some: {
               scholarshipId: parseInt(scholarshipId),
+              ...(academicYearFilter ? { academicYearId: academicYearFilter } : {}),
             },
           },
         });
       }
-    } else if (scholarshipSource && scholarshipSource !== 'all') {
+    } else if ((scholarshipSource && scholarshipSource !== 'all') || academicYearFilter !== null) {
       Object.assign(where, {
         scholarships: {
           some: {
-            scholarship: {
-              source: scholarshipSource,
-            },
+            ...(academicYearFilter ? { academicYearId: academicYearFilter } : {}),
+            ...(scholarshipSource && scholarshipSource !== 'all'
+              ? {
+                  scholarship: {
+                    source: scholarshipSource,
+                  },
+                }
+              : {}),
           },
         },
       });
@@ -148,6 +266,17 @@ export async function GET(request: NextRequest) {
               grantAmount: true,
               grantType: true,
               scholarshipStatus: true,
+              academicYearId: true,
+              academicYearRel: {
+                select: {
+                  id: true,
+                  year: true,
+                  startDate: true,
+                  endDate: true,
+                  semester: true,
+                  isActive: true,
+                },
+              },
               scholarship: {
                 select: {
                   id: true,
@@ -189,6 +318,9 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error fetching students:', error);
+    if (error instanceof Error && error.message === 'Invalid academic year') {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { success: false, error: 'Failed to fetch students' },
       { status: 500 }
@@ -249,6 +381,8 @@ export async function POST(request: NextRequest) {
       // Validate scholarship assignments before creating them
 
       const scholarshipIds = body.scholarships.map((s) => s.scholarshipId);
+      const resolveAcademicYearId = await createAcademicYearResolver(prisma, body.scholarships);
+      assertUniqueScholarshipAssignments(body.scholarships, resolveAcademicYearId);
 
       await validateMultipleStudentScholarshipEligibility(student.id, scholarshipIds);
 
@@ -269,6 +403,8 @@ export async function POST(request: NextRequest) {
           grantType: scholarship.grantType || 'FULL',
 
           scholarshipStatus: scholarship.scholarshipStatus || 'Active',
+
+          academicYearId: resolveAcademicYearId(scholarship.academicYearId),
         })),
       });
     }
@@ -308,6 +444,7 @@ export async function POST(request: NextRequest) {
         scholarships: {
           include: {
             scholarship: true,
+            academicYearRel: true,
           },
         },
         fees: true,
@@ -324,6 +461,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error creating student:', error);
+    if (
+      error instanceof Error &&
+      (error.message === 'Invalid academic year' || error.message === 'Academic year not found')
+    ) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+    if (
+      error instanceof Error &&
+      error.message === 'Duplicate scholarship assignment for academic year'
+    ) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 409 });
+    }
     return NextResponse.json(
       { success: false, error: 'Failed to create student' },
       { status: 500 }

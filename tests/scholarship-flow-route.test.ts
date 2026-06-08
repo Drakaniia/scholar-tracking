@@ -178,20 +178,28 @@ describe('scholarship flow route', () => {
     expect(prismaMock.studentScholarship.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          awardDate: {
-            gte: new Date('2022-01-01T00:00:00.000Z'),
-            lte: new Date('2026-12-31T23:59:59.999Z'),
-          },
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              awardDate: {
+                gte: new Date('2022-01-01T00:00:00.000Z'),
+                lte: new Date('2026-12-31T23:59:59.999Z'),
+              },
+            }),
+          ]),
         }),
       })
     );
     expect(prismaMock.disbursement.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          disbursementDate: {
-            gte: new Date('2022-01-01T00:00:00.000Z'),
-            lte: new Date('2026-12-31T23:59:59.999Z'),
-          },
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              disbursementDate: {
+                gte: new Date('2022-01-01T00:00:00.000Z'),
+                lte: new Date('2026-12-31T23:59:59.999Z'),
+              },
+            }),
+          ]),
         }),
       })
     );

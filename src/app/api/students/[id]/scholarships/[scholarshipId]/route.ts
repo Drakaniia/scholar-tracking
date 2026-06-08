@@ -18,12 +18,16 @@ export async function DELETE(
     const { id, scholarshipId } = await params;
     const studentId = parseInt(id);
     const schId = parseInt(scholarshipId);
+    const assignmentId = Number(request.nextUrl.searchParams.get('assignmentId'));
+    const academicYearId = Number(request.nextUrl.searchParams.get('academicYearId'));
 
     // Verify that the student-scholarship relationship exists
     const studentScholarship = await prisma.studentScholarship.findFirst({
       where: {
         studentId,
         scholarshipId: schId,
+        ...(Number.isInteger(assignmentId) && assignmentId > 0 ? { id: assignmentId } : {}),
+        ...(Number.isInteger(academicYearId) && academicYearId > 0 ? { academicYearId } : {}),
       },
     });
 

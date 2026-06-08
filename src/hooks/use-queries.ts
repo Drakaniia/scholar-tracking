@@ -17,7 +17,13 @@ import { UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstac
 import { toast } from 'sonner';
 
 import { getScholarshipFlowEndYear } from '@/lib/scholarship-flow-years';
-import type { CreateStudentInput, StudentFilterOptions, UpdateStudentInput } from '@/types';
+import type {
+  AcademicYear,
+  AcademicYearInput,
+  CreateStudentInput,
+  StudentFilterOptions,
+  UpdateStudentInput,
+} from '@/types';
 
 // ============================================
 // QUERY KEYS (Centralized for consistency)
@@ -80,6 +86,7 @@ interface StudentFilters {
   status?: string;
   scholarshipId?: string;
   scholarshipSource?: string;
+  academicYearId?: string | number;
   archived?: boolean;
   population?: string;
   page?: number;
@@ -150,11 +157,20 @@ interface Student {
   scholarships: Array<{
     id: number;
     scholarshipId: number;
+    academicYearId: number | null;
     awardDate: string;
     startTerm: string;
     endTerm: string;
     grantAmount: number;
     scholarshipStatus: string;
+    academicYearRel?: {
+      id: number;
+      year: string;
+      startDate: string;
+      endDate: string;
+      semester: string;
+      isActive: boolean;
+    } | null;
     scholarship: {
       scholarshipName: string;
       type: string;
@@ -256,6 +272,7 @@ export interface ScholarshipFlowData {
       source: string;
       amount: number;
       status: string;
+      academicYear: string | null;
     }>;
   }>;
   topTypes: Array<{
@@ -268,6 +285,7 @@ export interface ScholarshipFlowData {
     scholarshipName: string;
     type: string;
     source: string;
+    academicYear: string | null;
     awardCount: number;
     awardedAmount: number;
     beneficiaryCount: number;
@@ -628,6 +646,8 @@ export function useCreateScholarship() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Scholarship created successfully');
     },
@@ -657,7 +677,9 @@ export function useUpdateScholarship() {
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Scholarship updated successfully');
     },
@@ -685,6 +707,8 @@ export function useDeleteScholarship() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Scholarship archived successfully');
     },
@@ -771,25 +795,6 @@ export function usePrefetchData() {
 // ACADEMIC YEARS
 // ============================================
 
-interface AcademicYear {
-  id: number;
-  year: string;
-  startDate: string;
-  endDate: string;
-  semester: string;
-  isActive: boolean;
-  promotionDate: string | null;
-  promotionProcessedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error?: string;
-}
-
 // Get all academic years
 export function useAcademicYears() {
   return useQuery<ApiResponse<AcademicYear[]>, Error>({
@@ -819,5 +824,93 @@ export function useActiveAcademicYear() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+export function useCreateAcademicYear() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<AcademicYear>, Error, AcademicYearInput>({
+    mutationFn: async (data) => {
+      const response = await fetch('/api/academic-years', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to create academic year');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academicYears.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
+      toast.success('Academic year created successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to create academic year');
+    },
+  });
+}
+
+export function useUpdateAcademicYear() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<AcademicYear>, Error, { id: number; data: AcademicYearInput }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await fetch(`/api/academic-years?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to update academic year');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academicYears.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
+      toast.success('Academic year updated successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update academic year');
+    },
+  });
+}
+
+export function useDeleteAcademicYear() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ApiResponse<unknown>, Error, number>({
+    mutationFn: async (id) => {
+      const response = await fetch(`/api/academic-years?id=${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to delete academic year');
+      }
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academicYears.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
+      toast.success('Academic year deleted successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete academic year');
+    },
   });
 }

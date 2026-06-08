@@ -53,6 +53,7 @@ export interface StudentScholarship {
   id: number;
   studentId: number;
   scholarshipId: number;
+  academicYearId?: number | null;
   awardDate: Date;
   startTerm: string;
   endTerm: string;
@@ -61,8 +62,31 @@ export interface StudentScholarship {
   scholarshipStatus: string;
   createdAt: Date;
   updatedAt: Date;
+  academicYearRel?: AcademicYear | null;
   scholarship?: Scholarship;
   student?: Student;
+}
+
+export interface AcademicYear {
+  id: number;
+  year: string;
+  startDate: string | Date;
+  endDate: string | Date;
+  semester: string;
+  isActive: boolean;
+  promotionDate: string | Date | null;
+  promotionProcessedAt: string | Date | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+export interface AcademicYearInput {
+  year: string;
+  startDate: string;
+  endDate: string;
+  semester: string;
+  isActive?: boolean;
+  promotionDate?: string | null;
 }
 
 export interface CreateStudentInput {
@@ -83,7 +107,9 @@ export interface CreateStudentInput {
   grantType?: GrantType;
   scholarshipStatus?: string | null;
   scholarships?: Array<{
+    id?: number;
     scholarshipId: number;
+    academicYearId?: number | null;
     awardDate: Date;
     startTerm: string;
     endTerm: string;

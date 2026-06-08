@@ -21,6 +21,10 @@ type YearBucket = {
   externalAmount: number;
 };
 
+type AssignmentYearRelation = {
+  year: string;
+} | null;
+
 function createYearBuckets(endYear: number) {
   const years = Array.from({ length: 5 }, (_, index) => endYear - 4 + index);
   const buckets = new Map<number, YearBucket>();
@@ -49,6 +53,91 @@ function getAcademicYearEndingYear(academicYear: string) {
   const years = academicYear.match(/\d{4}/g);
   if (!years || years.length === 0) return null;
   return Number(years[years.length - 1]);
+}
+
+function getBucketYearFromAcademicYear(
+  academicYear: AssignmentYearRelation | undefined,
+  fallbackDate: Date
+) {
+  return academicYear?.year
+    ? getAcademicYearEndingYear(academicYear.year)
+    : fallbackDate.getUTCFullYear();
+}
+
+function getAcademicYearLabel(academicYear: AssignmentYearRelation | undefined) {
+  return academicYear?.year || null;
+}
+
+function buildStudentScholarshipWindowWhere(sourceFilter: string, startDate: Date, endDate: Date) {
+  const filters: Record<string, unknown>[] = [
+    {
+      OR: [
+        {
+          academicYearRel: {
+            is: {
+              endDate: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+        {
+          academicYearId: null,
+          awardDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      ],
+    },
+  ];
+
+  if (sourceFilter) {
+    filters.unshift({
+      scholarship: {
+        source: sourceFilter,
+      },
+    });
+  }
+
+  return filters.length === 1 ? filters[0] : { AND: filters };
+}
+
+function buildDisbursementWindowWhere(sourceFilter: string, startDate: Date, endDate: Date) {
+  const filters: Record<string, unknown>[] = [
+    {
+      OR: [
+        {
+          academicYearRel: {
+            is: {
+              endDate: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+        {
+          academicYearId: null,
+          disbursementDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+      ],
+    },
+  ];
+
+  if (sourceFilter) {
+    filters.unshift({
+      scholarship: {
+        source: sourceFilter,
+      },
+    });
+  }
+
+  return filters.length === 1 ? filters[0] : { AND: filters };
 }
 
 function compactType(type?: string | null) {
@@ -108,21 +197,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: cachedData, cached: true });
     }
 
-    const scholarshipWhere = sourceFilter ? { scholarship: { source: sourceFilter } } : {};
+    const studentScholarshipWindowWhere = buildStudentScholarshipWindowWhere(
+      sourceFilter,
+      startDate,
+      endDate
+    );
+    const disbursementWindowWhere = buildDisbursementWindowWhere(sourceFilter, startDate, endDate);
 
     const [awards, disbursements, fees, activeStudents] = await Promise.all([
       prisma.studentScholarship.findMany({
-        where: {
-          awardDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-          ...scholarshipWhere,
-        },
+        where: studentScholarshipWindowWhere,
         select: {
           studentId: true,
           awardDate: true,
           grantAmount: true,
+          academicYearRel: {
+            select: {
+              year: true,
+            },
+          },
           scholarship: {
             select: {
               scholarshipName: true,
@@ -133,17 +226,16 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.disbursement.findMany({
-        where: {
-          disbursementDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-          ...scholarshipWhere,
-        },
+        where: disbursementWindowWhere,
         select: {
           studentId: true,
           disbursementDate: true,
           amount: true,
+          academicYearRel: {
+            select: {
+              year: true,
+            },
+          },
           scholarship: {
             select: {
               scholarshipName: true,
@@ -173,16 +265,16 @@ export async function GET(request: NextRequest) {
           yearLevel: true,
           program: true,
           scholarships: {
-            where: sourceFilter
-              ? {
-                  scholarship: {
-                    source: sourceFilter,
-                  },
-                }
-              : undefined,
+            where: studentScholarshipWindowWhere,
             select: {
+              awardDate: true,
               grantAmount: true,
               scholarshipStatus: true,
+              academicYearRel: {
+                select: {
+                  year: true,
+                },
+              },
               scholarship: {
                 select: {
                   scholarshipName: true,
@@ -212,6 +304,7 @@ export async function GET(request: NextRequest) {
         scholarshipName: string;
         type: string;
         source: string;
+        academicYear: string | null;
         awardCount: number;
         awardedAmount: number;
         beneficiaries: Set<number>;
@@ -219,7 +312,9 @@ export async function GET(request: NextRequest) {
     >();
 
     awards.forEach((award) => {
-      const year = new Date(award.awardDate).getUTCFullYear();
+      const year =
+        getBucketYearFromAcademicYear(award.academicYearRel, award.awardDate) ||
+        new Date(award.awardDate).getUTCFullYear();
       const bucket = buckets.get(year);
       if (!bucket) return;
 
@@ -227,6 +322,7 @@ export async function GET(request: NextRequest) {
       const sourceValue = award.scholarship?.source || 'UNSPECIFIED';
       const type = compactType(award.scholarship?.type);
       const scholarshipName = award.scholarship?.scholarshipName || 'Scholarship Program';
+      const academicYear = getAcademicYearLabel(award.academicYearRel);
 
       bucket.awardCount += 1;
       bucket.awardedAmount += amount;
@@ -258,12 +354,14 @@ export async function GET(request: NextRequest) {
       typeRecord.beneficiaries.add(award.studentId);
       typeMap.set(type, typeRecord);
 
+      const scholarshipKey = `${scholarshipName}:${academicYear || year}`;
       const scholarshipRecord =
-        scholarshipMap.get(scholarshipName) ||
+        scholarshipMap.get(scholarshipKey) ||
         ({
           scholarshipName,
           type,
           source: sourceValue,
+          academicYear,
           awardCount: 0,
           awardedAmount: 0,
           beneficiaries: new Set<number>(),
@@ -271,6 +369,7 @@ export async function GET(request: NextRequest) {
           scholarshipName: string;
           type: string;
           source: string;
+          academicYear: string | null;
           awardCount: number;
           awardedAmount: number;
           beneficiaries: Set<number>;
@@ -278,11 +377,15 @@ export async function GET(request: NextRequest) {
       scholarshipRecord.awardCount += 1;
       scholarshipRecord.awardedAmount += amount;
       scholarshipRecord.beneficiaries.add(award.studentId);
-      scholarshipMap.set(scholarshipName, scholarshipRecord);
+      scholarshipMap.set(scholarshipKey, scholarshipRecord);
     });
 
     disbursements.forEach((disbursement) => {
-      const year = new Date(disbursement.disbursementDate).getUTCFullYear();
+      const year =
+        getBucketYearFromAcademicYear(
+          disbursement.academicYearRel,
+          disbursement.disbursementDate
+        ) || new Date(disbursement.disbursementDate).getUTCFullYear();
       const bucket = buckets.get(year);
       if (!bucket) return;
 
@@ -328,6 +431,7 @@ export async function GET(request: NextRequest) {
             source: scholarship.scholarship?.source || 'UNSPECIFIED',
             amount: Number(scholarship.grantAmount || 0),
             status: scholarship.scholarshipStatus,
+            academicYear: getAcademicYearLabel(scholarship.academicYearRel),
           })),
         };
       })
@@ -394,6 +498,7 @@ export async function GET(request: NextRequest) {
           scholarshipName: row.scholarshipName,
           type: row.type,
           source: row.source,
+          academicYear: row.academicYear,
           awardCount: row.awardCount,
           awardedAmount: row.awardedAmount,
           beneficiaryCount: row.beneficiaries.size,
