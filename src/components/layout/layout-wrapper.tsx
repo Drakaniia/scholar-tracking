@@ -30,7 +30,20 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function MainContent({ children }: { children: ReactNode }) {
+interface MainContentProps {
+  children: ReactNode;
+  variant?: 'dashboard' | 'settings';
+}
+
+export function MainContent({ children, variant = 'dashboard' }: MainContentProps) {
+  if (variant === 'settings') {
+    return (
+      <main className="min-h-screen">
+        <div className="container mx-auto px-4 py-5 md:px-8 md:py-8">{children}</div>
+      </main>
+    );
+  }
+
   return (
     <main className="pt-16">
       <div className="container mx-auto p-4 md:p-8">{children}</div>

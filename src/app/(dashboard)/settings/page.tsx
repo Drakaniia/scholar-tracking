@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import Link from 'next/link';
+
 import {
   Activity,
   AlertCircle,
@@ -32,8 +34,6 @@ import {
 import { toast } from 'sonner';
 
 import { useAuth } from '@/components/auth/auth-provider';
-import { PageHeader } from '@/components/layout';
-import { PageHeaderSkeleton } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +78,71 @@ import {
 import type { StudentTransitionDecision } from '@/types';
 
 const ARCHIVED_ITEMS_PAGE_SIZE = 10;
+
+interface SettingsConsoleUser {
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+}
+
+function SettingsConsoleHeaderSkeleton() {
+  return (
+    <section className="overflow-hidden rounded-lg border border-emerald-100 bg-white shadow-sm">
+      <div className="h-1 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700" />
+      <div className="flex flex-col gap-4 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-6 w-28 rounded-full" />
+            <Skeleton className="h-5 w-36 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40 sm:h-9" />
+            <Skeleton className="h-5 w-full max-w-xl" />
+          </div>
+        </div>
+        <Skeleton className="h-9 w-full rounded-md sm:w-40" />
+      </div>
+    </section>
+  );
+}
+
+function SettingsConsoleHeader({ currentUser }: { currentUser: SettingsConsoleUser | null }) {
+  const fullName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ');
+  const displayName = fullName || currentUser?.username || 'Administrator';
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-emerald-100 bg-white shadow-sm">
+      <div className="h-1 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700" />
+      <div className="flex flex-col gap-4 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge className="gap-1.5 bg-emerald-50 text-emerald-700">
+              <Shield className="h-3.5 w-3.5" />
+              Admin Console
+            </Badge>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+              {displayName}
+              {currentUser?.role ? ` - ${currentUser.role}` : ''}
+            </span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Settings
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600 sm:text-base">
+            Manage users, sessions, audit logs, archives, and academic year controls.
+          </p>
+        </div>
+        <Button asChild variant="outline" className="w-full justify-center sm:w-auto">
+          <Link href="/" prefetch={true}>
+            <ChevronLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </Button>
+      </div>
+    </section>
+  );
+}
 
 function SettingsTableBodySkeleton({ widths, rows = 6 }: { widths: string[]; rows?: number }) {
   return (
@@ -141,8 +206,8 @@ function UserManagementCardSkeleton() {
 
 function SettingsPageSkeleton() {
   return (
-    <div>
-      <PageHeaderSkeleton />
+    <div className="space-y-6">
+      <SettingsConsoleHeaderSkeleton />
       <div className="space-y-4">
         <Skeleton className="h-10 w-full max-w-5xl rounded-md" />
         <UserManagementCardSkeleton />
@@ -1927,57 +1992,67 @@ export default function SettingsPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="Settings" description="Manage system settings and user permissions" />
+    <div className="space-y-6">
+      <SettingsConsoleHeader currentUser={currentUser} />
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="users" className="gap-2">
-            <Users className="h-4 w-4" />
-            User Management
-          </TabsTrigger>
-          <TabsTrigger value="sessions" className="gap-2" onClick={() => fetchSessions()}>
-            <Monitor className="h-4 w-4" />
-            Active Sessions
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="gap-2" onClick={() => fetchProfile()}>
-            <UserIcon className="h-4 w-4" />
-            My Profile
-          </TabsTrigger>
-          <TabsTrigger
-            value="audit-logs"
-            className="gap-2"
-            onClick={() => {
-              fetchAuditLogFilterOptions();
-              fetchAuditLogs(1);
-            }}
-          >
-            <FileText className="h-4 w-4" />
-            Audit Logs
-          </TabsTrigger>
-          <TabsTrigger
-            value="archived"
-            className="gap-2"
-            onClick={() => {
-              fetchArchivedStudents(1);
-              fetchArchivedScholarships(1);
-            }}
-          >
-            <Archive className="h-4 w-4" />
-            Archived Items
-          </TabsTrigger>
-          <TabsTrigger
-            value="academic-year"
-            className="gap-2"
-            onClick={() => {
-              fetchAcademicYears(1);
-              fetchPromotionRunStatus();
-            }}
-          >
-            <GraduationCap className="h-4 w-4" />
-            Academic Year
-          </TabsTrigger>
-        </TabsList>
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <TabsList className="h-auto min-w-max justify-start rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+            <TabsTrigger value="users" className="h-9 flex-none gap-2 px-3">
+              <Users className="h-4 w-4" />
+              User Management
+            </TabsTrigger>
+            <TabsTrigger
+              value="sessions"
+              className="h-9 flex-none gap-2 px-3"
+              onClick={() => fetchSessions()}
+            >
+              <Monitor className="h-4 w-4" />
+              Active Sessions
+            </TabsTrigger>
+            <TabsTrigger
+              value="profile"
+              className="h-9 flex-none gap-2 px-3"
+              onClick={() => fetchProfile()}
+            >
+              <UserIcon className="h-4 w-4" />
+              My Profile
+            </TabsTrigger>
+            <TabsTrigger
+              value="audit-logs"
+              className="h-9 flex-none gap-2 px-3"
+              onClick={() => {
+                fetchAuditLogFilterOptions();
+                fetchAuditLogs(1);
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              Audit Logs
+            </TabsTrigger>
+            <TabsTrigger
+              value="archived"
+              className="h-9 flex-none gap-2 px-3"
+              onClick={() => {
+                fetchArchivedStudents(1);
+                fetchArchivedScholarships(1);
+              }}
+            >
+              <Archive className="h-4 w-4" />
+              Archived Items
+            </TabsTrigger>
+            <TabsTrigger
+              value="academic-year"
+              className="h-9 flex-none gap-2 px-3"
+              onClick={() => {
+                fetchAcademicYears(1);
+                fetchPromotionRunStatus();
+              }}
+            >
+              <GraduationCap className="h-4 w-4" />
+              Academic Year
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="users">
           <Card className="border-gray-200">
