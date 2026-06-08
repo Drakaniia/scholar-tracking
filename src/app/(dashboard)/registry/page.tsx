@@ -358,6 +358,29 @@ function PromotionQueueLoading() {
   );
 }
 
+function PromotionQueueFilterLoading() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <Skeleton key={index} className="h-9 w-28 rounded-md" />
+      ))}
+    </div>
+  );
+}
+
+function PromotionQueueSummaryLoading() {
+  return (
+    <div className="grid gap-2 text-sm sm:grid-cols-3 xl:min-w-[420px]">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-2 h-5 w-10" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RegistryPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState<RegistryRow[]>([]);
@@ -762,25 +785,38 @@ export default function RegistryPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section
+        className="rounded-lg border border-slate-200 bg-white shadow-sm"
+        aria-busy={promotionLoading}
+      >
         <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
               <ListFilter className="h-5 w-5 text-emerald-700" />
               <h2 className="text-lg font-semibold text-slate-950">Bulk Promotion Queue</h2>
             </div>
-            <p className="mt-1 text-sm text-slate-500">
-              {promotionPreview?.activeAcademicYear
-                ? `${promotionPreview.activeAcademicYear.year} active promotion preview`
-                : 'Active promotion preview'}
-            </p>
+            {promotionLoading ? (
+              <Skeleton className="mt-2 h-4 w-56" />
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">
+                {promotionPreview?.activeAcademicYear
+                  ? `${promotionPreview.activeAcademicYear.year} active promotion preview`
+                  : 'Active promotion preview'}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="rounded-md border border-slate-200 px-3 py-2 text-sm">
-              <span className="font-semibold text-slate-950">
-                {selectedPromotionStudents.length}
-              </span>{' '}
-              <span className="text-slate-500">selected</span>
+              {promotionLoading ? (
+                <Skeleton className="h-5 w-20" />
+              ) : (
+                <>
+                  <span className="font-semibold text-slate-950">
+                    {selectedPromotionStudents.length}
+                  </span>{' '}
+                  <span className="text-slate-500">selected</span>
+                </>
+              )}
             </div>
             <Button
               type="button"
@@ -804,39 +840,49 @@ export default function RegistryPage() {
         </div>
 
         <div className="flex flex-col gap-3 border-b border-slate-200 p-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {PROMOTION_FILTERS.map((filter) => (
-              <Button
-                key={filter}
-                type="button"
-                variant={promotionFilter === filter ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPromotionFilter(filter)}
-                className={cn(
-                  'h-9',
-                  promotionFilter === filter && 'bg-slate-950 text-white hover:bg-slate-800'
-                )}
-              >
-                {PROMOTION_FILTER_LABELS[filter]}
-              </Button>
-            ))}
-          </div>
-          <div className="grid gap-2 text-sm sm:grid-cols-3 xl:min-w-[420px]">
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
-              <p className="text-xs font-medium text-emerald-700">Promote</p>
-              <p className="font-semibold text-emerald-950">{selectedPromotionSummary.promote}</p>
+          {promotionLoading ? (
+            <PromotionQueueFilterLoading />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {PROMOTION_FILTERS.map((filter) => (
+                <Button
+                  key={filter}
+                  type="button"
+                  variant={promotionFilter === filter ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPromotionFilter(filter)}
+                  className={cn(
+                    'h-9',
+                    promotionFilter === filter && 'bg-slate-950 text-white hover:bg-slate-800'
+                  )}
+                >
+                  {PROMOTION_FILTER_LABELS[filter]}
+                </Button>
+              ))}
             </div>
-            <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
-              <p className="text-xs font-medium text-orange-700">Archive Unchecked</p>
-              <p className="font-semibold text-orange-950">{selectedPromotionSummary.archive}</p>
+          )}
+          {promotionLoading ? (
+            <PromotionQueueSummaryLoading />
+          ) : (
+            <div className="grid gap-2 text-sm sm:grid-cols-3 xl:min-w-[420px]">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <p className="text-xs font-medium text-emerald-700">Promote</p>
+                <p className="font-semibold text-emerald-950">
+                  {selectedPromotionSummary.promote}
+                </p>
+              </div>
+              <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                <p className="text-xs font-medium text-orange-700">Archive Unchecked</p>
+                <p className="font-semibold text-orange-950">{selectedPromotionSummary.archive}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-medium text-slate-500">Visible Eligible</p>
+                <p className="font-semibold text-slate-950">
+                  {selectableFilteredPromotionStudents.length}
+                </p>
+              </div>
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-              <p className="text-xs font-medium text-slate-500">Visible Eligible</p>
-              <p className="font-semibold text-slate-950">
-                {selectableFilteredPromotionStudents.length}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         {promotionPreview?.activeAcademicYear?.promotionProcessedAt && (
@@ -993,10 +1039,14 @@ export default function RegistryPage() {
         </div>
 
         <div className="flex flex-col gap-2 border-t border-slate-200 p-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            Showing {filteredPromotionStudents.length} of {promotionPreview?.totalStudents || 0}{' '}
-            active students
-          </p>
+          {promotionLoading ? (
+            <Skeleton className="h-4 w-56" />
+          ) : (
+            <p>
+              Showing {filteredPromotionStudents.length} of {promotionPreview?.totalStudents || 0}{' '}
+              active students
+            </p>
+          )}
           {!isAdmin && <p>Administrator access is required for bulk promotion.</p>}
         </div>
       </section>
