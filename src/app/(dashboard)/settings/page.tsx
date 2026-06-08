@@ -695,7 +695,7 @@ export default function SettingsPage() {
   const [academicYearTotalPages, setAcademicYearTotalPages] = useState(0);
   const [academicYearPage] = useState(1);
   const [isSubmittingAcademicYear, setIsSubmittingAcademicYear] = useState(false);
-  const [isAutoPromoting, setIsAutoPromoting] = useState(false);
+  const [isAutoPromoting] = useState(false);
   const [isUndoingPromotion, setIsUndoingPromotion] = useState(false);
   const [isSavingTransitionDecisions, setIsSavingTransitionDecisions] = useState(false);
   const [transitionDecisions, setTransitionDecisions] = useState<
@@ -1893,40 +1893,9 @@ export default function SettingsPage() {
   };
 
   const handleAutoPromoteStudents = async () => {
-    const missingDecisionCount =
-      promotionPreview?.preview.filter((student) => student.requiresDecision).length || 0;
-    if (missingDecisionCount > 0) {
-      toast.error(
-        `${missingDecisionCount} Grade 10/12 student(s) still need transition decisions.`
-      );
-      return;
-    }
-
-    setIsAutoPromoting(true);
-    try {
-      const res = await fetch('/api/academic-years/auto-promote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-        credentials: 'include',
-      });
-
-      const result = await res.json();
-
-      if (result.success) {
-        const run = result.data?.run || null;
-        handleIncomingPromotionRun(run);
-        toast.success(result.message || 'Promotion started');
-        fetchAcademicYears(academicYearPage);
-      } else {
-        toast.error(result.error || 'Failed to promote students');
-      }
-    } catch (error) {
-      console.error('Error promoting students:', error);
-      toast.error('Failed to promote students');
-    } finally {
-      setIsAutoPromoting(false);
-    }
+    toast.message('Use Promotion Level to select continuing students before processing promotion.');
+    setIsPromotionDialogOpen(false);
+    window.location.href = '/registry';
   };
 
   const handleUndoPromotion = async () => {
@@ -2949,7 +2918,7 @@ export default function SettingsPage() {
                     ) : (
                       <Activity className="h-4 w-4 mr-2" />
                     )}
-                    {isActivePromotionProcessing ? 'View Promotion Status' : 'Run Promotion Now'}
+                    {isActivePromotionProcessing ? 'View Promotion Status' : 'Review Promotion'}
                   </Button>
                 </div>
               </div>
@@ -2984,9 +2953,9 @@ export default function SettingsPage() {
                     <div className="flex gap-3 rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
                       <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                       <p>
-                        Academic year promotion runs automatically on the saved promotion date. The
-                        system promotes due students once for that academic year; use Run Promotion
-                        Now only when an admin needs to process it manually.
+                        Academic year promotion is processed from Registry after an admin selects
+                        the students continuing at Bosco/FSE. The saved promotion date is retained
+                        as a planning reference and does not promote students automatically.
                       </p>
                     </div>
 
@@ -3024,7 +2993,7 @@ export default function SettingsPage() {
                             </p>
                             <p className="mt-1 text-xs opacity-80">
                               {isActivePromotionProcessing
-                                ? 'Student promotions are being processed. You can leave this page and check back later.'
+                                ? 'A previous promotion run is being processed. You can leave this page and check back later.'
                                 : activePromotionRun.status === 'REVERTED'
                                   ? 'Students were restored from the last promotion run.'
                                   : `${activePromotionRun.promotedCount} promoted, ${activePromotionRun.graduatedCount} graduated, ${activePromotionRun.skippedCount} skipped.`}
@@ -3255,11 +3224,11 @@ export default function SettingsPage() {
                 ) : (
                   <Activity className="h-5 w-5 text-green-600" />
                 )}
-                {isDialogPromotionProcessing ? 'Promotion in Progress' : 'Run Promotion Now'}
+                {isDialogPromotionProcessing ? 'Promotion in Progress' : 'Review Promotion'}
               </DialogTitle>
               <DialogDescription>
-                Preview the promotion rules, start manual processing, and check the latest run
-                status.
+                Preview the promotion rules. Student processing now happens in Promotion Level, where
+                admins select continuing students and archive the rest of the cohort.
               </DialogDescription>
             </DialogHeader>
             {!promotionPreview ? (
@@ -3294,7 +3263,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="rounded-md border border-gray-200 bg-background p-4">
                     <p className="text-xs font-medium uppercase text-muted-foreground">Mode</p>
-                    <p className="mt-1 text-lg font-semibold">Manual run</p>
+                    <p className="mt-1 text-lg font-semibold">Promotion Level selection</p>
                   </div>
                 </div>
 
@@ -3325,7 +3294,7 @@ export default function SettingsPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold">
                               {isDialogPromotionProcessing
-                                ? 'Student promotions are being processed'
+                                ? 'Previous promotion run is being processed'
                                 : dialogPromotionRun.status === 'FAILED'
                                   ? 'Promotion failed'
                                   : dialogPromotionRun.status === 'REVERTED'
@@ -3348,7 +3317,7 @@ export default function SettingsPage() {
                                 ? dialogPromotionRun.errorMessage ||
                                   'The run did not finish. Review the error and try again.'
                                 : dialogPromotionRun.status === 'REVERTED'
-                                  ? 'Students were restored from this run. You can start a fresh promotion for the active academic year.'
+                                  ? 'Students were restored from this run. Use Registry to review the next promotion cohort.'
                                   : 'All available results from the latest promotion run are shown below.'}
                           </p>
                         </div>
@@ -3416,9 +3385,8 @@ export default function SettingsPage() {
                             </>
                           ) : (
                             <>
-                              Starting promotion will process{' '}
-                              <strong>{promotionPreview.totalStudents.toLocaleString()}</strong>{' '}
-                              active students and record year-end outcomes.
+                              Open Promotion Level to select the students continuing at Bosco/FSE. Students
+                              left unchecked in the chosen cohort will be archived.
                             </>
                           )}
                         </p>
@@ -3607,7 +3575,7 @@ export default function SettingsPage() {
                           Starting...
                         </>
                       ) : (
-                        'Start Promotion'
+                        'Open Promotion Level'
                       )}
                     </Button>
                   )}

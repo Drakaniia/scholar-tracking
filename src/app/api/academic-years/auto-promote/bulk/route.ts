@@ -25,15 +25,18 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const rawStudentIds: unknown[] = Array.isArray(body?.studentIds) ? body.studentIds : [];
+    const rawCohortStudentIds: unknown[] = Array.isArray(body?.cohortStudentIds)
+      ? body.cohortStudentIds
+      : rawStudentIds;
 
-    if (rawStudentIds.length === 0) {
+    if (rawCohortStudentIds.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Select at least one student to promote.' },
+        { success: false, error: 'Select a promotion cohort before processing.' },
         { status: 400 }
       );
     }
 
-    if (rawStudentIds.length > MAX_BULK_PROMOTION_STUDENTS) {
+    if (rawCohortStudentIds.length > MAX_BULK_PROMOTION_STUDENTS) {
       return NextResponse.json(
         {
           success: false,
@@ -44,22 +47,39 @@ export async function POST(request: NextRequest) {
     }
 
     const studentIds = rawStudentIds.map((studentId) => Number(studentId));
-    if (studentIds.some((studentId) => !Number.isInteger(studentId) || studentId <= 0)) {
+    const cohortStudentIds = rawCohortStudentIds.map((studentId) => Number(studentId));
+    const hasInvalidStudentId = [...studentIds, ...cohortStudentIds].some(
+      (studentId) => !Number.isInteger(studentId) || studentId <= 0
+    );
+    if (hasInvalidStudentId) {
       return NextResponse.json(
         { success: false, error: 'Invalid student selection payload.' },
         { status: 400 }
       );
     }
 
-    const result = await promoteSelectedStudents(studentIds, payload.id);
-    const processedCount = result.promotedCount + result.graduatedCount;
+    const cohortSet = new Set(cohortStudentIds);
+    if (studentIds.some((studentId) => !cohortSet.has(studentId))) {
+      return NextResponse.json(
+        { success: false, error: 'Selected students must belong to the submitted cohort.' },
+        { status: 400 }
+      );
+    }
+
+    const result = await promoteSelectedStudents(
+      studentIds,
+      payload.id,
+      undefined,
+      cohortStudentIds
+    );
+    const processedCount = result.promotedCount + result.archivedCount;
 
     return NextResponse.json(
       {
         success: result.success,
         message: result.success
-          ? `Processed ${processedCount} selected student(s).`
-          : result.error || 'No selected students were promoted.',
+          ? `Processed ${processedCount} cohort student(s): ${result.promotedCount} promoted and ${result.archivedCount} archived.`
+          : result.error || 'No selected cohort students were processed.',
         data: result,
         error: result.success ? undefined : result.error,
       },

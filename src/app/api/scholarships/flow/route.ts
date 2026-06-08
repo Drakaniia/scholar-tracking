@@ -413,7 +413,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching scholarship flow:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch scholarship flow' },
+      { success: false, error: 'Failed to fetch comparative data' },
       { status: 500 }
     );
   }

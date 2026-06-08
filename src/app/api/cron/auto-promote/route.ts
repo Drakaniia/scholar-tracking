@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 
-import { runDueAcademicYearPromotions } from '@/lib/academic-year-service';
-
 export async function GET(request: Request) {
   try {
     const cronSecret = process.env.CRON_SECRET;
@@ -11,12 +9,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const result = await runDueAcademicYearPromotions();
-
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          'Scheduled all-student promotion is disabled. Use Registry bulk promotion to select continuing Bosco/FSE students and archive non-continuing students.',
+      },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('Error running scheduled academic year promotion:', error);
     return NextResponse.json(

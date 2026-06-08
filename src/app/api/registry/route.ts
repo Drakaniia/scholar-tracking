@@ -325,8 +325,8 @@ export async function GET(request: NextRequest) {
       (error.message.includes('student_academic_records') ||
         error.message.includes('transition_decision') ||
         error.message.includes('separated_at'))
-        ? 'Registry database migration is pending. Run prisma migrate deploy to enable the registry.'
-        : 'Failed to fetch registry';
+        ? 'Promotion Level database migration is pending. Run prisma migrate deploy to enable promotion level.'
+        : 'Failed to fetch promotion level';
 
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

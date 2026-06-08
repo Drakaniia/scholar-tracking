@@ -50,217 +50,44 @@ vi.mock('@/lib/prisma', () => ({
 describe('runDueAcademicYearPromotions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prismaMock.$transaction.mockImplementation((callback) => callback(txMock));
-    txMock.academicYear.update.mockResolvedValue({});
-    txMock.backup.create.mockResolvedValue({});
-    txMock.backup.createMany.mockResolvedValue({ count: 0 });
-    txMock.backup.deleteMany.mockResolvedValue({ count: 0 });
-    txMock.disbursement.createMany.mockResolvedValue({ count: 0 });
-    txMock.disbursement.deleteMany.mockResolvedValue({ count: 0 });
-    txMock.disbursement.findMany.mockResolvedValue([]);
-    txMock.student.update.mockResolvedValue({});
-    txMock.studentAcademicRecord.create.mockResolvedValue({});
-    txMock.studentAcademicRecord.deleteMany.mockResolvedValue({ count: 0 });
-    txMock.studentScholarship.createMany.mockResolvedValue({ count: 0 });
-    txMock.studentScholarship.deleteMany.mockResolvedValue({ count: 0 });
-    txMock.studentScholarship.findMany.mockResolvedValue([]);
   });
 
-  it('skips future promotion dates by querying only dates due in Asia/Manila', async () => {
-    prismaMock.academicYear.findMany.mockResolvedValueOnce([]);
+  it('rejects scheduled all-student promotion without querying or updating students', async () => {
     const { runDueAcademicYearPromotions } = await import('@/lib/academic-year-service');
 
-    const result = await runDueAcademicYearPromotions({
-      now: new Date('2026-05-21T16:05:00.000Z'),
+    const result = await runDueAcademicYearPromotions();
+
+    expect(result).toMatchObject({
+      success: false,
+      processedAcademicYears: 0,
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
     });
-
-    expect(prismaMock.academicYear.findMany).toHaveBeenCalledWith({
-      where: {
-        promotionDate: {
-          lte: new Date('2026-05-22T23:59:59.999Z'),
-        },
-        promotionProcessedAt: null,
-      },
-      orderBy: {
-        promotionDate: 'asc',
-      },
-    });
-    expect(result.processedAcademicYears).toBe(0);
-    expect(result.promotedCount).toBe(0);
-  });
-
-  it('does not process students when another run has already claimed the academic year', async () => {
-    prismaMock.academicYear.findMany.mockResolvedValueOnce([
-      {
-        id: 1,
-        year: '2026-2027',
-        semester: '1ST',
-        promotionDate: new Date('2026-05-22T00:00:00.000Z'),
-        promotionProcessedAt: null,
-      },
-    ]);
-    txMock.academicYear.updateMany.mockResolvedValueOnce({ count: 0 });
-    const { runDueAcademicYearPromotions } = await import('@/lib/academic-year-service');
-
-    const result = await runDueAcademicYearPromotions({
-      now: new Date('2026-05-21T16:05:00.000Z'),
-    });
-
+    expect(result.errors?.[0]?.error).toContain('Scheduled all-student promotion is disabled');
+    expect(prismaMock.academicYear.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
     expect(txMock.student.findMany).not.toHaveBeenCalled();
     expect(txMock.student.update).not.toHaveBeenCalled();
-    expect(result.processedAcademicYears).toBe(0);
-    expect(result.skippedCount).toBe(1);
   });
 
-  it('promotes every supported grade band in one bulk academic year run', async () => {
-    prismaMock.academicYear.findMany.mockResolvedValueOnce([
-      {
-        id: 1,
-        year: '2026-2027',
-        semester: '1ST',
-        startDate: new Date('2025-06-01T00:00:00.000Z'),
-        promotionDate: new Date('2026-05-22T00:00:00.000Z'),
-        promotionProcessedAt: null,
-      },
-    ]);
-    txMock.academicYear.updateMany.mockResolvedValueOnce({ count: 1 });
-    txMock.student.findMany.mockResolvedValueOnce([
-      {
-        id: 1,
-        firstName: 'Grade',
-        lastName: 'One',
-        gradeLevel: 'GRADE_SCHOOL',
-        yearLevel: 'Grade 1',
-        program: 'Elementary',
-        termType: 'SEMESTER',
-      },
-      {
-        id: 2,
-        firstName: 'Grade',
-        lastName: 'Six',
-        gradeLevel: 'GRADE_SCHOOL',
-        yearLevel: 'Grade 6',
-        program: 'Elementary',
-        termType: 'SEMESTER',
-      },
-      {
-        id: 3,
-        firstName: 'Grade',
-        lastName: 'Seven',
-        gradeLevel: 'JUNIOR_HIGH',
-        yearLevel: 'Grade 7',
-        program: 'Junior High',
-        termType: 'SEMESTER',
-      },
-      {
-        id: 4,
-        firstName: 'Grade',
-        lastName: 'Ten',
-        gradeLevel: 'JUNIOR_HIGH',
-        yearLevel: 'Grade 10',
-        program: 'Junior High',
-        termType: 'SEMESTER',
-        transitionDecision: 'CONTINUE_SENIOR_HIGH',
-      },
-      {
-        id: 5,
-        firstName: 'Grade',
-        lastName: 'Eleven',
-        gradeLevel: 'SENIOR_HIGH',
-        yearLevel: 'Grade 11',
-        program: 'Grade 11',
-        termType: 'SEMESTER',
-      },
-      {
-        id: 6,
-        firstName: 'Grade',
-        lastName: 'Twelve',
-        gradeLevel: 'SENIOR_HIGH',
-        yearLevel: 'Grade 12',
-        program: 'Grade 12',
-        termType: 'SEMESTER',
-        transitionDecision: 'CONTINUE_COLLEGE',
-      },
-      {
-        id: 7,
-        firstName: 'College',
-        lastName: 'One',
-        gradeLevel: 'COLLEGE',
-        yearLevel: '1st Year',
-        program: 'BSIT',
-        termType: 'TRIMESTER',
-      },
-      {
-        id: 8,
-        firstName: 'College',
-        lastName: 'Two',
-        gradeLevel: 'COLLEGE',
-        yearLevel: '2nd Year',
-        program: 'BSIT',
-        termType: 'TRIMESTER',
-      },
-      {
-        id: 9,
-        firstName: 'College',
-        lastName: 'Three',
-        gradeLevel: 'COLLEGE',
-        yearLevel: '3rd Year',
-        program: 'BSIT',
-        termType: 'TRIMESTER',
-      },
-    ]);
+  it('rejects legacy manual all-student promotion helper without database writes', async () => {
+    const { autoPromoteStudents } = await import('@/lib/academic-year-service');
 
-    const { runDueAcademicYearPromotions } = await import('@/lib/academic-year-service');
-    const result = await runDueAcademicYearPromotions({
-      now: new Date('2026-05-22T02:00:00.000Z'),
-    });
+    const result = await autoPromoteStudents();
 
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: expect.objectContaining({ gradeLevel: 'GRADE_SCHOOL', yearLevel: 'Grade 2' }),
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining('All-student promotion is disabled'),
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
     });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 2 },
-      data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 7' }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 3 },
-      data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 8' }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 4 },
-      data: expect.objectContaining({ gradeLevel: 'SENIOR_HIGH', yearLevel: 'Grade 11' }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 5 },
-      data: expect.objectContaining({ gradeLevel: 'SENIOR_HIGH', yearLevel: 'Grade 12' }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 6 },
-      data: expect.objectContaining({
-        gradeLevel: 'COLLEGE',
-        yearLevel: '1st Year',
-        program: 'Undeclared College Program',
-        termType: 'TRIMESTER',
-      }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 7 },
-      data: expect.objectContaining({ gradeLevel: 'COLLEGE', yearLevel: '2nd Year' }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 8 },
-      data: expect.objectContaining({ gradeLevel: 'COLLEGE', yearLevel: '3rd Year' }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 9 },
-      data: expect.objectContaining({
-        graduationStatus: 'Graduated',
-        status: 'Graduated',
-      }),
-    });
-    expect(result.promotedCount).toBe(8);
-    expect(result.graduatedCount).toBe(1);
+    expect(prismaMock.academicYear.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(txMock.student.update).not.toHaveBeenCalled();
   });
 });
 
@@ -325,15 +152,24 @@ describe('promoteSelectedStudents', () => {
         yearLevel: 'Grade 11',
         program: 'STEM',
       }),
+      activeStudent({
+        id: 12,
+        firstName: 'Grade',
+        lastName: 'Twelve',
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 12',
+        program: 'ABM',
+        transitionDecision: 'CONTINUE_COLLEGE',
+      }),
     ]);
 
     const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
-    const result = await promoteSelectedStudents([2, 11], 23);
+    const result = await promoteSelectedStudents([2, 11, 12], 23);
 
     expect(result).toMatchObject({
       success: true,
-      selectedCount: 2,
-      promotedCount: 2,
+      selectedCount: 3,
+      promotedCount: 3,
       graduatedCount: 0,
       skippedCount: 0,
       errorCount: 0,
@@ -347,11 +183,27 @@ describe('promoteSelectedStudents', () => {
       where: { id: 11 },
       data: expect.objectContaining({ gradeLevel: 'SENIOR_HIGH', yearLevel: 'Grade 12' }),
     });
-    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledTimes(2);
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 12 },
+      data: expect.objectContaining({
+        gradeLevel: 'COLLEGE',
+        yearLevel: '1st Year',
+        program: 'Undeclared College Program',
+        termType: 'TRIMESTER',
+      }),
+    });
+    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledTimes(3);
   });
 
-  it('marks selected Grade 12 completers separately and clears active aid', async () => {
+  it('archives unselected cohort students instead of promoting them', async () => {
     txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 6,
+        firstName: 'Marco',
+        lastName: 'Villanueva',
+        gradeLevel: 'GRADE_SCHOOL',
+        yearLevel: 'Grade 6',
+      }),
       activeStudent({
         id: 12,
         firstName: 'Maria',
@@ -362,66 +214,74 @@ describe('promoteSelectedStudents', () => {
         transitionDecision: 'GRADUATED_SHS',
       }),
     ]);
-    txMock.studentScholarship.findMany.mockResolvedValueOnce([
-      {
-        studentId: 12,
-        scholarshipId: 5,
-        awardDate: new Date('2026-01-01T00:00:00.000Z'),
-        startTerm: '1ST',
-        endTerm: '2ND',
-        grantAmount: '1000',
-        scholarshipStatus: 'Active',
-        grantType: 'FULL',
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      },
-    ]);
-    txMock.disbursement.findMany.mockResolvedValueOnce([
-      {
-        disbursementDate: new Date('2026-06-01T00:00:00.000Z'),
-        amount: '1000',
-        term: '1ST',
-        method: 'Cash',
-        remarks: null,
-        scholarshipId: 5,
-        studentId: 12,
-        academicYearId: 1,
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      },
-    ]);
 
     const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
-    const result = await promoteSelectedStudents([12], 23);
+    const result = await promoteSelectedStudents([6], 23, undefined, [6, 12]);
 
     expect(result).toMatchObject({
       success: true,
+      cohortCount: 2,
       selectedCount: 1,
-      promotedCount: 0,
-      graduatedCount: 1,
+      promotedCount: 1,
+      archivedCount: 1,
       errorCount: 0,
     });
     expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 12 },
+      where: { id: 6 },
+      data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 7' }),
+    });
+    expect(txMock.student.update).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        graduationStatus: 'Graduated SHS',
-        status: 'Graduated SHS',
-        graduatedAt: expect.any(Date),
+        isArchived: true,
         separatedAt: expect.any(Date),
+        separationReason: expect.stringContaining('Not selected to continue'),
       }),
-    });
-    expect(txMock.studentScholarship.deleteMany).toHaveBeenCalledWith({
-      where: { studentId: 12, scholarshipStatus: 'Active' },
-    });
-    expect(txMock.disbursement.deleteMany).toHaveBeenCalledWith({
-      where: { studentId: 12, disbursementDate: { gte: expect.any(Date) } },
+      where: { id: 12 },
     });
     expect(txMock.studentAcademicRecord.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         studentId: 12,
-        outcome: 'GRADUATED_SHS',
-        decision: 'GRADUATED_SHS',
+        outcome: 'SKIPPED',
       }),
+    });
+  });
+
+  it('archives the entire cohort when no students are selected to continue', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 6,
+        firstName: 'Marco',
+        lastName: 'Villanueva',
+        gradeLevel: 'GRADE_SCHOOL',
+        yearLevel: 'Grade 6',
+      }),
+      activeStudent({
+        id: 10,
+        firstName: 'Ana',
+        lastName: 'Reyes',
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 10',
+      }),
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const result = await promoteSelectedStudents([], 23, undefined, [6, 10]);
+
+    expect(result).toMatchObject({
+      success: true,
+      cohortCount: 2,
+      selectedCount: 0,
+      promotedCount: 0,
+      archivedCount: 2,
+      errorCount: 0,
+    });
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 6 },
+      data: expect.objectContaining({ isArchived: true }),
+    });
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: expect.objectContaining({ isArchived: true }),
     });
   });
 

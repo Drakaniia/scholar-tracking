@@ -5,15 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const verifyTokenMock = vi.hoisted(() => vi.fn(async () => ({ id: 1, role: 'ADMIN' })));
 const cookieGetMock = vi.hoisted(() => vi.fn(() => ({ value: 'test-token' })));
 const promoteSelectedStudentsMock = vi.hoisted(() =>
-  vi.fn(async (): Promise<unknown> => ({
-    success: true,
-    selectedCount: 2,
-    promotedCount: 1,
-    graduatedCount: 1,
-    skippedCount: 0,
-    errorCount: 0,
-    results: [] as Array<Record<string, unknown>>,
-  }))
+  vi.fn(
+    async (): Promise<unknown> => ({
+      success: true,
+      cohortCount: 2,
+      selectedCount: 2,
+      archivedCount: 0,
+      promotedCount: 1,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+      results: [] as Array<Record<string, unknown>>,
+    })
+  )
 );
 
 vi.mock('next/headers', () => ({
@@ -30,11 +34,11 @@ vi.mock('@/lib/academic-year-service', () => ({
   promoteSelectedStudents: promoteSelectedStudentsMock,
 }));
 
-function bulkRequest(studentIds: unknown[]) {
+function bulkRequest(studentIds: unknown[], cohortStudentIds: unknown[] = studentIds) {
   return new NextRequest('http://localhost/api/academic-years/auto-promote/bulk', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ studentIds }),
+    body: JSON.stringify({ studentIds, cohortStudentIds }),
   });
 }
 
@@ -45,9 +49,11 @@ describe('POST /api/academic-years/auto-promote/bulk', () => {
     verifyTokenMock.mockResolvedValue({ id: 1, role: 'ADMIN' });
     promoteSelectedStudentsMock.mockResolvedValue({
       success: true,
+      cohortCount: 2,
       selectedCount: 2,
+      archivedCount: 0,
       promotedCount: 1,
-      graduatedCount: 1,
+      graduatedCount: 0,
       skippedCount: 0,
       errorCount: 0,
       results: [] as Array<Record<string, unknown>>,
@@ -62,21 +68,49 @@ describe('POST /api/academic-years/auto-promote/bulk', () => {
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).toMatchObject({
+      cohortCount: 2,
       selectedCount: 2,
       promotedCount: 1,
-      graduatedCount: 1,
+      archivedCount: 0,
     });
-    expect(promoteSelectedStudentsMock).toHaveBeenCalledWith([6, 12], 1);
+    expect(promoteSelectedStudentsMock).toHaveBeenCalledWith([6, 12], 1, undefined, [6, 12]);
   });
 
-  it('rejects empty selections', async () => {
+  it('archives the cohort when no continuing students are selected', async () => {
+    promoteSelectedStudentsMock.mockResolvedValueOnce({
+      success: true,
+      cohortCount: 2,
+      selectedCount: 0,
+      archivedCount: 2,
+      promotedCount: 0,
+      graduatedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+      results: [] as Array<Record<string, unknown>>,
+    });
+
+    const { POST } = await import('@/app/api/academic-years/auto-promote/bulk/route');
+    const response = await POST(bulkRequest([], [6, 12]));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data).toMatchObject({
+      cohortCount: 2,
+      selectedCount: 0,
+      archivedCount: 2,
+    });
+    expect(promoteSelectedStudentsMock).toHaveBeenCalledWith([], 1, undefined, [6, 12]);
+  });
+
+  it('rejects empty cohorts', async () => {
     const { POST } = await import('@/app/api/academic-years/auto-promote/bulk/route');
     const response = await POST(bulkRequest([]));
     const body = await response.json();
 
     expect(response.status).toBe(400);
     expect(body.success).toBe(false);
-    expect(body.error).toContain('Select at least one student');
+    expect(body.error).toContain('promotion cohort');
     expect(promoteSelectedStudentsMock).not.toHaveBeenCalled();
   });
 
@@ -94,8 +128,10 @@ describe('POST /api/academic-years/auto-promote/bulk', () => {
   it('returns a controlled error when selected students cannot be promoted', async () => {
     promoteSelectedStudentsMock.mockResolvedValueOnce({
       success: false,
-      error: 'No selected students were promoted.',
+      error: 'No selected cohort students were processed.',
+      cohortCount: 1,
       selectedCount: 1,
+      archivedCount: 0,
       promotedCount: 0,
       graduatedCount: 0,
       skippedCount: 1,
@@ -119,8 +155,9 @@ describe('POST /api/academic-years/auto-promote/bulk', () => {
 
     expect(response.status).toBe(400);
     expect(body.success).toBe(false);
-    expect(body.error).toBe('No selected students were promoted.');
+    expect(body.error).toBe('No selected cohort students were processed.');
     expect(body.data).toMatchObject({
+      cohortCount: 1,
       selectedCount: 1,
       skippedCount: 1,
       errorCount: 1,

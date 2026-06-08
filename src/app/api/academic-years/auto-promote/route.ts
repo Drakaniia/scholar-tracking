@@ -1,8 +1,7 @@
 import { cookies } from 'next/headers';
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 import {
-  autoPromoteStudents,
   getActiveAcademicYear,
   resolvePromotionTarget,
   undoLastAcademicYearPromotion,
@@ -11,7 +10,6 @@ import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { SEPARATED_STUDENT_STATUSES, STUDENT_TRANSITION_DECISIONS } from '@/types';
 
-const ACTIVE_PROMOTION_STATUSES = ['PENDING', 'PROCESSING'];
 const GRADE_10_TRANSITION_DECISIONS = new Set([
   'CONTINUE_SENIOR_HIGH',
   'COMPLETED_JHS',
@@ -44,39 +42,6 @@ async function getLatestPromotionRun(academicYearId: number) {
   });
 }
 
-async function completePromotionRun(runId: number, userId: number, academicYearId: number) {
-  try {
-    const result = await autoPromoteStudents(userId, academicYearId);
-
-    await prisma.promotionRun.update({
-      where: { id: runId },
-      data: {
-        status: result.success ? 'COMPLETED' : 'FAILED',
-        promotedCount: result.promotedCount,
-        graduatedCount: result.graduatedCount,
-        skippedCount: result.skippedCount,
-        errorCount: result.errorCount,
-        errorMessage: result.success ? null : result.error || 'Promotion failed',
-        errors: result.errors && result.errors.length > 0 ? result.errors : undefined,
-        completedAt: new Date(),
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown promotion error';
-    console.error('Error completing promotion run:', error);
-
-    await prisma.promotionRun.update({
-      where: { id: runId },
-      data: {
-        status: 'FAILED',
-        errorMessage: message,
-        errorCount: 1,
-        completedAt: new Date(),
-      },
-    });
-  }
-}
-
 export async function POST() {
   try {
     // Verify authentication
@@ -96,78 +61,13 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
-    const userId = payload.id;
-
-    const activeAcademicYear = await getActiveAcademicYear();
-    if (!activeAcademicYear) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No active academic year found. Please configure an active academic year first.',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (activeAcademicYear.promotionProcessedAt) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'This academic year has already been promoted. Undo the last promotion before running it again.',
-        },
-        { status: 400 }
-      );
-    }
-
-    const existingRun = await prisma.promotionRun.findFirst({
-      where: {
-        academicYearId: activeAcademicYear.id,
-        status: { in: ACTIVE_PROMOTION_STATUSES },
-      },
-      orderBy: { startedAt: 'desc' },
-    });
-
-    if (existingRun) {
-      return NextResponse.json(
-        {
-          success: true,
-          message: 'Promotion is already being processed. You can check the status here.',
-          data: { run: existingRun },
-        },
-        { status: 202 }
-      );
-    }
-
-    const totalStudents = await prisma.student.count({
-      where: {
-        isArchived: false,
-        graduationStatus: { not: 'Graduated' },
-        status: 'Active',
-      },
-    });
-
-    const run = await prisma.promotionRun.create({
-      data: {
-        academicYearId: activeAcademicYear.id,
-        academicYear: activeAcademicYear.year,
-        status: 'PROCESSING',
-        source: 'MANUAL',
-        requestedBy: userId,
-        totalStudents,
-      },
-    });
-
-    after(() => completePromotionRun(run.id, userId, activeAcademicYear.id));
-
     return NextResponse.json(
       {
-        success: true,
-        message:
-          'Promotion started. You can leave this page and check the promotion status later in Settings.',
-        data: { run },
+        success: false,
+        error:
+          'All-student promotion is disabled. Use Promotion Level bulk promotion to select continuing Bosco/FSE students and archive non-continuing students.',
       },
-      { status: 202 }
+      { status: 400 }
     );
   } catch (error) {
     console.error('Error in auto-promote students:', error);
@@ -433,7 +333,7 @@ export async function GET(request: NextRequest) {
                 ? target.status
                 : target.action === 'RETAIN'
                   ? student.yearLevel
-              : null,
+                  : null,
         nextProgram: target.action === 'PROMOTE' ? target.program || student.program : null,
         nextTermType: target.action === 'PROMOTE' ? target.termType || student.termType : null,
         action: target.action,

@@ -143,7 +143,9 @@ function FlowChart({ years }: { years: ScholarshipFlowData['years'] }) {
             <LineChart className="h-4 w-4" />
           </span>
           <div>
-            <CardTitle className="text-lg text-slate-950">Five-Year Scholarship Flow</CardTitle>
+            <CardTitle className="text-lg text-slate-950">
+              Five-Year Scholarship Comparative Data
+            </CardTitle>
             <p className="text-sm text-slate-500">
               Awarded funds, released funds, and beneficiary count by year
             </p>
@@ -635,7 +637,7 @@ export default function ScholarshipFlowPage() {
           <DialogHeader className="border-b border-emerald-100 bg-emerald-50 px-6 py-5">
             <DialogTitle className="flex items-center gap-2 text-emerald-950">
               <CalendarRange className="h-5 w-5 text-emerald-700" />
-              Choose Flow Window
+              Choose Comparative Data Window
             </DialogTitle>
             <DialogDescription className="text-emerald-800">
               Enter any start year. ScholarTrack will show that year plus the next four years.
@@ -698,7 +700,7 @@ export default function ScholarshipFlowPage() {
                   Five-year scholarship comparison
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                  This view separates money flow from student load, so one-scholarship students and
+                  This view separates funding data from student load, so one-scholarship students and
                   students carrying 2, 3, or 4 scholarships are visible immediately.
                 </p>
               </div>

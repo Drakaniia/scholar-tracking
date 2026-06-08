@@ -17,7 +17,7 @@ describe('scholarship flow page UI', () => {
 
   it('uses a modal number input instead of a start-year dropdown', () => {
     expect(pageSource).toContain('DialogTitle');
-    expect(pageSource).toContain('Choose Flow Window');
+    expect(pageSource).toContain('Choose Comparative Data Window');
     expect(pageSource).toContain('type="number"');
     expect(pageSource).toContain('Apply Window');
     expect(pageSource).not.toContain('value={String(startYearFilter)}');

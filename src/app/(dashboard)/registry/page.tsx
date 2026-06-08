@@ -98,13 +98,15 @@ type BulkPromotionStudentResult = {
   studentName: string;
   fromLevel: string;
   toLevel: string | null;
-  action: PromotionPreviewStudent['action'];
+  action: PromotionPreviewStudent['action'] | 'ARCHIVE';
   success: boolean;
   error?: string;
 };
 
 type BulkPromotionRunResult = {
+  cohortCount: number;
   selectedCount: number;
+  archivedCount: number;
   promotedCount: number;
   graduatedCount: number;
   skippedCount: number;
@@ -164,7 +166,7 @@ const LANE_LABELS: Record<RegistryRow['lane'], string> = {
   'grade-school-to-jhs': 'Grade 6 to Junior High',
   'jhs-to-shs': 'Grade 10 to Senior High',
   'shs-to-college': 'Grade 12 to College',
-  separated: 'Separated Registry',
+  separated: 'Separated Promotion Level',
   other: 'Other',
 };
 const PROMOTION_FILTER_LABELS: Record<PromotionFilter, string> = {
@@ -231,9 +233,11 @@ function outcomeClassName(outcome: string) {
 }
 
 function isPromotionSelectable(student: PromotionPreviewStudent) {
-  return (
-    student.action === 'PROMOTE' || student.action === 'GRADUATE' || student.action === 'SEPARATE'
-  );
+  return student.action === 'PROMOTE';
+}
+
+function isPromotionCohortStudent(student: PromotionPreviewStudent) {
+  return !(student.action === 'RETAIN' || (student.action === 'SKIP' && !student.requiresDecision));
 }
 
 function isGraduatingPromotionStudent(student: PromotionPreviewStudent) {
@@ -251,7 +255,7 @@ function matchesPromotionFilter(student: PromotionPreviewStudent, filter: Promot
   if (filter === 'grade-11') return student.yearLevel === 'Grade 11';
   if (filter === 'grade-12') return student.yearLevel === 'Grade 12';
   if (filter === 'graduating') return isGraduatingPromotionStudent(student);
-  return isPromotionSelectable(student);
+  return isPromotionCohortStudent(student);
 }
 
 function getPromotionActionLabel(student: PromotionPreviewStudent) {
@@ -261,7 +265,7 @@ function getPromotionActionLabel(student: PromotionPreviewStudent) {
     if (student.nextYearLevel === 'Graduated SHS' || student.nextYearLevel === 'Completed JHS') {
       return 'Mark as Graduated/Completed';
     }
-    return 'Move to separated registry';
+    return 'Move to separated promotion level';
   }
   if (student.action === 'RETAIN') return 'Retain in current grade';
   return 'Decision required';
@@ -413,7 +417,7 @@ export default function RegistryPage() {
       const result: RegistryResponse = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to load registry');
+        throw new Error(result.error || 'Failed to load promotion level');
       }
 
       const currentDecisions: Partial<Record<number, StudentTransitionDecision>> = {};
@@ -429,7 +433,7 @@ export default function RegistryPage() {
       setTotalPages(result.totalPages);
       setPendingDecisions(currentDecisions);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load registry';
+      const message = error instanceof Error ? error.message : 'Failed to load promotion level';
       setRows([]);
       setTotal(0);
       setTotalPages(1);
@@ -483,6 +487,10 @@ export default function RegistryPage() {
   useEffect(() => {
     fetchPromotionPreview();
   }, [fetchPromotionPreview]);
+
+  useEffect(() => {
+    setSelectedStudentIds(new Set());
+  }, [promotionFilter]);
 
   const handleDecisionChange = (studentId: number, decision: StudentTransitionDecision) => {
     setPendingDecisions((current) => ({
@@ -541,11 +549,9 @@ export default function RegistryPage() {
   const selectedPromotionSummary = useMemo(
     () => ({
       promote: selectedPromotionStudents.filter((student) => student.action === 'PROMOTE').length,
-      graduate: selectedPromotionStudents.filter(
-        (student) => student.action === 'GRADUATE' || student.action === 'SEPARATE'
-      ).length,
+      archive: Math.max(filteredPromotionStudents.length - selectedPromotionStudents.length, 0),
     }),
-    [selectedPromotionStudents]
+    [filteredPromotionStudents.length, selectedPromotionStudents]
   );
   const allVisiblePromotionStudentsSelected =
     selectableFilteredPromotionStudents.length > 0 &&
@@ -594,15 +600,14 @@ export default function RegistryPage() {
     }
 
     if (selectedPromotionStudents.length === 0) {
-      toast.error('Select at least one eligible student first.');
-      return;
+      toast.message('No continuing students selected. The current cohort will be archived.');
     }
 
     setIsBulkDialogOpen(true);
   };
 
   const handleBulkPromotion = async () => {
-    if (selectedPromotionStudents.length === 0) return;
+    if (filteredPromotionStudents.length === 0) return;
 
     setIsBulkPromoting(true);
     try {
@@ -611,6 +616,7 @@ export default function RegistryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentIds: selectedPromotionStudents.map((student) => student.id),
+          cohortStudentIds: filteredPromotionStudents.map((student) => student.id),
         }),
         credentials: 'include',
       });
@@ -630,7 +636,7 @@ export default function RegistryPage() {
           `Bulk promotion completed with ${result.data.errorCount} issue(s). Review the summary.`
         );
       } else {
-        toast.success(result.message || 'Selected students promoted.');
+        toast.success(result.message || 'Promotion cohort processed.');
       }
 
       setSelectedStudentIds(new Set());
@@ -653,14 +659,15 @@ export default function RegistryPage() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <Badge className="mb-3 border-emerald-200 bg-white/80 text-emerald-700">
-                  Academic Registry
+                  Academic Promotion Level
                 </Badge>
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                  Comprehensive Student Registry
+                  Comprehensive Student Promotion Level
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm text-slate-600">
                   Grade 10 completion, Grade 12 graduation, college continuation, transfer, and
-                  withdrawal records are tracked here without mixing them into manual archives.
+                  withdrawal records are tracked here alongside controlled promotion and archive
+                  decisions.
                 </p>
               </div>
               <div className="rounded-md border border-white/70 bg-white/80 px-4 py-3 text-right shadow-sm">
@@ -681,7 +688,7 @@ export default function RegistryPage() {
                 ) : (
                   <p className="mt-3 text-2xl font-semibold text-slate-950">{stats.total}</p>
                 )}
-                <p className="text-xs font-medium text-slate-500">Registry Records</p>
+                <p className="text-xs font-medium text-slate-500">Promotion Level Records</p>
               </div>
               <div className="rounded-md border border-white/80 bg-white/85 p-4 shadow-sm">
                 <School className="h-4 w-4 text-lime-700" />
@@ -727,11 +734,10 @@ export default function RegistryPage() {
           <div className="flex flex-col justify-between bg-slate-950 p-6 text-white">
             <div>
               <ShieldCheck className="h-7 w-7 text-emerald-300" />
-              <h2 className="mt-4 text-xl font-semibold">Archive stays manual.</h2>
+              <h2 className="mt-4 text-xl font-semibold">Selection controls promotion.</h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">
-                Completed, graduated, transferred, and withdrawn students stay queryable here as
-                academic outcomes. They are not placed in the archive unless an admin explicitly
-                archives the record.
+                Check only students continuing at Bosco/FSE. Unchecked students in the selected
+                cohort are archived so they are not carried into the next academic level.
               </p>
             </div>
             <div className="mt-8 grid grid-cols-2 gap-3 text-sm">
@@ -782,7 +788,7 @@ export default function RegistryPage() {
               disabled={
                 !isAdmin ||
                 promotionLoading ||
-                selectedPromotionStudents.length === 0 ||
+                filteredPromotionStudents.length === 0 ||
                 !!promotionPreview?.activeAcademicYear?.promotionProcessedAt
               }
               className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -792,7 +798,7 @@ export default function RegistryPage() {
               ) : (
                 <GraduationCap className="h-4 w-4" />
               )}
-              Promote/Graduate Selected
+              Process Current Cohort
             </Button>
           </div>
         </div>
@@ -821,8 +827,8 @@ export default function RegistryPage() {
               <p className="font-semibold text-emerald-950">{selectedPromotionSummary.promote}</p>
             </div>
             <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
-              <p className="text-xs font-medium text-orange-700">Graduate/Complete</p>
-              <p className="font-semibold text-orange-950">{selectedPromotionSummary.graduate}</p>
+              <p className="text-xs font-medium text-orange-700">Archive Unchecked</p>
+              <p className="font-semibold text-orange-950">{selectedPromotionSummary.archive}</p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs font-medium text-slate-500">Visible Eligible</p>
@@ -860,9 +866,8 @@ export default function RegistryPage() {
                   <p className="font-semibold text-slate-950">Last bulk promotion summary</p>
                   <p className="mt-1 text-sm text-slate-600">
                     {bulkPromotionResult.promotedCount} promoted,{' '}
-                    {bulkPromotionResult.graduatedCount} graduated/completed,{' '}
-                    {bulkPromotionResult.skippedCount} skipped, {bulkPromotionResult.errorCount}{' '}
-                    issue(s).
+                    {bulkPromotionResult.archivedCount} archived, {bulkPromotionResult.skippedCount}{' '}
+                    skipped, {bulkPromotionResult.errorCount} issue(s).
                   </p>
                 </div>
               </div>
@@ -999,17 +1004,18 @@ export default function RegistryPage() {
       <AlertDialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Promote/Graduate Selected Students</AlertDialogTitle>
+            <AlertDialogTitle>Process Promotion Cohort</AlertDialogTitle>
             <AlertDialogDescription>
-              Confirm the selected bulk operation before student records are updated.
+              Checked students will continue at Bosco/FSE and be promoted. Unchecked students in
+              this filtered cohort will be archived.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-medium text-slate-500">Selected</p>
+                <p className="text-xs font-medium text-slate-500">Cohort</p>
                 <p className="mt-1 text-xl font-semibold text-slate-950">
-                  {selectedPromotionStudents.length}
+                  {filteredPromotionStudents.length}
                 </p>
               </div>
               <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
@@ -1019,9 +1025,9 @@ export default function RegistryPage() {
                 </p>
               </div>
               <div className="rounded-md border border-orange-200 bg-orange-50 p-3">
-                <p className="text-xs font-medium text-orange-700">Graduate/Complete</p>
+                <p className="text-xs font-medium text-orange-700">Archive</p>
                 <p className="mt-1 text-xl font-semibold text-orange-950">
-                  {selectedPromotionSummary.graduate}
+                  {selectedPromotionSummary.archive}
                 </p>
               </div>
             </div>
@@ -1036,13 +1042,21 @@ export default function RegistryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {selectedPromotionStudents.map((student) => (
+                  {filteredPromotionStudents.map((student) => (
                     <TableRow key={student.id}>
                       <TableCell>
                         {student.lastName}, {student.firstName}
                       </TableCell>
-                      <TableCell>{getPromotionActionLabel(student)}</TableCell>
-                      <TableCell>{formatPromotionTarget(student)}</TableCell>
+                      <TableCell>
+                        {selectedStudentIds.has(student.id)
+                          ? 'Promote to next grade level'
+                          : 'Archive as non-continuing'}
+                      </TableCell>
+                      <TableCell>
+                        {selectedStudentIds.has(student.id)
+                          ? formatPromotionTarget(student)
+                          : 'Archived'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1060,7 +1074,7 @@ export default function RegistryPage() {
               className="bg-emerald-600 text-white hover:bg-emerald-700"
             >
               {isBulkPromoting && <Loader2 className="h-4 w-4 animate-spin" />}
-              Confirm Bulk Promotion
+              Confirm Cohort Processing
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1083,11 +1097,11 @@ export default function RegistryPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Registry Records</SelectItem>
+                <SelectItem value="all">All Promotion Level Records</SelectItem>
                 <SelectItem value="grade-school-to-jhs">Grade 6 to Junior High</SelectItem>
                 <SelectItem value="jhs-to-shs">Grade 10 to Senior High</SelectItem>
                 <SelectItem value="shs-to-college">Grade 12 to College</SelectItem>
-                <SelectItem value="separated">Separated Registry</SelectItem>
+                <SelectItem value="separated">Separated Promotion Level</SelectItem>
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
@@ -1160,13 +1174,13 @@ export default function RegistryPage() {
               ) : errorMessage ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-32 text-center text-sm text-rose-600">
-                    Registry could not load: {errorMessage}
+                    Promotion Level could not load: {errorMessage}
                   </TableCell>
                 </TableRow>
               ) : rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-32 text-center text-sm text-slate-500">
-                    No registry records match the current filters.
+                    No promotion level records match the current filters.
                   </TableCell>
                 </TableRow>
               ) : (

@@ -39,9 +39,9 @@ const LOGO_IMAGE_URL = '/images/logo.webp';
 const navigationItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Students', href: '/students', icon: Users },
-  { name: 'Registry', href: '/registry', icon: ClipboardList },
+  { name: 'Promotion Level', href: '/registry', icon: ClipboardList },
   { name: 'Scholarships', href: '/scholarships', icon: GraduationCap },
-  { name: 'Flow', href: '/scholarship-flow', icon: TrendingUp },
+  { name: 'Comparative Data', href: '/scholarship-flow', icon: TrendingUp },
   { name: 'Reports', href: '/reports', icon: FileSpreadsheet },
   { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ];

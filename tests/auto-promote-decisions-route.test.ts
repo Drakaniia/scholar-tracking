@@ -35,6 +35,37 @@ function decisionRequest(decisions: Array<{ studentId: number; decision: string 
   });
 }
 
+describe('POST /api/academic-years/auto-promote', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cookieGetMock.mockReturnValue({ value: 'test-token' });
+    verifyTokenMock.mockResolvedValue({ id: 1, role: 'ADMIN' });
+  });
+
+  it('rejects legacy all-student promotion runs', async () => {
+    const { POST } = await import('@/app/api/academic-years/auto-promote/route');
+    const response = await POST();
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('All-student promotion is disabled');
+    expect(prismaMock.student.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-admin legacy promotion access', async () => {
+    verifyTokenMock.mockResolvedValueOnce({ id: 2, role: 'STAFF' });
+
+    const { POST } = await import('@/app/api/academic-years/auto-promote/route');
+    const response = await POST();
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.success).toBe(false);
+  });
+});
+
 describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -116,7 +147,9 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
     ]);
 
     const { PATCH } = await import('@/app/api/academic-years/auto-promote/route');
-    const response = await PATCH(decisionRequest([{ studentId: 10, decision: 'CONTINUE_COLLEGE' }]));
+    const response = await PATCH(
+      decisionRequest([{ studentId: 10, decision: 'CONTINUE_COLLEGE' }])
+    );
     const body = await response.json();
 
     expect(response.status).toBe(400);
