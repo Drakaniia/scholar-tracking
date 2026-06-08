@@ -7,7 +7,7 @@ import {
   StudentTransitionDecision,
 } from '@/types';
 
-const BOUNDARY_YEAR_LEVELS = ['Grade 10', 'Grade 12'];
+const BOUNDARY_YEAR_LEVELS = ['Grade 6', 'Grade 10', 'Grade 12'];
 const SEPARATED_OUTCOMES = [
   'COMPLETED_JHS',
   'GRADUATED_SHS',
@@ -21,6 +21,7 @@ const OUTCOME_LABELS: Record<string, string> = {
   GRADUATED_COLLEGE: 'Graduated College',
   TRANSFERRED_OUT: 'Transferred Out',
   PENDING_DECISION: 'Pending Decision',
+  READY_FOR_PROMOTION: 'Ready for Promotion',
 };
 
 function formatDecision(decision?: string | null) {
@@ -101,8 +102,17 @@ type RegistryRow = {
   status: string;
   separatedAt: Date | null;
   recordedAt: Date | null;
-  lane: 'jhs-to-shs' | 'shs-to-college' | 'separated' | 'other';
+  lane: 'grade-school-to-jhs' | 'jhs-to-shs' | 'shs-to-college' | 'separated' | 'other';
+  canDecide: boolean;
+  requiresDecision: boolean;
 };
+
+function getBoundaryLane(yearLevel: string) {
+  if (yearLevel === 'Grade 6') return 'grade-school-to-jhs';
+  if (yearLevel === 'Grade 10') return 'jhs-to-shs';
+  if (yearLevel === 'Grade 12') return 'shs-to-college';
+  return 'other';
+}
 
 // GET /api/registry - Comprehensive year-end transition and separated-student registry
 export async function GET(request: NextRequest) {
@@ -179,14 +189,13 @@ export async function GET(request: NextRequest) {
         record.nextGradeLevel && record.nextYearLevel
           ? `${record.nextGradeLevel} - ${record.nextYearLevel}`
           : record.outcome || record.status;
+      const boundaryLane = getBoundaryLane(record.yearLevel);
       const laneFromRecord =
-        record.yearLevel === 'Grade 10'
-          ? 'jhs-to-shs'
-          : record.yearLevel === 'Grade 12'
-            ? 'shs-to-college'
-            : isSeparatedOutcome(record.outcome)
-              ? 'separated'
-              : 'other';
+        boundaryLane !== 'other'
+          ? boundaryLane
+          : isSeparatedOutcome(record.outcome)
+            ? 'separated'
+            : 'other';
 
       return {
         id: `record-${record.id}`,
@@ -203,6 +212,8 @@ export async function GET(request: NextRequest) {
         separatedAt: record.student.separatedAt,
         recordedAt: record.endedAt || record.createdAt,
         lane: laneFromRecord,
+        canDecide: false,
+        requiresDecision: false,
       };
     });
 
@@ -217,7 +228,8 @@ export async function GET(request: NextRequest) {
       .filter((student) => !studentsWithRegistryRows.has(student.id))
       .map((student) => {
         const latestRecord = student.academicRecords[0];
-        const laneFromStudent = student.yearLevel === 'Grade 10' ? 'jhs-to-shs' : 'shs-to-college';
+        const laneFromStudent = getBoundaryLane(student.yearLevel);
+        const isGradeSixBoundary = student.yearLevel === 'Grade 6';
 
         return {
           id: `current-${student.id}`,
@@ -226,16 +238,25 @@ export async function GET(request: NextRequest) {
           program: student.program,
           academicYear: latestRecord?.academicYear || 'Current record',
           fromLevel: `${student.gradeLevel} - ${student.yearLevel}`,
-          toLevel: student.transitionDecision
-            ? formatDecision(student.transitionDecision)
-            : 'Pending decision',
-          outcome: 'PENDING_DECISION',
+          toLevel: isGradeSixBoundary
+            ? 'Junior High - Grade 7'
+            : student.transitionDecision
+              ? formatDecision(student.transitionDecision)
+              : 'Pending decision',
+          outcome:
+            isGradeSixBoundary || student.transitionDecision
+              ? 'READY_FOR_PROMOTION'
+              : 'PENDING_DECISION',
           decision: student.transitionDecision,
-          decisionLabel: formatDecision(student.transitionDecision),
+          decisionLabel: isGradeSixBoundary
+            ? 'Automatic promotion'
+            : formatDecision(student.transitionDecision),
           status: student.status,
           separatedAt: student.separatedAt,
           recordedAt: student.transitionDecisionAt || latestRecord?.createdAt || student.updatedAt,
           lane: laneFromStudent,
+          canDecide: !isGradeSixBoundary,
+          requiresDecision: !isGradeSixBoundary && !student.transitionDecision,
         };
       });
 
@@ -259,6 +280,8 @@ export async function GET(request: NextRequest) {
           separatedAt: student.separatedAt,
           recordedAt: student.separatedAt || student.updatedAt,
           lane: 'separated',
+          canDecide: false,
+          requiresDecision: false,
         };
       });
 
@@ -272,6 +295,7 @@ export async function GET(request: NextRequest) {
 
     const stats = {
       total: allRows.length,
+      gradeSchoolToJhs: allRows.filter((row) => row.lane === 'grade-school-to-jhs').length,
       jhsToShs: allRows.filter((row) => row.lane === 'jhs-to-shs').length,
       shsToCollege: allRows.filter((row) => row.lane === 'shs-to-college').length,
       separated: allRows.filter((row) => row.lane === 'separated').length,

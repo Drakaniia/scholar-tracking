@@ -9,9 +9,33 @@ import {
 } from '@/lib/academic-year-service';
 import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { STUDENT_TRANSITION_DECISIONS } from '@/types';
+import { SEPARATED_STUDENT_STATUSES, STUDENT_TRANSITION_DECISIONS } from '@/types';
 
 const ACTIVE_PROMOTION_STATUSES = ['PENDING', 'PROCESSING'];
+const GRADE_10_TRANSITION_DECISIONS = new Set([
+  'CONTINUE_SENIOR_HIGH',
+  'COMPLETED_JHS',
+  'TRANSFERRED_OUT',
+  'WITHDRAWN',
+  'RETAINED',
+]);
+const GRADE_12_TRANSITION_DECISIONS = new Set([
+  'CONTINUE_COLLEGE',
+  'GRADUATED_SHS',
+  'TRANSFERRED_OUT',
+  'WITHDRAWN',
+  'RETAINED',
+]);
+
+function getAllowedTransitionDecisions(yearLevel: string) {
+  if (yearLevel === 'Grade 10') return GRADE_10_TRANSITION_DECISIONS;
+  if (yearLevel === 'Grade 12') return GRADE_12_TRANSITION_DECISIONS;
+  return null;
+}
+
+function isSeparatedStatus(status?: string | null) {
+  return !!status && (SEPARATED_STUDENT_STATUSES as readonly string[]).includes(status);
+}
 
 async function getLatestPromotionRun(academicYearId: number) {
   return prisma.promotionRun.findFirst({
@@ -175,9 +199,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const decisions = Array.isArray(body?.decisions) ? body.decisions : [];
+    const rawDecisions = Array.isArray(body?.decisions) ? body.decisions : [];
 
-    if (decisions.length === 0) {
+    if (rawDecisions.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one transition decision is required.' },
         { status: 400 }
@@ -185,10 +209,64 @@ export async function PATCH(request: NextRequest) {
     }
 
     const allowedDecisions = new Set<string>(STUDENT_TRANSITION_DECISIONS);
-    for (const decision of decisions) {
+    for (const decision of rawDecisions) {
       if (!Number.isInteger(decision?.studentId) || !allowedDecisions.has(decision?.decision)) {
         return NextResponse.json(
           { success: false, error: 'Invalid transition decision payload.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const decisions = rawDecisions as Array<{ studentId: number; decision: string }>;
+    const studentIds = [...new Set(decisions.map((decision) => decision.studentId))];
+    const decisionTargets = await prisma.student.findMany({
+      where: {
+        id: { in: studentIds },
+      },
+      select: {
+        id: true,
+        yearLevel: true,
+        status: true,
+        graduationStatus: true,
+        isArchived: true,
+      },
+    });
+    const studentsById = new Map(decisionTargets.map((student) => [student.id, student]));
+
+    for (const decision of decisions) {
+      const student = studentsById.get(decision.studentId);
+
+      if (!student) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid transition decision target.' },
+          { status: 400 }
+        );
+      }
+
+      const allowedForYearLevel = getAllowedTransitionDecisions(student.yearLevel);
+      if (
+        !allowedForYearLevel ||
+        student.isArchived ||
+        student.status !== 'Active' ||
+        isSeparatedStatus(student.status) ||
+        isSeparatedStatus(student.graduationStatus)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Only active Grade 10 and Grade 12 students can receive transition decisions.',
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!allowedForYearLevel.has(decision.decision)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Invalid transition decision for ${student.yearLevel}.`,
+          },
           { status: 400 }
         );
       }

@@ -24,7 +24,7 @@ describe('registry route', () => {
     vi.clearAllMocks();
   });
 
-  it('shows current Grade 10 and Grade 12 students as pending decisions when no history exists', async () => {
+  it('shows current Grade 10 and Grade 12 decision states when no history exists', async () => {
     prismaMock.studentAcademicRecord.findMany.mockResolvedValueOnce([]);
     prismaMock.student.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {
@@ -79,12 +79,16 @@ describe('registry route', () => {
           outcome: 'PENDING_DECISION',
           lane: 'jhs-to-shs',
           toLevel: 'Pending decision',
+          canDecide: true,
+          requiresDecision: true,
         }),
         expect.objectContaining({
           studentId: 12,
-          outcome: 'PENDING_DECISION',
+          outcome: 'READY_FOR_PROMOTION',
           lane: 'shs-to-college',
           toLevel: 'Continue to College',
+          canDecide: true,
+          requiresDecision: false,
         }),
       ])
     );
@@ -124,7 +128,54 @@ describe('registry route', () => {
       status: 'GRADUATED_SHS',
       toLevel: 'Graduated SHS',
       lane: 'separated',
+      canDecide: false,
+      requiresDecision: false,
     });
+  });
+
+  it('shows current Grade 6 students as ready for Junior High promotion', async () => {
+    prismaMock.studentAcademicRecord.findMany.mockResolvedValueOnce([]);
+    prismaMock.student.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: 6,
+        firstName: 'MARCO',
+        lastName: 'VILLANUEVA',
+        program: 'Grade School',
+        gradeLevel: 'GRADE_SCHOOL',
+        yearLevel: 'Grade 6',
+        status: 'Active',
+        graduationStatus: 'Active',
+        transitionDecision: null,
+        transitionDecisionAt: null,
+        separatedAt: null,
+        updatedAt: new Date('2026-05-31T00:00:00.000Z'),
+        academicRecords: [],
+      },
+    ]);
+
+    const { GET } = await import('@/app/api/registry/route');
+    const response = await GET(registryRequest('?limit=50&lane=grade-school-to-jhs'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.stats).toMatchObject({
+      gradeSchoolToJhs: 1,
+      jhsToShs: 0,
+      shsToCollege: 0,
+      separated: 0,
+    });
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        studentId: 6,
+        lane: 'grade-school-to-jhs',
+        outcome: 'READY_FOR_PROMOTION',
+        toLevel: 'Junior High - Grade 7',
+        decisionLabel: 'Automatic promotion',
+        canDecide: false,
+        requiresDecision: false,
+      }),
+    ]);
   });
 
   it('returns an actionable migration error when registry tables are missing', async () => {
