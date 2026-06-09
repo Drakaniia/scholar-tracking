@@ -1,25 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import { keepPreviousData } from '@tanstack/react-query';
 import {
   Archive,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Filter,
+  ChevronUp,
   GraduationCap,
   Pencil,
   Plus,
-  Search,
   User,
-  X,
 } from 'lucide-react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { ScholarshipForm } from '@/components/forms';
 import { PageHeader } from '@/components/layout';
-import { ExportButton } from '@/components/shared';
+import {
+  type ActiveFilter,
+  ExportButton,
+  FilterCard,
+  FilterField,
+  FilterSearchField,
+} from '@/components/shared';
 import {
   COMPACT_DIALOG_CONTENT_CLASS,
   DETAIL_DIALOG_CONTENT_CLASS,
@@ -39,7 +44,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -67,7 +71,7 @@ import {
 } from '@/hooks/use-queries';
 import { canManageStudentsAndScholarships, isAdminRole } from '@/lib/rbac';
 import { getCoveredTermsLabel } from '@/lib/terms';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { CreateScholarshipInput, GrantType, Scholarship, StudentScholarship } from '@/types';
 import { GRADE_LEVEL_LABELS, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
@@ -122,39 +126,77 @@ interface ScholarshipCounts {
   external: number;
 }
 
+const SCHOLARSHIP_TABLE_HEAD_CLASS =
+  'px-1.5 py-2 text-[11px] font-semibold uppercase leading-tight tracking-wide text-slate-500 whitespace-normal';
+const SCHOLARSHIP_TABLE_CELL_CLASS = 'px-1.5 py-2 align-top text-xs leading-snug whitespace-normal';
+const SCHOLARSHIP_BADGE_CLASS =
+  'h-auto max-w-full justify-start whitespace-normal px-1.5 py-0.5 text-[11px] leading-tight';
+const ASSIGNED_STUDENTS_PREVIEW_LIMIT = 5;
+
+function getGrantTypeLabel(grantType: GrantType) {
+  if (grantType === 'TUITION_ONLY') return 'Free Tuition';
+  if (grantType === 'FULL') return 'Full Grant';
+  if (grantType === 'NONE') return 'None';
+  return grantType.replace('_', ' ');
+}
+
+function getScholarshipAmountLabel(scholarship: ScholarshipWithCount) {
+  if (scholarship.grantType === 'TUITION_ONLY') return 'Free Tuition';
+  if (scholarship.grantType === 'NONE') return 'No cash grant';
+  return formatCurrency(scholarship.amount);
+}
+
+function getStudentCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'student' : 'students'}`;
+}
+
+function ScholarshipFact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-md border border-slate-200 bg-white px-2.5 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <div className="mt-1 min-w-0 text-sm text-slate-950">{children}</div>
+    </div>
+  );
+}
+
 function ScholarshipTableLoading({ canManageScholarships }: { canManageScholarships: boolean }) {
-  const columns = canManageScholarships ? 9 : 8;
+  const columns = canManageScholarships ? 10 : 9;
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-hidden rounded-lg border border-slate-200">
+      <Table className="table-fixed text-xs">
         <TableHeader>
-          <TableRow>
-            <TableHead>Scholarship Name</TableHead>
-            <TableHead>Sponsor</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Grant Type</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead>Students</TableHead>
-            <TableHead>Status</TableHead>
-            {canManageScholarships && <TableHead className="text-right">Actions</TableHead>}
+          <TableRow className="bg-slate-50/80">
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Scholarship</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Sponsor</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Type</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Grant</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Terms</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Source</TableHead>
+            <TableHead className={cn(SCHOLARSHIP_TABLE_HEAD_CLASS, 'text-right')}>Amount</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Students</TableHead>
+            <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Status</TableHead>
+            {canManageScholarships && (
+              <TableHead className={cn(SCHOLARSHIP_TABLE_HEAD_CLASS, 'text-right')}>
+                Actions
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {[...Array(6)].map((_, rowIndex) => (
             <TableRow key={rowIndex}>
               {[...Array(columns)].map((_, columnIndex) => (
-                <TableCell key={columnIndex}>
+                <TableCell key={columnIndex} className={SCHOLARSHIP_TABLE_CELL_CLASS}>
                   <Skeleton
                     className={`h-4 animate-pulse rounded bg-muted ${
                       columnIndex === 0
-                        ? 'w-36'
-                        : columnIndex === 5
+                        ? 'w-full'
+                        : columnIndex === 6
                           ? 'ml-auto w-20'
                           : canManageScholarships && columnIndex === columns - 1
-                            ? 'ml-auto w-16'
-                            : 'w-24'
+                            ? 'ml-auto w-14'
+                            : 'w-full'
                     }`}
                   />
                 </TableCell>
@@ -257,6 +299,7 @@ export default function ScholarshipsPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedScholarship, setSelectedScholarship] = useState<ScholarshipDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [showAllAssignedStudents, setShowAllAssignedStudents] = useState(false);
 
   // TanStack Query hooks for data fetching
   const {
@@ -393,11 +436,55 @@ export default function ScholarshipsPage() {
     setSelectedScholarship({ id: scholarshipId } as ScholarshipDetail);
     setDetailDialogOpen(true);
     setLoadingDetail(true);
+    setShowAllAssignedStudents(false);
     // useScholarship hook will fetch automatically due to enabled: !!selectedScholarship?.id
   };
 
   const listLoading = scholarshipsLoading || scholarshipsFetching;
   const showPagination = scholarships.length > 0;
+  const scholarshipTableColumnWidths = canManageScholarships
+    ? [18, 12, 8, 10, 10, 8, 9, 7, 7, 9]
+    : [20, 14, 9, 11, 11, 9, 10, 8, 8];
+  const clearScholarshipFilters = () => {
+    setSearch('');
+    setSourceFilter('all');
+  };
+  const scholarshipActiveFilters: ActiveFilter[] = [
+    ...(search.trim()
+      ? [
+          {
+            key: 'search',
+            label: 'Search',
+            value: search.trim(),
+            onRemove: () => setSearch(''),
+          },
+        ]
+      : []),
+    ...(sourceFilter !== 'all'
+      ? [
+          {
+            key: 'source',
+            label: 'Source',
+            value:
+              SCHOLARSHIP_SOURCE_LABELS[sourceFilter as keyof typeof SCHOLARSHIP_SOURCE_LABELS] ||
+              sourceFilter,
+            onRemove: () => setSourceFilter('all'),
+          },
+        ]
+      : []),
+  ];
+  const scholarshipResultLabel = `${total.toLocaleString()} ${
+    total === 1 ? 'scholarship' : 'scholarships'
+  } found`;
+  const assignedStudents = selectedScholarship?.students || [];
+  const assignedStudentCount = assignedStudents.length;
+  const hiddenAssignedStudentCount = Math.max(
+    assignedStudentCount - ASSIGNED_STUDENTS_PREVIEW_LIMIT,
+    0
+  );
+  const visibleAssignedStudents = showAllAssignedStudents
+    ? assignedStudents
+    : assignedStudents.slice(0, ASSIGNED_STUDENTS_PREVIEW_LIMIT);
 
   return (
     <div>
@@ -413,64 +500,36 @@ export default function ScholarshipsPage() {
         </div>
       </PageHeader>
 
-      {/* Filters */}
-      <Card className="mb-4 border-gray-200">
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-2">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or sponsor..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-9"
-              />
-            </div>
+      <FilterCard
+        title="Scholarship filters"
+        resultLabel={scholarshipResultLabel}
+        activeFilters={scholarshipActiveFilters}
+        onClear={clearScholarshipFilters}
+      >
+        <FilterSearchField
+          placeholder="Search by name or sponsor..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          containerClassName="md:col-span-2"
+        />
 
-            {/* Filter Section */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                <Filter className="h-4 w-4" />
-                <span>Filters:</span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="h-8 w-[220px] text-xs">
-                    <SelectValue placeholder="Filter by source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources ({counts.total})</SelectItem>
-                    {SCHOLARSHIP_SOURCES.map((source) => (
-                      <SelectItem key={source} value={source}>
-                        {SCHOLARSHIP_SOURCE_LABELS[source]}{' '}
-                        {source === 'INTERNAL' ? `(${counts.internal})` : `(${counts.external})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Clear Filters Button */}
-                {(sourceFilter !== 'all' || search) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSearch('');
-                      setSourceFilter('all');
-                    }}
-                    className="h-8 px-2 text-xs"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <FilterField label="Source">
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Filter by source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources ({counts.total})</SelectItem>
+              {SCHOLARSHIP_SOURCES.map((source) => (
+                <SelectItem key={source} value={source}>
+                  {SCHOLARSHIP_SOURCE_LABELS[source]}{' '}
+                  {source === 'INTERNAL' ? `(${counts.internal})` : `(${counts.external})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+      </FilterCard>
 
       <Card className="border-gray-200">
         <CardHeader>
@@ -510,94 +569,53 @@ export default function ScholarshipsPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Scholarship Name</TableHead>
-                    <TableHead>Sponsor</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Grant Type</TableHead>
-                    <TableHead>Terms</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Students</TableHead>
-                    <TableHead>Status</TableHead>
-                    {canManageScholarships && <TableHead className="text-right">Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {scholarships.map((scholarship) => (
-                    <TableRow
+            <>
+              <div className="grid gap-3 xl:hidden">
+                {scholarships.map((scholarship) => {
+                  const studentCount = (scholarship as ScholarshipWithCount)._count?.students || 0;
+
+                  return (
+                    <div
                       key={scholarship.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      role="button"
+                      tabIndex={0}
+                      className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50/50 p-3 transition-colors hover:border-slate-300 hover:bg-white"
                       onClick={() => handleViewDetails(scholarship.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleViewDetails(scholarship.id);
+                        }
+                      }}
                     >
-                      <TableCell className="font-medium">
-                        <Badge
-                          variant="outline"
-                          style={{
-                            backgroundColor: getScholarshipColor(scholarship.scholarshipName),
-                            color: '#374151',
-                            borderColor: getScholarshipColor(scholarship.scholarshipName),
-                          }}
-                        >
-                          {scholarship.scholarshipName}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{scholarship.sponsor}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{scholarship.type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={scholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'}
-                        >
-                          {scholarship.grantType === 'TUITION_ONLY'
-                            ? 'Free Tuition'
-                            : scholarship.grantType === 'FULL'
-                              ? 'Full Grant'
-                              : scholarship.grantType === 'NONE'
-                                ? 'None'
-                                : scholarship.grantType.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {getCoveredTermsLabel(scholarship.coveredTerms)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}
-                        >
-                          {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {scholarship.grantType === 'TUITION_ONLY' ||
-                        scholarship.grantType === 'NONE' ? (
-                          <span className="text-muted-foreground">Free Tuition</span>
-                        ) : (
-                          formatCurrency(scholarship.amount)
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(scholarship as ScholarshipWithCount)._count?.students || 0} students
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={scholarship.status === 'Active' ? 'default' : 'secondary'}>
-                          {scholarship.status}
-                        </Badge>
-                      </TableCell>
-                      {canManageScholarships && (
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-start gap-2">
+                            <span
+                              className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: getScholarshipColor(scholarship.scholarshipName),
+                              }}
+                            />
+                            <h3 className="break-words text-sm font-semibold leading-snug text-slate-950">
+                              {scholarship.scholarshipName}
+                            </h3>
+                          </div>
+                          <p className="mt-1 break-words pl-4 text-xs text-slate-600">
+                            {scholarship.sponsor}
+                          </p>
+                        </div>
+                        {canManageScholarships && (
+                          <div
+                            className="flex shrink-0 gap-1"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => openEditDialog(scholarship)}
-                              className="cursor-pointer zoom-hover"
+                              className="h-8 w-8 cursor-pointer"
+                              aria-label={`Edit ${scholarship.scholarshipName}`}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -607,19 +625,211 @@ export default function ScholarshipsPage() {
                                 size="icon"
                                 onClick={() => openDeleteDialog(scholarship)}
                                 title="Archive scholarship"
-                                className="cursor-pointer zoom-hover"
+                                className="h-8 w-8 cursor-pointer"
+                                aria-label={`Archive ${scholarship.scholarshipName}`}
                               >
                                 <Archive className="h-4 w-4 text-destructive" />
                               </Button>
                             )}
                           </div>
-                        </TableCell>
+                        )}
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <ScholarshipFact label="Type">
+                          <Badge variant="outline" className={SCHOLARSHIP_BADGE_CLASS}>
+                            {scholarship.type}
+                          </Badge>
+                        </ScholarshipFact>
+                        <ScholarshipFact label="Grant">
+                          <Badge
+                            variant={
+                              scholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'
+                            }
+                            className={SCHOLARSHIP_BADGE_CLASS}
+                          >
+                            {getGrantTypeLabel(scholarship.grantType as GrantType)}
+                          </Badge>
+                        </ScholarshipFact>
+                        <ScholarshipFact label="Terms">
+                          <span className="break-words text-xs">
+                            {getCoveredTermsLabel(scholarship.coveredTerms)}
+                          </span>
+                        </ScholarshipFact>
+                        <ScholarshipFact label="Source">
+                          <Badge
+                            variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}
+                            className={SCHOLARSHIP_BADGE_CLASS}
+                          >
+                            {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                          </Badge>
+                        </ScholarshipFact>
+                        <ScholarshipFact label="Amount">
+                          <span className="break-words text-xs font-semibold">
+                            {getScholarshipAmountLabel(scholarship)}
+                          </span>
+                        </ScholarshipFact>
+                        <ScholarshipFact label="Students">
+                          <span className="text-xs">{getStudentCountLabel(studentCount)}</span>
+                        </ScholarshipFact>
+                        <ScholarshipFact label="Status">
+                          <Badge
+                            variant={scholarship.status === 'Active' ? 'default' : 'secondary'}
+                            className={SCHOLARSHIP_BADGE_CLASS}
+                          >
+                            {scholarship.status}
+                          </Badge>
+                        </ScholarshipFact>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-hidden rounded-lg border border-slate-200 xl:block">
+                <Table className="table-fixed text-[12px]">
+                  <colgroup>
+                    {scholarshipTableColumnWidths.map((width, index) => (
+                      <col key={index} style={{ width: `${width}%` }} />
+                    ))}
+                  </colgroup>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50/80">
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Scholarship</TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Sponsor</TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Type</TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Grant</TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Terms</TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Source</TableHead>
+                      <TableHead className={cn(SCHOLARSHIP_TABLE_HEAD_CLASS, 'text-right')}>
+                        Amount
+                      </TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Students</TableHead>
+                      <TableHead className={SCHOLARSHIP_TABLE_HEAD_CLASS}>Status</TableHead>
+                      {canManageScholarships && (
+                        <TableHead className={cn(SCHOLARSHIP_TABLE_HEAD_CLASS, 'text-right')}>
+                          Actions
+                        </TableHead>
                       )}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {scholarships.map((scholarship) => (
+                      <TableRow
+                        key={scholarship.id}
+                        className="cursor-pointer hover:bg-slate-50"
+                        onClick={() => handleViewDetails(scholarship.id)}
+                      >
+                        <TableCell className={cn(SCHOLARSHIP_TABLE_CELL_CLASS, 'font-medium')}>
+                          <div className="flex min-w-0 items-start gap-2">
+                            <span
+                              className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: getScholarshipColor(scholarship.scholarshipName),
+                              }}
+                            />
+                            <span
+                              className="min-w-0 break-words text-slate-950"
+                              title={scholarship.scholarshipName}
+                            >
+                              {scholarship.scholarshipName}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          <span className="break-words text-slate-600" title={scholarship.sponsor}>
+                            {scholarship.sponsor}
+                          </span>
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          <Badge variant="outline" className={SCHOLARSHIP_BADGE_CLASS}>
+                            {scholarship.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          <Badge
+                            variant={
+                              scholarship.grantType === 'TUITION_ONLY' ? 'outline' : 'default'
+                            }
+                            className={SCHOLARSHIP_BADGE_CLASS}
+                          >
+                            {getGrantTypeLabel(scholarship.grantType as GrantType)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          <Badge variant="outline" className={SCHOLARSHIP_BADGE_CLASS}>
+                            {getCoveredTermsLabel(scholarship.coveredTerms)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          <Badge
+                            variant={scholarship.source === 'INTERNAL' ? 'default' : 'secondary'}
+                            className={SCHOLARSHIP_BADGE_CLASS}
+                          >
+                            {scholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={cn(SCHOLARSHIP_TABLE_CELL_CLASS, 'text-right')}>
+                          <span
+                            className={cn(
+                              'break-words font-semibold',
+                              (scholarship.grantType === 'TUITION_ONLY' ||
+                                scholarship.grantType === 'NONE') &&
+                                'text-muted-foreground'
+                            )}
+                          >
+                            {getScholarshipAmountLabel(scholarship)}
+                          </span>
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          {getStudentCountLabel(
+                            (scholarship as ScholarshipWithCount)._count?.students || 0
+                          )}
+                        </TableCell>
+                        <TableCell className={SCHOLARSHIP_TABLE_CELL_CLASS}>
+                          <Badge
+                            variant={scholarship.status === 'Active' ? 'default' : 'secondary'}
+                            className={SCHOLARSHIP_BADGE_CLASS}
+                          >
+                            {scholarship.status}
+                          </Badge>
+                        </TableCell>
+                        {canManageScholarships && (
+                          <TableCell
+                            className={cn(SCHOLARSHIP_TABLE_CELL_CLASS, 'text-right')}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(scholarship)}
+                                className="h-7 w-7 cursor-pointer zoom-hover"
+                                aria-label={`Edit ${scholarship.scholarshipName}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteDialog(scholarship)}
+                                  title="Archive scholarship"
+                                  className="h-7 w-7 cursor-pointer zoom-hover"
+                                  aria-label={`Archive ${scholarship.scholarshipName}`}
+                                >
+                                  <Archive className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
 
           {/* Pagination Controls */}
@@ -735,7 +945,15 @@ export default function ScholarshipsPage() {
       </Dialog>
 
       {/* Scholarship Detail Dialog */}
-      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+      <Dialog
+        open={detailDialogOpen}
+        onOpenChange={(open) => {
+          setDetailDialogOpen(open);
+          if (!open) {
+            setShowAllAssignedStudents(false);
+          }
+        }}
+      >
         <DialogContent className={DETAIL_DIALOG_CONTENT_CLASS}>
           <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>{selectedScholarship && selectedScholarship.scholarshipName}</DialogTitle>
@@ -957,13 +1175,20 @@ export default function ScholarshipsPage() {
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Assigned Students</h3>
-                    <Badge variant="outline" className="text-sm">
-                      {selectedScholarship.students?.length || 0} students
-                    </Badge>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {hiddenAssignedStudentCount > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          Showing {visibleAssignedStudents.length} of {assignedStudentCount}
+                        </span>
+                      )}
+                      <Badge variant="outline" className="text-sm">
+                        {assignedStudentCount} students
+                      </Badge>
+                    </div>
                   </div>
-                  {selectedScholarship.students && selectedScholarship.students.length > 0 ? (
+                  {assignedStudentCount > 0 ? (
                     <div className="space-y-3">
-                      {selectedScholarship.students.map((ss) => (
+                      {visibleAssignedStudents.map((ss) => (
                         <Card key={ss.id} className="border">
                           <CardContent className="p-4">
                             <div className="flex justify-between items-start mb-3">
@@ -1024,6 +1249,38 @@ export default function ScholarshipsPage() {
                           </CardContent>
                         </Card>
                       ))}
+                      {hiddenAssignedStudentCount > 0 && (
+                        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/80 p-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-slate-600">
+                              {showAllAssignedStudents
+                                ? 'Full assigned student list is visible.'
+                                : `${hiddenAssignedStudentCount} more assigned ${
+                                    hiddenAssignedStudentCount === 1 ? 'student' : 'students'
+                                  } hidden to keep this modal compact.`}
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 bg-white"
+                              onClick={() => setShowAllAssignedStudents((current) => !current)}
+                            >
+                              {showAllAssignedStudents ? (
+                                <>
+                                  <ChevronUp className="mr-2 h-4 w-4" />
+                                  Show less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="mr-2 h-4 w-4" />
+                                  Show all students
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       <div className="mt-4 p-4 bg-primary/10 rounded-lg">
                         <p className="text-sm font-medium text-muted-foreground">
                           Total Grants Awarded
