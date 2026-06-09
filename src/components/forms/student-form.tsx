@@ -51,6 +51,10 @@ import {
   useCreateAcademicYear,
   useUpdateAcademicYear,
 } from '@/hooks/use-queries';
+import {
+  getUnavailableAcademicYearIdsForScholarship,
+  hasScholarshipSelectionForAcademicYear,
+} from '@/lib/student-scholarship-year-options';
 import { getCoveredTermsLabel } from '@/lib/terms';
 import { isScholarshipEligibleForStudent } from '@/lib/validations';
 import {
@@ -377,6 +381,10 @@ export function StudentForm({
         setScholarships(data.data);
       }
     } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+
       console.error('Error fetching scholarships:', error);
     } finally {
       setLoadingScholarships(false);
@@ -385,11 +393,26 @@ export function StudentForm({
 
   const handleAcademicYearChange = (clientKey: string, value: string) => {
     const academicYearId = Number(value);
-    updateScholarship(
-      clientKey,
-      'academicYearId',
-      Number.isInteger(academicYearId) ? academicYearId : null
+    const selectedAcademicYearId =
+      Number.isInteger(academicYearId) && academicYearId > 0 ? academicYearId : null;
+    const assignment = selectedScholarships.find(
+      (scholarship) => scholarship.clientKey === clientKey
     );
+
+    if (assignment && selectedAcademicYearId !== null) {
+      const unavailableAcademicYearIds = getUnavailableAcademicYearIdsForScholarship(
+        selectedScholarships,
+        clientKey,
+        assignment.scholarshipId,
+        defaultAssignmentAcademicYearId
+      );
+
+      if (unavailableAcademicYearIds.has(selectedAcademicYearId)) {
+        return;
+      }
+    }
+
+    updateScholarship(clientKey, 'academicYearId', selectedAcademicYearId);
   };
 
   const openCreateAcademicYearDialog = (clientKey: string) => {
@@ -476,7 +499,10 @@ export function StudentForm({
       setYearDialogOpen(false);
       setEditingAcademicYear(null);
       setActiveYearAssignmentKey(null);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       // Mutation hooks already surface the error toast.
     } finally {
       setAcademicYearSubmitting(false);
@@ -495,10 +521,11 @@ export function StudentForm({
   };
 
   const addScholarship = (scholarship: ScholarshipFormData) => {
-    const alreadySelected = selectedScholarships.some(
-      (s) =>
-        s.scholarshipId === scholarship.id &&
-        (s.academicYearId ?? null) === defaultAssignmentAcademicYearId
+    const alreadySelected = hasScholarshipSelectionForAcademicYear(
+      selectedScholarships,
+      scholarship.id,
+      defaultAssignmentAcademicYearId,
+      defaultAssignmentAcademicYearId
     );
     if (alreadySelected) return;
     if (
@@ -627,10 +654,11 @@ export function StudentForm({
         .includes(scholarshipSearch.toLowerCase());
       const matchesSource =
         scholarshipSourceFilter === 'all' || scholarship.source === scholarshipSourceFilter;
-      const notSelected = !selectedScholarships.some(
-        (s) =>
-          s.scholarshipId === scholarship.id &&
-          (s.academicYearId ?? null) === defaultAssignmentAcademicYearId
+      const notSelected = !hasScholarshipSelectionForAcademicYear(
+        selectedScholarships,
+        scholarship.id,
+        defaultAssignmentAcademicYearId,
+        defaultAssignmentAcademicYearId
       );
 
       const matchesStudentEligibility = isScholarshipEligibleForStudent(
@@ -1086,6 +1114,12 @@ export function StudentForm({
                     scholarshipDetails?.source ||
                     (scholarship.scholarshipName.includes('CHED') ? 'EXTERNAL' : 'INTERNAL');
                   const type = scholarshipDetails?.type || scholarship.scholarshipName;
+                  const unavailableAcademicYearIds = getUnavailableAcademicYearIdsForScholarship(
+                    selectedScholarships,
+                    scholarship.clientKey,
+                    scholarship.scholarshipId,
+                    defaultAssignmentAcademicYearId
+                  );
 
                   return (
                     <Card key={scholarship.clientKey} className="border-2 p-4">
@@ -1141,12 +1175,23 @@ export function StudentForm({
                                 />
                               </SelectTrigger>
                               <SelectContent>
-                                {academicYears.map((academicYear) => (
-                                  <SelectItem key={academicYear.id} value={String(academicYear.id)}>
-                                    {academicYear.year}
-                                    {academicYear.isActive ? ' (Active)' : ''}
-                                  </SelectItem>
-                                ))}
+                                {academicYears.map((academicYear) => {
+                                  const isUnavailable = unavailableAcademicYearIds.has(
+                                    academicYear.id
+                                  );
+
+                                  return (
+                                    <SelectItem
+                                      key={academicYear.id}
+                                      value={String(academicYear.id)}
+                                      disabled={isUnavailable}
+                                    >
+                                      {academicYear.year}
+                                      {academicYear.isActive ? ' (Active)' : ''}
+                                      {isUnavailable ? ' (Already selected)' : ''}
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
                             {canManageAcademicYears && (
