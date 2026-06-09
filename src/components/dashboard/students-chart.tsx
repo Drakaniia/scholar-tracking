@@ -13,16 +13,18 @@ import {
 
 import { AnimatedChart } from '@/components/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface StudentsChartData {
-  name: string;
-  students: number;
+  readonly name: string;
+  readonly students: number;
 }
 
 interface StudentsChartProps {
-  data: StudentsChartData[];
+  readonly data: readonly StudentsChartData[];
   title?: string;
   description?: string;
+  className?: string;
 }
 
 const COLORS = [
@@ -31,26 +33,29 @@ const COLORS = [
   'hsl(var(--pastel-pink))',
   'hsl(var(--pastel-orange))',
   'hsl(var(--pastel-green))',
-];
+] as const;
 
 export function StudentsChart({
   data,
   title = 'Students by Grade Level',
   description = 'Distribution of students',
+  className,
 }: StudentsChartProps) {
   const animationKey = data.map((item) => `${item.name}:${item.students}`).join('|');
 
   return (
-    <Card className="rounded-lg border-[#e1e8e4] bg-white py-0 shadow-sm">
-      <CardHeader className="border-b border-[#e4ece8] px-5 py-5">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--pastel-blue))]" />
-          <CardTitle className="text-xl text-slate-950">{title}</CardTitle>
+    <Card className={cn('rounded-lg border-slate-200 bg-white py-0 shadow-sm', className)}>
+      <CardHeader className="border-b border-slate-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base text-slate-950">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <span className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-700" />
         </div>
-        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="px-5 py-5">
-        <div className="h-[350px]">
+        <div className="h-[250px]">
           <AnimatedChart animationKey={animationKey} mode="horizontal-bars">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -110,7 +115,7 @@ export function StudentsChart({
                   barSize={28}
                   isAnimationActive={false}
                 >
-                  {data.map((entry, index) => (
+                  {data.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>

@@ -9,40 +9,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface RecentAward {
-  id: number;
-  studentName: string;
-  scholarshipName: string;
-  scholarshipCount?: number;
-  scholarshipNames?: string[];
-  type: string;
-  amount?: number;
-  date: string;
-  status: 'active' | 'pending' | 'completed';
+  readonly id: number;
+  readonly studentName: string;
+  readonly scholarshipName: string;
+  readonly scholarshipCount?: number;
+  readonly scholarshipNames?: readonly string[];
+  readonly type: string;
+  readonly amount?: number;
+  readonly date: string;
+  readonly status: 'active' | 'pending' | 'completed';
 }
 
 interface RecentAwardsProps {
-  awards: RecentAward[];
+  readonly awards: readonly RecentAward[];
   limit?: number;
 }
 
 const statusStyles = {
-  active: 'bg-[hsl(var(--pastel-green))]/28 text-emerald-700 border-[hsl(var(--pastel-green))]',
-  pending: 'bg-[hsl(var(--pastel-orange))]/28 text-orange-700 border-[hsl(var(--pastel-orange))]',
-  completed: 'bg-[hsl(var(--pastel-blue))]/28 text-sky-700 border-[hsl(var(--pastel-blue))]',
+  active: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  pending: 'border-amber-200 bg-amber-50 text-amber-800',
+  completed: 'border-sky-200 bg-sky-50 text-sky-800',
 };
 
 export function RecentAwards({ awards, limit = 5 }: RecentAwardsProps) {
   const displayAwards = awards.slice(0, limit);
 
   return (
-    <Card className="rounded-lg border-[#e1e8e4] bg-white py-0 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-[#e4ece8] px-5 py-5">
+    <Card className="rounded-lg border-slate-200 bg-white py-0 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--pastel-green))]/45 text-emerald-800 shadow-sm">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
             <Award className="h-4 w-4" />
           </span>
           <div>
-            <CardTitle className="text-lg text-slate-950">Recent Awards</CardTitle>
+            <CardTitle className="text-base text-slate-950">Recent Awards</CardTitle>
             <CardDescription>Latest student scholarship activity</CardDescription>
           </div>
         </div>
@@ -51,22 +51,19 @@ export function RecentAwards({ awards, limit = 5 }: RecentAwardsProps) {
         </Link>
       </CardHeader>
       <CardContent className="px-5 py-5">
-        <div className="space-y-3">
+        <div className="divide-y divide-slate-100">
           {displayAwards.map((award) => (
             <div
               key={award.id}
-              className="grid gap-3 rounded-lg border border-[#e1e8e4] bg-white p-3 transition-colors hover:border-[hsl(var(--pastel-green))] hover:bg-[hsl(var(--pastel-green))]/12 sm:grid-cols-[auto_1fr_auto]"
+              className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[auto_1fr_auto]"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--pastel-purple))]/45 font-semibold text-violet-800">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-semibold text-slate-800">
                 {award.studentName.charAt(0)}
               </div>
 
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate font-medium text-slate-950">{award.studentName}</p>
-                  <Badge className={statusStyles[award.status]} variant="outline">
-                    {award.status}
-                  </Badge>
                   {award.scholarshipCount && award.scholarshipCount > 1 && (
                     <Badge
                       className="border-amber-200 bg-amber-50 text-amber-900"
@@ -75,6 +72,9 @@ export function RecentAwards({ awards, limit = 5 }: RecentAwardsProps) {
                       {award.scholarshipCount} awards
                     </Badge>
                   )}
+                  <Badge className={statusStyles[award.status]} variant="outline">
+                    {award.status}
+                  </Badge>
                 </div>
                 <p className="truncate text-sm text-slate-500">
                   {award.scholarshipCount && award.scholarshipCount > 1
@@ -82,18 +82,6 @@ export function RecentAwards({ awards, limit = 5 }: RecentAwardsProps) {
                     : award.scholarshipName}{' '}
                   / {award.type}
                 </p>
-                {award.scholarshipNames && award.scholarshipNames.length > 1 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {award.scholarshipNames.slice(0, 4).map((name, index) => (
-                      <span
-                        key={`${award.id}-${name}`}
-                        className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900"
-                      >
-                        {index + 1}. {name.length > 24 ? `${name.slice(0, 21)}...` : name}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="flex items-center justify-between gap-4 text-sm sm:block sm:text-right">

@@ -15,24 +15,27 @@ import {
 import { AnimatedChart } from '@/components/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 interface ScholarshipChartData {
-  name: string;
-  awarded: number;
-  disbursed: number;
-  balance: number;
+  readonly name: string;
+  readonly awarded: number;
+  readonly disbursed: number;
+  readonly balance: number;
 }
 
 interface ScholarshipChartProps {
-  data: ScholarshipChartData[];
+  readonly data: readonly ScholarshipChartData[];
   title?: string;
   description?: string;
+  className?: string;
 }
 
 export function ScholarshipChart({
   data,
   title = 'Scholarship Overview',
   description = 'Total awarded vs disbursed amounts over time',
+  className,
 }: ScholarshipChartProps) {
   const chartData = data.map((item) => ({
     ...item,
@@ -43,17 +46,19 @@ export function ScholarshipChart({
     .join('|');
 
   return (
-    <Card className="col-span-full rounded-lg border-[#e1e8e4] bg-white py-0 shadow-sm lg:col-span-2">
-      <CardHeader className="border-b border-[#e4ece8] px-5 py-5">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--pastel-green))]" />
-          <CardTitle className="text-xl text-slate-950">{title}</CardTitle>
+    <Card className={cn('rounded-lg border-slate-200 bg-white py-0 shadow-sm', className)}>
+      <CardHeader className="border-b border-slate-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base text-slate-950">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-700" />
         </div>
-        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="px-5 py-5">
         {chartData.length > 0 ? (
-          <div className="h-[350px] w-full">
+          <div className="h-[320px] w-full">
             <AnimatedChart animationKey={animationKey} mode="vertical-bars">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -84,21 +89,12 @@ export function ScholarshipChart({
                           <div className="min-w-[190px] rounded-lg border border-[#dce6e1] bg-white p-3 shadow-lg">
                             <p className="mb-2 font-medium text-slate-950">{label}</p>
                             {payload.map((entry, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between gap-2 text-sm"
-                              >
-                                <span className="flex items-center gap-2 text-slate-500">
-                                  <span
-                                    className="h-2 w-2 rounded-full"
-                                    style={{ backgroundColor: entry.color }}
-                                  />
-                                  {entry.name}:
-                                </span>
-                                <span className="font-medium text-slate-950">
-                                  {formatCurrency(entry.value as number)}
-                                </span>
-                              </div>
+                              <TooltipRow
+                                key={`${entry.name}-${index}`}
+                                color={entry.color}
+                                name={String(entry.name)}
+                                value={entry.value}
+                              />
                             ))}
                           </div>
                         );
@@ -155,11 +151,33 @@ export function ScholarshipChart({
             </AnimatedChart>
           </div>
         ) : (
-          <div className="flex h-[350px] items-center justify-center rounded-lg border border-dashed border-[#d4dfd9] text-sm text-slate-500">
+          <div className="flex h-[320px] items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
             No fund movement data
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function TooltipRow({
+  color,
+  name,
+  value,
+}: {
+  readonly color?: string;
+  readonly name: string;
+  readonly value: unknown;
+}) {
+  const numericValue = typeof value === 'number' ? value : Number(value || 0);
+
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <span className="flex items-center gap-2 text-slate-500">
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+        {name}:
+      </span>
+      <span className="font-medium text-slate-950">{formatCurrency(numericValue)}</span>
+    </div>
   );
 }
