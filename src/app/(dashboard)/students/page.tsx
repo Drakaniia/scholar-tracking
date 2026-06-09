@@ -10,19 +10,22 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  Filter,
   Layers,
   Pencil,
   Plus,
-  Search,
-  X,
 } from 'lucide-react';
 
 import { useAuth } from '@/components/auth/auth-provider';
 import { StudentFeesManager } from '@/components/forms/student-fees-manager';
 import { StudentForm } from '@/components/forms/student-form';
 import { PageHeader } from '@/components/layout';
-import { ExportButton } from '@/components/shared';
+import {
+  type ActiveFilter,
+  ExportButton,
+  FilterCard,
+  FilterField,
+  FilterSearchField,
+} from '@/components/shared';
 import {
   COMPACT_DIALOG_CONTENT_CLASS,
   DETAIL_DIALOG_CONTENT_CLASS,
@@ -44,7 +47,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
@@ -64,6 +66,7 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
+  queryKeys,
   useAcademicYears,
   useArchiveStudent,
   useCreateStudent,
@@ -337,6 +340,43 @@ interface StudentWithScholarships extends Student {
   scholarships: StudentScholarship[];
 }
 
+function getStudentFormDefaultValues(
+  student: StudentWithScholarships
+): Partial<CreateStudentInput> {
+  return {
+    lastName: student.lastName,
+    firstName: student.firstName,
+    middleInitial: student.middleInitial || '',
+    program: student.program,
+    gradeLevel: student.gradeLevel,
+    yearLevel: student.yearLevel,
+    status: student.status,
+    birthDate: student.birthDate ? new Date(student.birthDate) : undefined,
+    termType: student.termType,
+    fees:
+      student.fees && student.fees.length > 0
+        ? {
+            tuitionFee: student.fees[0].tuitionFee,
+            otherFee: student.fees[0].otherFee,
+            miscellaneousFee: student.fees[0].miscellaneousFee,
+            laboratoryFee: student.fees[0].laboratoryFee,
+          }
+        : undefined,
+    scholarships:
+      student.scholarships?.map((ss) => ({
+        id: ss.id,
+        scholarshipId: ss.scholarshipId,
+        academicYearId: ss.academicYearId ?? null,
+        awardDate: new Date(ss.awardDate),
+        startTerm: ss.startTerm,
+        endTerm: ss.endTerm,
+        grantAmount: ss.grantAmount,
+        grantType: ss.grantType,
+        scholarshipStatus: ss.scholarshipStatus,
+      })) || [],
+  };
+}
+
 function StudentsTableLoading({ canManageStudents }: { canManageStudents: boolean }) {
   const bodyColumns = canManageStudents ? 7 : 6;
 
@@ -431,6 +471,61 @@ function StudentDetailSkeleton() {
   );
 }
 
+function StudentEditFormSkeleton({
+  hasError,
+  onRetry,
+}: {
+  hasError: boolean;
+  onRetry: () => void;
+}) {
+  if (hasError) {
+    return (
+      <div className={`${DIALOG_BODY_CLASS} flex flex-col items-center justify-center gap-4 py-12`}>
+        <div className="text-center">
+          <p className="font-medium text-slate-950">Unable to load student details</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Check your connection and try loading this record again.
+          </p>
+        </div>
+        <Button type="button" variant="outline" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className={`${DIALOG_BODY_CLASS} flex flex-col gap-6`}>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="space-y-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-28 w-full" />
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+          {[...Array(4)].map((_, index) => (
+            <div key={index} className="space-y-3">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <DialogFooter className={DIALOG_FOOTER_CLASS}>
+        <Skeleton className="h-10 w-24" />
+        <Skeleton className="h-10 w-32" />
+      </DialogFooter>
+    </>
+  );
+}
+
 interface StudentDetail extends Student {
   disbursements: Disbursement[];
   fees: StudentFees[];
@@ -454,6 +549,7 @@ export default function StudentsPage() {
   const [academicYearFilter, setAcademicYearFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentWithScholarships | null>(null);
+  const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -503,6 +599,13 @@ export default function StudentsPage() {
   const { data: studentDetail, isLoading: detailLoading } = useStudent(selectedStudent?.id || 0, {
     enabled: !!selectedStudent?.id,
   });
+  const {
+    data: editingStudentDetail,
+    isError: editingStudentDetailError,
+    refetch: refetchEditingStudent,
+  } = useStudent(editingStudentId || 0, {
+    enabled: dialogOpen && editingStudentId !== null,
+  });
 
   const createStudentMutation = useCreateStudent();
   const updateStudentMutation = useUpdateStudent();
@@ -544,6 +647,15 @@ export default function StudentsPage() {
       setSelectedStudent(studentDetail.data as unknown as StudentDetail);
     }
   }, [studentDetail, selectedStudent]);
+
+  useEffect(() => {
+    if (!editingStudentId || !editingStudentDetail?.data) return;
+
+    const nextEditingStudent = editingStudentDetail.data as unknown as StudentWithScholarships;
+    if (nextEditingStudent.id === editingStudentId) {
+      setEditingStudent(nextEditingStudent);
+    }
+  }, [editingStudentDetail, editingStudentId]);
 
   useEffect(() => {
     setLoadingDetail(detailLoading);
@@ -634,18 +746,20 @@ export default function StudentsPage() {
     setHoveredScholarshipId(scholarshipId);
   }, []);
 
-  const handleEdit = async (student: Student) => {
-    try {
-      // Fetch student details including fees
-      const res = await fetch(`/api/students/${student.id}`, { credentials: 'include' });
-      const json = await res.json();
-      if (json.success) {
-        setEditingStudent(json.data as StudentWithScholarships);
-        setDialogOpen(true);
-      }
-    } catch (error) {
-      console.error('Error fetching student details:', error);
-    }
+  const closeStudentDialog = () => {
+    setDialogOpen(false);
+    setEditingStudent(null);
+    setEditingStudentId(null);
+  };
+
+  const handleEdit = (student: Student) => {
+    const cachedStudent = queryClient.getQueryData<{ data?: StudentWithScholarships }>(
+      queryKeys.students.detail(student.id)
+    )?.data;
+
+    setEditingStudentId(student.id);
+    setEditingStudent(cachedStudent || null);
+    setDialogOpen(true);
   };
 
   const handleFormSubmit = async (data: CreateStudentInput) => {
@@ -685,8 +799,7 @@ export default function StudentsPage() {
       } else {
         await createStudentMutation.mutateAsync(mutationData);
       }
-      setDialogOpen(false);
-      setEditingStudent(null);
+      closeStudentDialog();
     } catch {
       // Error handling is already in mutation hooks
     } finally {
@@ -718,6 +831,100 @@ export default function StudentsPage() {
     }
   };
 
+  const clearStudentFilters = () => {
+    setSearch('');
+    setGradeLevelFilter('all');
+    setProgramFilter('all');
+    setStatusFilter('all');
+    setScholarshipSourceFilter('all');
+    setScholarshipFilter('all');
+    setAcademicYearFilter('all');
+  };
+
+  const selectedScholarshipLabel =
+    scholarshipFilter === 'none'
+      ? 'No scholarship'
+      : scholarships.find((scholarship) => scholarship.id.toString() === scholarshipFilter)
+          ?.scholarshipName || 'Selected scholarship';
+  const selectedAcademicYearLabel =
+    academicYears.find((academicYear) => String(academicYear.id) === academicYearFilter)?.year ||
+    'Selected year';
+  const studentActiveFilters: ActiveFilter[] = [
+    ...(search.trim()
+      ? [
+          {
+            key: 'search',
+            label: 'Search',
+            value: search.trim(),
+            onRemove: () => setSearch(''),
+          },
+        ]
+      : []),
+    ...(gradeLevelFilter !== 'all'
+      ? [
+          {
+            key: 'grade-level',
+            label: 'Grade',
+            value: GRADE_LEVEL_LABELS[gradeLevelFilter as GradeLevel] || gradeLevelFilter,
+            onRemove: () => setGradeLevelFilter('all'),
+          },
+        ]
+      : []),
+    ...(programFilter !== 'all'
+      ? [
+          {
+            key: 'program',
+            label: 'Program',
+            value: programFilter,
+            onRemove: () => setProgramFilter('all'),
+          },
+        ]
+      : []),
+    ...(statusFilter !== 'all'
+      ? [
+          {
+            key: 'status',
+            label: 'Status',
+            value: statusFilter,
+            onRemove: () => setStatusFilter('all'),
+          },
+        ]
+      : []),
+    ...(scholarshipSourceFilter !== 'all'
+      ? [
+          {
+            key: 'scholarship-source',
+            label: 'Source',
+            value: scholarshipSourceFilter === 'INTERNAL' ? 'Internal' : 'External',
+            onRemove: () => setScholarshipSourceFilter('all'),
+          },
+        ]
+      : []),
+    ...(scholarshipFilter !== 'all'
+      ? [
+          {
+            key: 'scholarship',
+            label: 'Scholarship',
+            value: selectedScholarshipLabel,
+            onRemove: () => setScholarshipFilter('all'),
+          },
+        ]
+      : []),
+    ...(academicYearFilter !== 'all'
+      ? [
+          {
+            key: 'academic-year',
+            label: 'Year',
+            value: selectedAcademicYearLabel,
+            onRemove: () => setAcademicYearFilter('all'),
+          },
+        ]
+      : []),
+  ];
+  const studentResultLabel = `${total.toLocaleString()} ${
+    total === 1 ? 'student' : 'students'
+  } found`;
+
   return (
     <div>
       <PageHeader title="Students" description="Manage student records">
@@ -741,8 +948,11 @@ export default function StudentsPage() {
             <Dialog
               open={dialogOpen}
               onOpenChange={(open) => {
-                setDialogOpen(open);
-                if (!open) setEditingStudent(null);
+                if (open) {
+                  setDialogOpen(true);
+                } else {
+                  closeStudentDialog();
+                }
               }}
             >
               <DialogTrigger asChild>
@@ -753,219 +963,159 @@ export default function StudentsPage() {
               </DialogTrigger>
               <DialogContent className={FORM_DIALOG_CONTENT_CLASS}>
                 <DialogHeader className={DIALOG_HEADER_CLASS}>
-                  <DialogTitle>{editingStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
+                  <DialogTitle>
+                    {editingStudentId !== null ? 'Edit Student' : 'Add New Student'}
+                  </DialogTitle>
                   <DialogDescription>
-                    {editingStudent
+                    {editingStudentId !== null
                       ? 'Update student information'
                       : 'Enter student details to add a new record'}
                   </DialogDescription>
                 </DialogHeader>
-                <StudentForm
-                  key={editingStudent ? `edit-${editingStudent.id}` : 'create'}
-                  defaultValues={
-                    editingStudent
-                      ? {
-                          lastName: editingStudent.lastName,
-                          firstName: editingStudent.firstName,
-                          middleInitial: editingStudent.middleInitial || '',
-                          program: editingStudent.program,
-                          gradeLevel: editingStudent.gradeLevel,
-                          yearLevel: editingStudent.yearLevel,
-                          status: editingStudent.status,
-                          birthDate: editingStudent.birthDate
-                            ? new Date(editingStudent.birthDate)
-                            : undefined,
-                          fees:
-                            editingStudent.fees && editingStudent.fees.length > 0
-                              ? {
-                                  tuitionFee: editingStudent.fees[0].tuitionFee,
-                                  otherFee: editingStudent.fees[0].otherFee,
-                                  miscellaneousFee: editingStudent.fees[0].miscellaneousFee,
-                                  laboratoryFee: editingStudent.fees[0].laboratoryFee,
-                                }
-                              : undefined,
-                          scholarships:
-                            editingStudent.scholarships?.map((ss) => ({
-                              id: ss.id,
-                              scholarshipId: ss.scholarshipId,
-                              academicYearId: ss.academicYearId ?? null,
-                              awardDate: new Date(ss.awardDate),
-                              startTerm: ss.startTerm,
-                              endTerm: ss.endTerm,
-                              grantAmount: ss.grantAmount,
-                              grantType: ss.grantType,
-                              scholarshipStatus: ss.scholarshipStatus,
-                            })) || [],
-                        }
-                      : undefined
-                  }
-                  onSubmit={handleFormSubmit}
-                  onCancel={() => setDialogOpen(false)}
-                  isEditing={!!editingStudent}
-                  loading={submitting}
-                  canEditFees={canManageStudentFees}
-                  canManageAcademicYears={canManageStudents}
-                  studentName={
-                    editingStudent
-                      ? `${editingStudent.firstName} ${editingStudent.lastName}`
-                      : undefined
-                  }
-                />
+                {editingStudentId !== null && !editingStudent ? (
+                  <StudentEditFormSkeleton
+                    hasError={editingStudentDetailError}
+                    onRetry={() => void refetchEditingStudent()}
+                  />
+                ) : (
+                  <StudentForm
+                    key={editingStudentId !== null ? `edit-${editingStudentId}` : 'create'}
+                    defaultValues={
+                      editingStudent ? getStudentFormDefaultValues(editingStudent) : undefined
+                    }
+                    onSubmit={handleFormSubmit}
+                    onCancel={closeStudentDialog}
+                    isEditing={editingStudentId !== null}
+                    loading={submitting}
+                    canEditFees={canManageStudentFees}
+                    canManageAcademicYears={canManageStudents}
+                    studentName={
+                      editingStudent
+                        ? `${editingStudent.firstName} ${editingStudent.lastName}`
+                        : undefined
+                    }
+                  />
+                )}
               </DialogContent>
             </Dialog>
           )}
         </div>
       </PageHeader>
 
-      {/* Filters */}
-      <Card className="mb-4 border-gray-200">
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-2">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, program, or scholarship year..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-9"
-              />
-            </div>
+      <FilterCard
+        title={showArchived ? 'Archived student filters' : 'Student filters'}
+        resultLabel={studentResultLabel}
+        activeFilters={studentActiveFilters}
+        onClear={clearStudentFilters}
+      >
+        <FilterSearchField
+          placeholder="Search by name, program, or scholarship year..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          containerClassName="md:col-span-2"
+        />
 
-            {/* Filter Section */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                <Filter className="h-4 w-4" />
-                <span>Filters:</span>
-              </div>
+        <FilterField label="Grade level">
+          <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Grade Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Grades ({facetTotals.gradeLevel})</SelectItem>
+              {GRADE_LEVELS.map((level) => (
+                <SelectItem key={level} value={level}>
+                  {GRADE_LEVEL_LABELS[level]} ({gradeLevelCounts[level] || 0})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
-                  <SelectTrigger className="h-8 w-[160px] text-xs">
-                    <SelectValue placeholder="Grade Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Grades ({facetTotals.gradeLevel})</SelectItem>
-                    {GRADE_LEVELS.map((level) => (
-                      <SelectItem key={level} value={level}>
-                        {GRADE_LEVEL_LABELS[level]} ({gradeLevelCounts[level] || 0})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <FilterField label="Program">
+          <Select value={programFilter} onValueChange={setProgramFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Program" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Programs ({facetTotals.program})</SelectItem>
+              {programs
+                .filter((program) => program)
+                .map((program) => (
+                  <SelectItem key={program} value={program}>
+                    {program} ({programCounts[program] || 0})
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-                <Select value={programFilter} onValueChange={setProgramFilter}>
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
-                    <SelectValue placeholder="Program" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Programs ({facetTotals.program})</SelectItem>
-                    {programs
-                      .filter((program) => program)
-                      .map((program) => (
-                        <SelectItem key={program} value={program}>
-                          {program} ({programCounts[program] || 0})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+        <FilterField label="Status">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status ({facetTotals.status})</SelectItem>
+              <SelectItem value="Active">Active ({statusCounts['Active'] || 0})</SelectItem>
+              <SelectItem value="Inactive">Inactive ({statusCounts['Inactive'] || 0})</SelectItem>
+              <SelectItem value="Graduated">
+                Graduated ({statusCounts['Graduated'] || 0})
+              </SelectItem>
+              <SelectItem value="Withdrawn">
+                Withdrawn ({statusCounts['Withdrawn'] || 0})
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-8 w-[140px] text-xs">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status ({facetTotals.status})</SelectItem>
-                    <SelectItem value="Active">Active ({statusCounts['Active'] || 0})</SelectItem>
-                    <SelectItem value="Inactive">
-                      Inactive ({statusCounts['Inactive'] || 0})
-                    </SelectItem>
-                    <SelectItem value="Graduated">
-                      Graduated ({statusCounts['Graduated'] || 0})
-                    </SelectItem>
-                    <SelectItem value="Withdrawn">
-                      Withdrawn ({statusCounts['Withdrawn'] || 0})
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+        <FilterField label="Scholarship source">
+          <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Scholarship Source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Scholarship Sources</SelectItem>
+              <SelectItem value="INTERNAL">Internal</SelectItem>
+              <SelectItem value="EXTERNAL">External</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-                <Select value={scholarshipSourceFilter} onValueChange={setScholarshipSourceFilter}>
-                  <SelectTrigger className="h-8 w-[190px] text-xs">
-                    <SelectValue placeholder="Scholarship Source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Scholarship Sources</SelectItem>
-                    <SelectItem value="INTERNAL">Internal</SelectItem>
-                    <SelectItem value="EXTERNAL">External</SelectItem>
-                  </SelectContent>
-                </Select>
+        <FilterField label="Scholarship" className="md:col-span-2 xl:col-span-1">
+          <Select value={scholarshipFilter} onValueChange={setScholarshipFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Scholarship" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Scholarships ({facetTotals.scholarship})</SelectItem>
+              <SelectItem value="none">No Scholarship ({studentsWithoutScholarship})</SelectItem>
+              {scholarships.map((scholarship) => (
+                <SelectItem key={scholarship.id} value={scholarship.id.toString()}>
+                  {scholarship.scholarshipName} (
+                  {dynamicScholarshipCounts[scholarship.id.toString()] || 0})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-                <Select value={scholarshipFilter} onValueChange={setScholarshipFilter}>
-                  <SelectTrigger className="h-8 w-[200px] text-xs">
-                    <SelectValue placeholder="Scholarship" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      All Scholarships ({facetTotals.scholarship})
-                    </SelectItem>
-                    <SelectItem value="none">
-                      No Scholarship ({studentsWithoutScholarship})
-                    </SelectItem>
-                    {scholarships.map((scholarship) => (
-                      <SelectItem key={scholarship.id} value={scholarship.id.toString()}>
-                        {scholarship.scholarshipName} (
-                        {dynamicScholarshipCounts[scholarship.id.toString()] || 0})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
-                    <SelectValue placeholder="Academic Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {academicYears.map((academicYear) => (
-                      <SelectItem key={academicYear.id} value={String(academicYear.id)}>
-                        {academicYear.year}
-                        {academicYear.isActive ? ' (Active)' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Clear Filters Button */}
-                {(gradeLevelFilter !== 'all' ||
-                  programFilter !== 'all' ||
-                  statusFilter !== 'all' ||
-                  scholarshipSourceFilter !== 'all' ||
-                  scholarshipFilter !== 'all' ||
-                  academicYearFilter !== 'all' ||
-                  search) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSearch('');
-                      setGradeLevelFilter('all');
-                      setProgramFilter('all');
-                      setStatusFilter('all');
-                      setScholarshipSourceFilter('all');
-                      setScholarshipFilter('all');
-                      setAcademicYearFilter('all');
-                    }}
-                    className="h-8 px-2 text-xs"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <FilterField label="Academic year">
+          <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Academic Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {academicYears.map((academicYear) => (
+                <SelectItem key={academicYear.id} value={String(academicYear.id)}>
+                  {academicYear.year}
+                  {academicYear.isActive ? ' (Active)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+      </FilterCard>
 
       {/* Students Table */}
       <Card className="border-gray-200">

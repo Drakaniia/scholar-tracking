@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { CalendarPlus, Filter, Info, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { CalendarPlus, Filter, Info, Pencil, Plus, Search, X } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 
 import {
@@ -49,7 +49,6 @@ import {
   useAcademicYears,
   useActiveAcademicYear,
   useCreateAcademicYear,
-  useDeleteAcademicYear,
   useUpdateAcademicYear,
 } from '@/hooks/use-queries';
 import { getCoveredTermsLabel } from '@/lib/terms';
@@ -125,6 +124,30 @@ function getDefaultAcademicYearInput(): AcademicYearInput {
     semester: '1ST',
     isActive: false,
     promotionDate: '',
+  };
+}
+
+function getAcademicYearStartYear(year: string | null | undefined) {
+  if (!year) return null;
+
+  const match = year.match(/^(\d{4})\s*-\s*(\d{4})$/);
+  if (!match) return null;
+
+  const startYear = Number(match[1]);
+  const endYear = Number(match[2]);
+
+  return endYear === startYear + 1 ? startYear : null;
+}
+
+function getAcademicYearInputFromStartYear(
+  startYear: number,
+  current: AcademicYearInput
+): AcademicYearInput {
+  return {
+    ...current,
+    year: `${startYear}-${startYear + 1}`,
+    startDate: `${startYear}-06-01`,
+    endDate: `${startYear + 1}-05-31`,
   };
 }
 
@@ -217,7 +240,6 @@ export function StudentForm({
   const { data: activeAcademicYearData } = useActiveAcademicYear();
   const createAcademicYearMutation = useCreateAcademicYear();
   const updateAcademicYearMutation = useUpdateAcademicYear();
-  const deleteAcademicYearMutation = useDeleteAcademicYear();
   const academicYears = ((academicYearsData?.data || []) as AcademicYear[]).slice().sort((a, b) => {
     const left = new Date(a.startDate).getTime();
     const right = new Date(b.startDate).getTime();
@@ -225,11 +247,13 @@ export function StudentForm({
   });
   const activeAcademicYear = (activeAcademicYearData?.data || null) as AcademicYear | null;
   const [yearDialogOpen, setYearDialogOpen] = useState(false);
-  const [deleteYearDialogOpen, setDeleteYearDialogOpen] = useState(false);
   const [editingAcademicYear, setEditingAcademicYear] = useState<AcademicYear | null>(null);
   const [activeYearAssignmentKey, setActiveYearAssignmentKey] = useState<string | null>(null);
   const [academicYearFormData, setAcademicYearFormData] = useState<AcademicYearInput>(() =>
     getDefaultAcademicYearInput()
+  );
+  const [academicYearStartYearInput, setAcademicYearStartYearInput] = useState(() =>
+    String(getAcademicYearStartYear(getDefaultAcademicYearInput().year) || '')
   );
   const [academicYearSubmitting, setAcademicYearSubmitting] = useState(false);
 
@@ -258,13 +282,10 @@ export function StudentForm({
   const currentGradeLevel = form.watch('gradeLevel') || selectedGradeLevel;
   const currentProgram = form.watch('program') || '';
   const defaultAssignmentAcademicYearId = activeAcademicYear?.id ?? null;
-  const activeYearAssignment = selectedScholarships.find(
-    (scholarship) => scholarship.clientKey === activeYearAssignmentKey
-  );
-  const selectedAcademicYear =
-    academicYears.find(
-      (academicYear) => academicYear.id === (activeYearAssignment?.academicYearId ?? null)
-    ) || null;
+  const selectedAcademicYearStartYear = getAcademicYearStartYear(academicYearFormData.year);
+  const hasValidAcademicYearStartYear =
+    !!selectedAcademicYearStartYear &&
+    academicYearStartYearInput === String(selectedAcademicYearStartYear);
 
   // Fetch scholarships on component mount
   useEffect(() => {
@@ -372,9 +393,12 @@ export function StudentForm({
   };
 
   const openCreateAcademicYearDialog = (clientKey: string) => {
+    const defaultInput = getDefaultAcademicYearInput();
+
     setActiveYearAssignmentKey(clientKey);
     setEditingAcademicYear(null);
-    setAcademicYearFormData(getDefaultAcademicYearInput());
+    setAcademicYearFormData(defaultInput);
+    setAcademicYearStartYearInput(String(getAcademicYearStartYear(defaultInput.year) || ''));
     setYearDialogOpen(true);
   };
 
@@ -389,6 +413,7 @@ export function StudentForm({
 
     setActiveYearAssignmentKey(clientKey);
     setEditingAcademicYear(academicYear);
+    setAcademicYearStartYearInput(String(getAcademicYearStartYear(academicYear.year) || ''));
     setAcademicYearFormData({
       year: academicYear.year,
       startDate: toDateInputValue(academicYear.startDate),
@@ -408,6 +433,24 @@ export function StudentForm({
       ...current,
       [field]: value,
     }));
+  };
+
+  const handleAcademicYearStartYearChange = (value: string) => {
+    setAcademicYearStartYearInput(value);
+
+    if (!/^\d{4}$/.test(value)) return;
+
+    const startYear = Number(value);
+
+    if (startYear < 1900 || startYear > 2200) return;
+
+    setAcademicYearFormData((current) => getAcademicYearInputFromStartYear(startYear, current));
+  };
+
+  const handleAcademicYearStartYearBlur = () => {
+    if (!selectedAcademicYearStartYear) return;
+
+    setAcademicYearStartYearInput(String(selectedAcademicYearStartYear));
   };
 
   const handleAcademicYearSubmit = async () => {
@@ -432,29 +475,6 @@ export function StudentForm({
       }
       setYearDialogOpen(false);
       setEditingAcademicYear(null);
-      setActiveYearAssignmentKey(null);
-    } catch {
-      // Mutation hooks already surface the error toast.
-    } finally {
-      setAcademicYearSubmitting(false);
-    }
-  };
-
-  const handleDeleteAcademicYear = async () => {
-    if (!selectedAcademicYear) return;
-
-    setAcademicYearSubmitting(true);
-    try {
-      await deleteAcademicYearMutation.mutateAsync(selectedAcademicYear.id);
-      const deletedAcademicYearId = selectedAcademicYear.id;
-      setSelectedScholarships((current) =>
-        current.map((scholarship) =>
-          scholarship.academicYearId === deletedAcademicYearId
-            ? { ...scholarship, academicYearId: null }
-            : scholarship
-        )
-      );
-      setDeleteYearDialogOpen(false);
       setActiveYearAssignmentKey(null);
     } catch {
       // Mutation hooks already surface the error toast.
@@ -1100,10 +1120,10 @@ export function StudentForm({
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(18rem,1.4fr)_repeat(4,minmax(7.5rem,1fr))]">
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Academic Year</Label>
-                          <div className="flex gap-1">
+                          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
                             <Select
                               value={
                                 scholarship.academicYearId ? String(scholarship.academicYearId) : ''
@@ -1113,7 +1133,7 @@ export function StudentForm({
                               }
                               disabled={academicYears.length === 0}
                             >
-                              <SelectTrigger className="h-9 min-w-0 flex-1 text-sm">
+                              <SelectTrigger className="h-9 min-w-[10rem] flex-1 text-sm">
                                 <SelectValue
                                   placeholder={
                                     academicYears.length > 0 ? 'Select year' : 'No years'
@@ -1153,20 +1173,6 @@ export function StudentForm({
                                   title="Edit selected academic year"
                                 >
                                   <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-9 w-9"
-                                  onClick={() => {
-                                    setActiveYearAssignmentKey(scholarship.clientKey);
-                                    setDeleteYearDialogOpen(true);
-                                  }}
-                                  disabled={!scholarship.academicYearId}
-                                  title="Delete selected academic year"
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </div>
                             )}
@@ -1505,15 +1511,28 @@ export function StudentForm({
             </DialogDescription>
           </DialogHeader>
           <div className={`${DIALOG_BODY_CLASS} space-y-4`}>
-            <div className="space-y-2">
-              <Label htmlFor="student-scholarship-year">Academic Year</Label>
-              <Input
-                id="student-scholarship-year"
-                value={academicYearFormData.year}
-                onChange={(event) => handleAcademicYearFormChange('year', event.target.value)}
-                placeholder="2026-2027"
-                required
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_1.15fr]">
+              <div className="space-y-2">
+                <Label htmlFor="student-scholarship-year-start-year">Start Year</Label>
+                <Input
+                  id="student-scholarship-year-start-year"
+                  type="number"
+                  min={1900}
+                  max={2200}
+                  step={1}
+                  value={academicYearStartYearInput}
+                  onChange={(event) => handleAcademicYearStartYearChange(event.target.value)}
+                  onBlur={handleAcademicYearStartYearBlur}
+                  className="h-11 border-slate-300 text-lg font-semibold"
+                  required
+                />
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-xs font-semibold text-emerald-700">Academic Year Preview</p>
+                <p className="mt-1 text-2xl font-semibold text-emerald-950">
+                  {academicYearFormData.year || 'Select start year'}
+                </p>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -1593,41 +1612,12 @@ export function StudentForm({
               onClick={handleAcademicYearSubmit}
               disabled={
                 academicYearSubmitting ||
-                !academicYearFormData.year.trim() ||
+                !hasValidAcademicYearStartYear ||
                 !academicYearFormData.startDate ||
                 !academicYearFormData.endDate
               }
             >
               {academicYearSubmitting ? 'Saving...' : editingAcademicYear ? 'Update' : 'Create'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={deleteYearDialogOpen} onOpenChange={setDeleteYearDialogOpen}>
-        <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
-          <DialogHeader className={DIALOG_HEADER_CLASS}>
-            <DialogTitle>Delete Academic Year</DialogTitle>
-            <DialogDescription>
-              Delete &quot;{selectedAcademicYear?.year}&quot; from the academic year list?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className={DIALOG_FOOTER_CLASS}>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDeleteYearDialogOpen(false)}
-              disabled={academicYearSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDeleteAcademicYear}
-              disabled={academicYearSubmitting || !selectedAcademicYear}
-            >
-              {academicYearSubmitting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
