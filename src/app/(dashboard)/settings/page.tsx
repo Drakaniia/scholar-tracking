@@ -37,6 +37,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -78,6 +79,22 @@ import {
 import type { StudentTransitionDecision } from '@/types';
 
 const ARCHIVED_ITEMS_PAGE_SIZE = 10;
+
+type ArchivedDeleteKind = 'student' | 'scholarship';
+
+interface ArchivedDeleteTarget {
+  kind: ArchivedDeleteKind;
+  ids: number[];
+  label: string;
+}
+
+interface PermanentDeleteResponse {
+  success: boolean;
+  data?: {
+    deletedCount: number;
+  };
+  error?: string;
+}
 
 interface SettingsConsoleUser {
   username?: string;
@@ -680,6 +697,14 @@ export default function SettingsPage() {
   const [archivedScholarships, setArchivedScholarships] = useState<Scholarship[]>([]);
   const [loadingArchived, setLoadingArchived] = useState(false);
   const [unarchivingItem, setUnarchivingItem] = useState<string | null>(null);
+  const [selectedArchivedStudentIds, setSelectedArchivedStudentIds] = useState<number[]>([]);
+  const [selectedArchivedScholarshipIds, setSelectedArchivedScholarshipIds] = useState<number[]>(
+    []
+  );
+  const [archiveDeleteTarget, setArchiveDeleteTarget] = useState<ArchivedDeleteTarget | null>(
+    null
+  );
+  const [isDeletingArchivedItem, setIsDeletingArchivedItem] = useState(false);
   const [studentPage, setStudentPage] = useState(1);
   const [studentTotal, setStudentTotal] = useState(0);
   const [studentTotalPages, setStudentTotalPages] = useState(0);
@@ -877,6 +902,24 @@ export default function SettingsPage() {
     requirements: string | null;
     status: string;
     isArchived: boolean;
+  }
+
+  interface ArchivedStudentsResponse {
+    success: boolean;
+    data: Student[];
+    page: number;
+    total: number;
+    totalPages: number;
+    error?: string;
+  }
+
+  interface ArchivedScholarshipsResponse {
+    success: boolean;
+    data: Scholarship[];
+    page: number;
+    total: number;
+    totalPages: number;
+    error?: string;
   }
 
   useEffect(() => {
@@ -1464,14 +1507,21 @@ export default function SettingsPage() {
         archived: 'true',
       });
 
-      const response = await fetch(`/api/students?${params}`, { credentials: 'include' });
-      const result = await response.json();
+      const response = await fetch(`/api/students?${params}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const result: ArchivedStudentsResponse = await response.json();
 
       if (result.success) {
+        const visibleIds = new Set(result.data.map((student) => student.id));
         setArchivedStudents(result.data);
         setStudentPage(result.page);
         setStudentTotal(result.total);
         setStudentTotalPages(result.totalPages);
+        setSelectedArchivedStudentIds((selectedIds) =>
+          selectedIds.filter((studentId) => visibleIds.has(studentId))
+        );
       } else {
         toast.error('Failed to load archived students');
       }
@@ -1493,14 +1543,21 @@ export default function SettingsPage() {
         archived: 'true',
       });
 
-      const response = await fetch(`/api/scholarships?${params}`, { credentials: 'include' });
-      const result = await response.json();
+      const response = await fetch(`/api/scholarships?${params}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const result: ArchivedScholarshipsResponse = await response.json();
 
       if (result.success) {
+        const visibleIds = new Set(result.data.map((scholarship) => scholarship.id));
         setArchivedScholarships(result.data);
         setScholarshipPage(result.page);
         setScholarshipTotal(result.total);
         setScholarshipTotalPages(result.totalPages);
+        setSelectedArchivedScholarshipIds((selectedIds) =>
+          selectedIds.filter((scholarshipId) => visibleIds.has(scholarshipId))
+        );
       } else {
         toast.error('Failed to load archived scholarships');
       }
@@ -1510,6 +1567,24 @@ export default function SettingsPage() {
     } finally {
       setLoadingArchived(false);
     }
+  };
+
+  const getNextArchivedPageAfterDelete = (
+    currentVisibleCount: number,
+    deletedIds: number[],
+    currentPage: number
+  ) => (deletedIds.length >= currentVisibleCount && currentPage > 1 ? currentPage - 1 : currentPage);
+
+  const openArchiveDeleteDialog = (
+    kind: ArchivedDeleteKind,
+    ids: number[],
+    label: string
+  ) => {
+    if (ids.length === 0) {
+      return;
+    }
+
+    setArchiveDeleteTarget({ kind, ids, label });
   };
 
   // Handle unarchive student
@@ -1534,6 +1609,9 @@ export default function SettingsPage() {
         setStudentPage(nextPage);
         setStudentTotal(nextTotal);
         setStudentTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+        setSelectedArchivedStudentIds((selectedIds) =>
+          selectedIds.filter((selectedId) => selectedId !== studentId)
+        );
 
         toast.success('Student unarchived successfully');
         void fetchArchivedStudents(nextPage);
@@ -1545,6 +1623,52 @@ export default function SettingsPage() {
       toast.error('Failed to unarchive student');
     } finally {
       setUnarchivingItem(null);
+    }
+  };
+
+  const handlePermanentDeleteStudents = async (studentIds: number[]) => {
+    setIsDeletingArchivedItem(true);
+    try {
+      const response = await fetch('/api/students/permanent-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: studentIds }),
+        credentials: 'include',
+      });
+      const result: PermanentDeleteResponse = await response.json();
+
+      if (response.ok && result.success) {
+        const deletedCount = result.data?.deletedCount ?? studentIds.length;
+        const nextPage = getNextArchivedPageAfterDelete(
+          archivedStudents.length,
+          studentIds,
+          studentPage
+        );
+        const nextTotal = Math.max(studentTotal - deletedCount, 0);
+        const deletedIdSet = new Set(studentIds);
+
+        setArchivedStudents((students) =>
+          students.filter((student) => !deletedIdSet.has(student.id))
+        );
+        setSelectedArchivedStudentIds((selectedIds) =>
+          selectedIds.filter((selectedId) => !deletedIdSet.has(selectedId))
+        );
+        setStudentPage(nextPage);
+        setStudentTotal(nextTotal);
+        setStudentTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+
+        toast.success(
+          `${deletedCount} archived ${deletedCount === 1 ? 'student' : 'students'} deleted`
+        );
+        void fetchArchivedStudents(nextPage);
+      } else {
+        toast.error(result.error || 'Failed to delete archived students');
+      }
+    } catch (error) {
+      console.error('Error deleting archived students:', error);
+      toast.error('Failed to delete archived students');
+    } finally {
+      setIsDeletingArchivedItem(false);
     }
   };
 
@@ -1574,6 +1698,9 @@ export default function SettingsPage() {
         setScholarshipPage(nextPage);
         setScholarshipTotal(nextTotal);
         setScholarshipTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+        setSelectedArchivedScholarshipIds((selectedIds) =>
+          selectedIds.filter((selectedId) => selectedId !== scholarshipId)
+        );
 
         toast.success('Scholarship unarchived successfully');
         void fetchArchivedScholarships(nextPage);
@@ -1586,6 +1713,68 @@ export default function SettingsPage() {
     } finally {
       setUnarchivingItem(null);
     }
+  };
+
+  const handlePermanentDeleteScholarships = async (scholarshipIds: number[]) => {
+    setIsDeletingArchivedItem(true);
+    try {
+      const response = await fetch('/api/scholarships/permanent-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: scholarshipIds }),
+        credentials: 'include',
+      });
+      const result: PermanentDeleteResponse = await response.json();
+
+      if (response.ok && result.success) {
+        const deletedCount = result.data?.deletedCount ?? scholarshipIds.length;
+        const nextPage = getNextArchivedPageAfterDelete(
+          archivedScholarships.length,
+          scholarshipIds,
+          scholarshipPage
+        );
+        const nextTotal = Math.max(scholarshipTotal - deletedCount, 0);
+        const deletedIdSet = new Set(scholarshipIds);
+
+        setArchivedScholarships((scholarships) =>
+          scholarships.filter((scholarship) => !deletedIdSet.has(scholarship.id))
+        );
+        setSelectedArchivedScholarshipIds((selectedIds) =>
+          selectedIds.filter((selectedId) => !deletedIdSet.has(selectedId))
+        );
+        setScholarshipPage(nextPage);
+        setScholarshipTotal(nextTotal);
+        setScholarshipTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+
+        toast.success(
+          `${deletedCount} archived ${
+            deletedCount === 1 ? 'scholarship' : 'scholarships'
+          } deleted`
+        );
+        void fetchArchivedScholarships(nextPage);
+      } else {
+        toast.error(result.error || 'Failed to delete archived scholarships');
+      }
+    } catch (error) {
+      console.error('Error deleting archived scholarships:', error);
+      toast.error('Failed to delete archived scholarships');
+    } finally {
+      setIsDeletingArchivedItem(false);
+    }
+  };
+
+  const handleConfirmArchiveDelete = async () => {
+    if (!archiveDeleteTarget) {
+      return;
+    }
+
+    if (archiveDeleteTarget.kind === 'student') {
+      await handlePermanentDeleteStudents(archiveDeleteTarget.ids);
+    } else {
+      await handlePermanentDeleteScholarships(archiveDeleteTarget.ids);
+    }
+
+    setArchiveDeleteTarget(null);
   };
 
   // Academic Year functions
@@ -1955,6 +2144,11 @@ export default function SettingsPage() {
     !isDialogPromotionProcessing
   );
   const canUndoPromotion = Boolean(activeAcademicYear?.promotionProcessedAt);
+  const allArchivedStudentsSelected =
+    archivedStudents.length > 0 && selectedArchivedStudentIds.length === archivedStudents.length;
+  const allArchivedScholarshipsSelected =
+    archivedScholarships.length > 0 &&
+    selectedArchivedScholarshipIds.length === archivedScholarships.length;
 
   if (loading) {
     return <SettingsPageSkeleton />;
@@ -2693,11 +2887,45 @@ export default function SettingsPage() {
                 <>
                   {archivedStudents.length > 0 && (
                     <div className="mb-8">
-                      <h3 className="mb-4 text-lg font-semibold">Archived Students</h3>
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h3 className="text-lg font-semibold">Archived Students</h3>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={
+                            selectedArchivedStudentIds.length === 0 || isDeletingArchivedItem
+                          }
+                          onClick={() =>
+                            openArchiveDeleteDialog(
+                              'student',
+                              selectedArchivedStudentIds,
+                              `${selectedArchivedStudentIds.length} selected archived ${
+                                selectedArchivedStudentIds.length === 1 ? 'student' : 'students'
+                              }`
+                            )
+                          }
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete selected
+                        </Button>
+                      </div>
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-12">
+                                <Checkbox
+                                  checked={allArchivedStudentsSelected}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedArchivedStudentIds(
+                                      checked === true
+                                        ? archivedStudents.map((student) => student.id)
+                                        : []
+                                    );
+                                  }}
+                                  aria-label="Select all archived students"
+                                />
+                              </TableHead>
                               <TableHead>Name</TableHead>
                               <TableHead>Program</TableHead>
                               <TableHead>Grade Level</TableHead>
@@ -2708,6 +2936,25 @@ export default function SettingsPage() {
                           <TableBody>
                             {archivedStudents.map((student) => (
                               <TableRow key={student.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedArchivedStudentIds.includes(student.id)}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedArchivedStudentIds((selectedIds) => {
+                                        if (checked === true) {
+                                          return selectedIds.includes(student.id)
+                                            ? selectedIds
+                                            : [...selectedIds, student.id];
+                                        }
+
+                                        return selectedIds.filter(
+                                          (selectedId) => selectedId !== student.id
+                                        );
+                                      });
+                                    }}
+                                    aria-label={`Select ${student.firstName} ${student.lastName}`}
+                                  />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                   {student.lastName}, {student.firstName}{' '}
                                   {student.middleInitial || ''}
@@ -2730,21 +2977,38 @@ export default function SettingsPage() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleUnarchiveStudent(student.id)}
-                                    disabled={unarchivingItem === `student-${student.id}`}
-                                  >
-                                    {unarchivingItem === `student-${student.id}` ? (
-                                      <>
-                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                                        Unarchiving...
-                                      </>
-                                    ) : (
-                                      'Unarchive'
-                                    )}
-                                  </Button>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleUnarchiveStudent(student.id)}
+                                      disabled={unarchivingItem === `student-${student.id}`}
+                                    >
+                                      {unarchivingItem === `student-${student.id}` ? (
+                                        <>
+                                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                                          Unarchiving...
+                                        </>
+                                      ) : (
+                                        'Unarchive'
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      disabled={isDeletingArchivedItem}
+                                      onClick={() =>
+                                        openArchiveDeleteDialog(
+                                          'student',
+                                          [student.id],
+                                          `${student.firstName} ${student.lastName}`
+                                        )
+                                      }
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -2783,11 +3047,47 @@ export default function SettingsPage() {
 
                   {archivedScholarships.length > 0 && (
                     <div>
-                      <h3 className="mb-4 text-lg font-semibold">Archived Scholarships</h3>
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h3 className="text-lg font-semibold">Archived Scholarships</h3>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={
+                            selectedArchivedScholarshipIds.length === 0 || isDeletingArchivedItem
+                          }
+                          onClick={() =>
+                            openArchiveDeleteDialog(
+                              'scholarship',
+                              selectedArchivedScholarshipIds,
+                              `${selectedArchivedScholarshipIds.length} selected archived ${
+                                selectedArchivedScholarshipIds.length === 1
+                                  ? 'scholarship'
+                                  : 'scholarships'
+                              }`
+                            )
+                          }
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete selected
+                        </Button>
+                      </div>
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-12">
+                                <Checkbox
+                                  checked={allArchivedScholarshipsSelected}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedArchivedScholarshipIds(
+                                      checked === true
+                                        ? archivedScholarships.map((scholarship) => scholarship.id)
+                                        : []
+                                    );
+                                  }}
+                                  aria-label="Select all archived scholarships"
+                                />
+                              </TableHead>
                               <TableHead>Scholarship Name</TableHead>
                               <TableHead>Sponsor</TableHead>
                               <TableHead>Type</TableHead>
@@ -2799,6 +3099,27 @@ export default function SettingsPage() {
                           <TableBody>
                             {archivedScholarships.map((scholarship) => (
                               <TableRow key={scholarship.id}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedArchivedScholarshipIds.includes(
+                                      scholarship.id
+                                    )}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedArchivedScholarshipIds((selectedIds) => {
+                                        if (checked === true) {
+                                          return selectedIds.includes(scholarship.id)
+                                            ? selectedIds
+                                            : [...selectedIds, scholarship.id];
+                                        }
+
+                                        return selectedIds.filter(
+                                          (selectedId) => selectedId !== scholarship.id
+                                        );
+                                      });
+                                    }}
+                                    aria-label={`Select ${scholarship.scholarshipName}`}
+                                  />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                   {scholarship.scholarshipName}
                                 </TableCell>
@@ -2819,21 +3140,40 @@ export default function SettingsPage() {
                                   {formatCurrency(scholarship.amount)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleUnarchiveScholarship(scholarship.id)}
-                                    disabled={unarchivingItem === `scholarship-${scholarship.id}`}
-                                  >
-                                    {unarchivingItem === `scholarship-${scholarship.id}` ? (
-                                      <>
-                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                                        Unarchiving...
-                                      </>
-                                    ) : (
-                                      'Unarchive'
-                                    )}
-                                  </Button>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleUnarchiveScholarship(scholarship.id)}
+                                      disabled={
+                                        unarchivingItem === `scholarship-${scholarship.id}`
+                                      }
+                                    >
+                                      {unarchivingItem === `scholarship-${scholarship.id}` ? (
+                                        <>
+                                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                                          Unarchiving...
+                                        </>
+                                      ) : (
+                                        'Unarchive'
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      disabled={isDeletingArchivedItem}
+                                      onClick={() =>
+                                        openArchiveDeleteDialog(
+                                          'scholarship',
+                                          [scholarship.id],
+                                          scholarship.scholarshipName
+                                        )
+                                      }
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -2885,6 +3225,50 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <Dialog
+          open={archiveDeleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open && !isDeletingArchivedItem) {
+              setArchiveDeleteTarget(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Delete archived {archiveDeleteTarget?.kind === 'student' ? 'student' : 'scholarship'}
+              </DialogTitle>
+              <DialogDescription>
+                Permanently delete {archiveDeleteTarget?.label}? This removes the archived record
+                and related assignment/disbursement records. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setArchiveDeleteTarget(null)}
+                disabled={isDeletingArchivedItem}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => void handleConfirmArchiveDelete()}
+                disabled={isDeletingArchivedItem}
+              >
+                {isDeletingArchivedItem ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete permanently'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Academic Year Tab */}
         <TabsContent value="academic-year">

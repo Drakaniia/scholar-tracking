@@ -13,7 +13,8 @@
  */
 import { useCallback } from 'react';
 
-import { UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { getScholarshipFlowEndYear } from '@/lib/scholarship-flow-years';
@@ -297,8 +298,59 @@ interface ApiResponse<T> {
   success: boolean;
   data: T;
   error?: string;
+  limit?: number;
+  page?: number;
   total?: number;
   totalPages?: number;
+  cached?: boolean;
+}
+
+function removeListItemsById<T extends { id: number }>(
+  previous: ApiResponse<T[]> | undefined,
+  removedIds: readonly number[]
+): ApiResponse<T[]> | undefined {
+  if (!previous) {
+    return previous;
+  }
+
+  const removedIdSet = new Set(removedIds);
+  const nextData = previous.data.filter((item) => !removedIdSet.has(item.id));
+  const removedCount = previous.data.length - nextData.length;
+
+  if (removedCount === 0) {
+    return previous;
+  }
+
+  const nextTotal =
+    typeof previous.total === 'number' ? Math.max(previous.total - removedCount, 0) : undefined;
+  const nextTotalPages =
+    typeof nextTotal === 'number' && typeof previous.limit === 'number'
+      ? Math.ceil(nextTotal / previous.limit)
+      : previous.totalPages;
+
+  return {
+    ...previous,
+    data: nextData,
+    total: nextTotal,
+    totalPages: nextTotalPages,
+  };
+}
+
+function removeStudentsFromListQueries(queryClient: QueryClient, studentIds: readonly number[]) {
+  queryClient.setQueriesData<ApiResponse<Student[]>>(
+    { queryKey: queryKeys.students.lists() },
+    (previous) => removeListItemsById(previous, studentIds)
+  );
+}
+
+function removeScholarshipsFromListQueries(
+  queryClient: QueryClient,
+  scholarshipIds: readonly number[]
+) {
+  queryClient.setQueriesData<ApiResponse<Scholarship[]>>(
+    { queryKey: queryKeys.scholarships.lists() },
+    (previous) => removeListItemsById(previous, scholarshipIds)
+  );
 }
 
 // ============================================
@@ -507,8 +559,9 @@ export function useDeleteStudent() {
       }
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       // Invalidate relevant queries
+      removeStudentsFromListQueries(queryClient, [id]);
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Student archived successfully');
@@ -539,6 +592,7 @@ export function useArchiveStudent() {
     },
     onSuccess: (_, variables) => {
       // Invalidate relevant queries
+      removeStudentsFromListQueries(queryClient, [variables.id]);
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success(`Student ${variables.action}d successfully`);
@@ -705,7 +759,8 @@ export function useDeleteScholarship() {
       }
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      removeScholarshipsFromListQueries(queryClient, [id]);
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
