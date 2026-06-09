@@ -488,9 +488,17 @@ export default function ScholarshipsPage() {
 
   return (
     <div>
-      <PageHeader title="Scholarships" description="Manage scholarship programs and grants">
-        <div className="flex gap-2">
-          <ExportButton endpoint="/api/export/scholarships" filename="scholarships-report" />
+      <PageHeader
+        title="Scholarships"
+        description="Manage sponsors, grant rules, award amounts, and assigned beneficiaries."
+      >
+        <div className="flex flex-wrap gap-2">
+          <ExportButton
+            endpoint="/api/export/scholarships"
+            filename="scholarships-report"
+            variant="outline"
+            className="bg-white/90"
+          />
           {canManageScholarships && (
             <Button onClick={openCreateDialog} variant="gradient">
               <Plus className="mr-2 h-4 w-4" />

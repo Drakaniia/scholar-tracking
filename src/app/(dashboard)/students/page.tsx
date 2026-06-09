@@ -927,14 +927,21 @@ export default function StudentsPage() {
 
   return (
     <div>
-      <PageHeader title="Students" description="Manage student records">
-        <div className="flex gap-2">
+      <PageHeader
+        title="Students"
+        description="Track enrollment, scholarship assignments, and academic status."
+      >
+        <div className="flex flex-wrap gap-2">
           <ExportButton
             endpoint="/api/export/students"
             filename="detailed-student-scholarship-report"
+            variant="outline"
+            className="bg-white/90"
           />
           {isAdmin && (
             <ImportButton
+              variant="outline"
+              className="bg-white/90"
               onImportComplete={() => {
                 // Invalidate all queries to refresh data
                 queryClient.invalidateQueries();

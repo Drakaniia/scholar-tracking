@@ -16,8 +16,19 @@ import {
 
 import { ImportPreviewDialog } from './import-preview-dialog';
 
+type ButtonVariant =
+  | 'default'
+  | 'gradient'
+  | 'destructive'
+  | 'outline'
+  | 'secondary'
+  | 'ghost'
+  | 'link';
+
 interface ImportButtonProps {
   onImportComplete?: () => void;
+  variant?: ButtonVariant;
+  className?: string;
 }
 
 interface PreviewData {
@@ -45,7 +56,11 @@ interface ImportError {
   errors: string[];
 }
 
-export function ImportButton({ onImportComplete }: ImportButtonProps) {
+export function ImportButton({
+  onImportComplete,
+  variant = 'gradient',
+  className,
+}: ImportButtonProps) {
   const csvInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
@@ -141,7 +156,7 @@ export function ImportButton({ onImportComplete }: ImportButtonProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="gradient">
+          <Button variant={variant} className={className}>
             <FileUp className="mr-2 h-4 w-4" />
             Import
           </Button>
