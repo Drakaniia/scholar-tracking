@@ -89,7 +89,7 @@ describe('scholarship flow route', () => {
     prismaMock.studentFees.findMany.mockResolvedValueOnce([
       {
         studentId: 2,
-        academicYear: '2025-2026',
+        academicYear: '2026-2027',
         amountSubsidy: 500,
       },
     ]);
@@ -180,6 +180,16 @@ describe('scholarship flow route', () => {
         where: expect.objectContaining({
           OR: expect.arrayContaining([
             expect.objectContaining({
+              academicYearRel: {
+                is: {
+                  startDate: {
+                    gte: new Date('2022-01-01T00:00:00.000Z'),
+                    lte: new Date('2026-12-31T23:59:59.999Z'),
+                  },
+                },
+              },
+            }),
+            expect.objectContaining({
               awardDate: {
                 gte: new Date('2022-01-01T00:00:00.000Z'),
                 lte: new Date('2026-12-31T23:59:59.999Z'),
@@ -194,6 +204,16 @@ describe('scholarship flow route', () => {
         where: expect.objectContaining({
           OR: expect.arrayContaining([
             expect.objectContaining({
+              academicYearRel: {
+                is: {
+                  startDate: {
+                    gte: new Date('2022-01-01T00:00:00.000Z'),
+                    lte: new Date('2026-12-31T23:59:59.999Z'),
+                  },
+                },
+              },
+            }),
+            expect.objectContaining({
               disbursementDate: {
                 gte: new Date('2022-01-01T00:00:00.000Z'),
                 lte: new Date('2026-12-31T23:59:59.999Z'),
@@ -203,5 +223,92 @@ describe('scholarship flow route', () => {
         }),
       })
     );
+  });
+
+  it('buckets linked academic-year records by academic-year start year', async () => {
+    prismaMock.studentScholarship.findMany.mockResolvedValueOnce([
+      {
+        studentId: 7,
+        awardDate: new Date('2026-06-02T00:00:00.000Z'),
+        grantAmount: 2000,
+        academicYearRel: {
+          year: '2026-2027',
+        },
+        scholarship: {
+          scholarshipName: 'School Grant',
+          source: 'INTERNAL',
+          type: 'SCHOOL_GRANT',
+        },
+      },
+    ]);
+    prismaMock.disbursement.findMany.mockResolvedValueOnce([
+      {
+        studentId: 7,
+        disbursementDate: new Date('2027-01-15T00:00:00.000Z'),
+        amount: 750,
+        academicYearRel: {
+          year: '2026-2027',
+        },
+        scholarship: {
+          scholarshipName: 'School Grant',
+          source: 'INTERNAL',
+          type: 'SCHOOL_GRANT',
+        },
+      },
+    ]);
+    prismaMock.studentFees.findMany.mockResolvedValueOnce([
+      {
+        studentId: 7,
+        academicYear: '2026-2027',
+        amountSubsidy: 150,
+      },
+    ]);
+    prismaMock.student.findMany.mockResolvedValueOnce([
+      {
+        id: 7,
+        firstName: 'MAYA',
+        lastName: 'SANTOS',
+        gradeLevel: 'COLLEGE',
+        yearLevel: '1st Year',
+        program: 'BSIT',
+        scholarships: [
+          {
+            grantAmount: 2000,
+            scholarshipStatus: 'Active',
+            academicYearRel: {
+              year: '2026-2027',
+            },
+            scholarship: {
+              scholarshipName: 'School Grant',
+              source: 'INTERNAL',
+              type: 'SCHOOL_GRANT',
+            },
+          },
+        ],
+      },
+    ]);
+
+    const { GET } = await import('@/app/api/scholarships/flow/route');
+    const response = await GET(flowRequest('?endYear=2026'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.years.find((year: { year: number }) => year.year === 2026)).toMatchObject({
+      awardCount: 1,
+      beneficiaryCount: 1,
+      awardedAmount: 2000,
+      disbursementCount: 1,
+      disbursedAmount: 750,
+      subsidyAmount: 150,
+      internalAwards: 1,
+    });
+    expect(body.data.summary).toMatchObject({
+      totalAwarded: 2000,
+      totalDisbursed: 750,
+      totalBeneficiaries: 1,
+      singleScholarshipStudents: 1,
+      maxScholarshipsPerStudent: 1,
+    });
   });
 });
