@@ -128,7 +128,7 @@ const LoginPage = () => {
               <div className="relative">
                 <div className="mb-8">
                   <h2 className="text-3xl font-black leading-[0.98] text-[#0b2c1d] sm:text-4xl">
-                    Automated Schoalship System for FSE
+                    Automated Scholarship System for FSE
                   </h2>
                   <p className="mt-4 max-w-md text-sm leading-6 text-[#4b5d52] sm:text-base">
                     Sign in to manage scholarship records, student assistance data, and annual fee
