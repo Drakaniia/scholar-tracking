@@ -3,8 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { promoteSelectedStudents } from '@/lib/academic-year-service';
 import { verifyToken } from '@/lib/auth';
+import { isStudentTransitionDecision } from '@/lib/promotion-decisions';
+import type { StudentTransitionDecision } from '@/types';
 
 const MAX_BULK_PROMOTION_STUDENTS = 500;
+
+function getUnexpectedPromotionError(error: unknown) {
+  const detail = error instanceof Error && error.message ? error.message : 'Unknown server error.';
+  return `Promotion failed before processing could finish: ${detail}. Resolve the issue shown here, then refresh the promotion list and try again.`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +35,9 @@ export async function POST(request: NextRequest) {
     const rawCohortStudentIds: unknown[] = Array.isArray(body?.cohortStudentIds)
       ? body.cohortStudentIds
       : rawStudentIds;
+    const rawTransitionDecisions: unknown[] = Array.isArray(body?.transitionDecisions)
+      ? body.transitionDecisions
+      : [];
 
     if (rawCohortStudentIds.length === 0) {
       return NextResponse.json(
@@ -66,12 +76,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await promoteSelectedStudents(
-      studentIds,
-      payload.id,
-      undefined,
-      cohortStudentIds
-    );
+    const selectedSet = new Set(studentIds);
+    const transitionDecisionMap = new Map<number, StudentTransitionDecision>();
+    for (const transitionDecision of rawTransitionDecisions) {
+      if (
+        typeof transitionDecision !== 'object' ||
+        transitionDecision === null ||
+        !('studentId' in transitionDecision) ||
+        !('decision' in transitionDecision)
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid transition decision payload.' },
+          { status: 400 }
+        );
+      }
+
+      const studentId = Number(transitionDecision.studentId);
+      const decision = transitionDecision.decision;
+      if (
+        !Number.isInteger(studentId) ||
+        studentId <= 0 ||
+        typeof decision !== 'string' ||
+        !isStudentTransitionDecision(decision)
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid transition decision payload.' },
+          { status: 400 }
+        );
+      }
+
+      if (!selectedSet.has(studentId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Transition decision students must be selected for promotion.',
+          },
+          { status: 400 }
+        );
+      }
+
+      transitionDecisionMap.set(studentId, decision);
+    }
+
+    const result =
+      transitionDecisionMap.size > 0
+        ? await promoteSelectedStudents(
+            studentIds,
+            payload.id,
+            undefined,
+            cohortStudentIds,
+            transitionDecisionMap
+          )
+        : await promoteSelectedStudents(studentIds, payload.id, undefined, cohortStudentIds);
     const processedCount = result.promotedCount + result.archivedCount;
 
     return NextResponse.json(
@@ -90,7 +146,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to promote selected students',
+        error: getUnexpectedPromotionError(error),
       },
       { status: 500 }
     );

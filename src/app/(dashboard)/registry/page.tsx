@@ -59,8 +59,14 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
 import { clientCache, fetchWithCache } from '@/lib/cache';
+import {
+  getPromotionContinueDecision,
+  getPromotionDecisionOptions,
+  isStudentTransitionDecision,
+} from '@/lib/promotion-decisions';
 import { cn } from '@/lib/utils';
-import { STUDENT_TRANSITION_DECISION_LABELS, StudentTransitionDecision } from '@/types';
+import { STUDENT_TRANSITION_DECISION_LABELS } from '@/types';
+import type { StudentTransitionDecision } from '@/types';
 
 type RegistryLane = 'all' | 'grade-school-to-jhs' | 'jhs-to-shs' | 'shs-to-college' | 'separated';
 type PromotionFilter = 'all-eligible' | 'grade-6' | 'grade-11' | 'grade-12' | 'graduating';
@@ -133,6 +139,8 @@ type RegistryRow = {
   studentName: string;
   program: string;
   academicYear: string;
+  gradeLevel: string;
+  yearLevel: string;
   fromLevel: string;
   toLevel: string;
   outcome: string;
@@ -197,21 +205,6 @@ const OUTCOME_LABELS: Record<string, string> = {
   PENDING_DECISION: 'Pending Decision',
   READY_FOR_PROMOTION: 'Ready for Promotion',
 };
-const GRADE_10_DECISIONS: StudentTransitionDecision[] = [
-  'CONTINUE_SENIOR_HIGH',
-  'COMPLETED_JHS',
-  'TRANSFERRED_OUT',
-  'WITHDRAWN',
-  'RETAINED',
-];
-const GRADE_12_DECISIONS: StudentTransitionDecision[] = [
-  'CONTINUE_COLLEGE',
-  'GRADUATED_SHS',
-  'TRANSFERRED_OUT',
-  'WITHDRAWN',
-  'RETAINED',
-];
-
 function formatDate(value: string | null) {
   if (!value) return '-';
   return new Intl.DateTimeFormat('en-PH', {
@@ -239,7 +232,7 @@ function outcomeClassName(outcome: string) {
 }
 
 function isPromotionSelectable(student: PromotionPreviewStudent) {
-  return student.action === 'PROMOTE';
+  return student.action === 'PROMOTE' || Boolean(getPromotionContinueDecision(student));
 }
 
 function isPromotionCohortStudent(student: PromotionPreviewStudent) {
@@ -266,6 +259,9 @@ function matchesPromotionFilter(student: PromotionPreviewStudent, filter: Promot
 
 function getPromotionActionLabel(student: PromotionPreviewStudent) {
   if (student.action === 'PROMOTE') return 'Promote to next grade level';
+  if (student.requiresDecision && getPromotionContinueDecision(student)) {
+    return 'Select to continue';
+  }
   if (student.action === 'GRADUATE') return 'Mark as Graduated/Completed';
   if (student.action === 'SEPARATE') {
     if (student.nextYearLevel === 'Graduated SHS' || student.nextYearLevel === 'Completed JHS') {
@@ -292,11 +288,32 @@ function formatPromotionTarget(student: PromotionPreviewStudent) {
   if (student.action === 'GRADUATE') return 'Graduated';
   if (student.action === 'SEPARATE') return student.nextYearLevel || 'Separated';
   if (student.action === 'RETAIN') return `Retain in ${student.yearLevel}`;
+  if (student.requiresDecision) return 'Decision required';
   return student.reason || 'Needs a transition decision';
 }
 
+function formatSelectedPromotionTarget(student: PromotionPreviewStudent) {
+  if (student.requiresDecision && getPromotionContinueDecision(student)) {
+    return 'Continue to next level';
+  }
+
+  return formatPromotionTarget(student);
+}
+
+function getImplicitPromotionDecisions(students: PromotionPreviewStudent[]) {
+  return students.flatMap((student) => {
+    if (!student.requiresDecision) return [];
+    const decision = getPromotionContinueDecision(student);
+    return decision ? [{ studentId: student.id, decision }] : [];
+  });
+}
+
+function shouldShowPromotionReason(student: PromotionPreviewStudent) {
+  return Boolean(student.reason && student.action !== 'PROMOTE' && !student.requiresDecision);
+}
+
 function getDecisionOptions(row: RegistryRow) {
-  return row.lane === 'jhs-to-shs' ? GRADE_10_DECISIONS : GRADE_12_DECISIONS;
+  return getPromotionDecisionOptions(row);
 }
 
 function RegistryTableLoading() {
@@ -417,6 +434,7 @@ export default function RegistryPage() {
   const [bulkPromotionResult, setBulkPromotionResult] = useState<BulkPromotionRunResult | null>(
     null
   );
+  const [bulkPromotionMessage, setBulkPromotionMessage] = useState<string | null>(null);
   const [pendingDecisions, setPendingDecisions] = useState<
     Partial<Record<number, StudentTransitionDecision>>
   >({});
@@ -452,8 +470,8 @@ export default function RegistryPage() {
 
       const currentDecisions: Partial<Record<number, StudentTransitionDecision>> = {};
       result.data.forEach((row) => {
-        if (row.canDecide && row.decision) {
-          currentDecisions[row.studentId] = row.decision as StudentTransitionDecision;
+        if (row.canDecide && isStudentTransitionDecision(row.decision)) {
+          currentDecisions[row.studentId] = row.decision;
         }
       });
 
@@ -581,11 +599,39 @@ export default function RegistryPage() {
   );
   const selectedPromotionSummary = useMemo(
     () => ({
-      promote: selectedPromotionStudents.filter((student) => student.action === 'PROMOTE').length,
+      promote: selectedPromotionStudents.filter(isPromotionSelectable).length,
       archive: Math.max(filteredPromotionStudents.length - selectedPromotionStudents.length, 0),
     }),
     [filteredPromotionStudents.length, selectedPromotionStudents]
   );
+  const failedBulkPromotionResults = useMemo(
+    () => bulkPromotionResult?.results.filter((result) => !result.success) || [],
+    [bulkPromotionResult]
+  );
+  const promotionActionBlocker = useMemo(() => {
+    if (!isAdmin) return 'Administrator access is required for bulk promotion.';
+    if (promotionLoading) return null;
+    if (promotionErrorMessage) return `Promotion preview could not load: ${promotionErrorMessage}`;
+    if (!promotionPreview?.activeAcademicYear) {
+      return 'No active academic year is configured. Set an active academic year first.';
+    }
+    if (promotionPreview.activeAcademicYear.promotionProcessedAt) {
+      return 'This academic year has already been promoted. Undo the last promotion before promoting again.';
+    }
+    if (filteredPromotionStudents.length === 0) {
+      return 'No students match the current promotion filter.';
+    }
+    return null;
+  }, [
+    filteredPromotionStudents.length,
+    isAdmin,
+    promotionErrorMessage,
+    promotionLoading,
+    promotionPreview?.activeAcademicYear,
+  ]);
+  const promotionFeedbackMessage =
+    bulkPromotionMessage ||
+    (promotionPreview?.activeAcademicYear?.promotionProcessedAt ? null : promotionActionBlocker);
   const allVisiblePromotionStudentsSelected =
     selectableFilteredPromotionStudents.length > 0 &&
     selectableFilteredPromotionStudents.every((student) => selectedStudentIds.has(student.id));
@@ -627,13 +673,17 @@ export default function RegistryPage() {
   };
 
   const handleOpenBulkDialog = () => {
-    if (!isAdmin) {
-      toast.error('Only administrators can promote students.');
+    setBulkPromotionMessage(null);
+    setBulkPromotionResult(null);
+    if (promotionActionBlocker) {
+      setBulkPromotionMessage(promotionActionBlocker);
       return;
     }
 
     if (selectedPromotionStudents.length === 0) {
-      toast.message('No students selected to promote. All visible eligible students will be archived.');
+      setBulkPromotionMessage(
+        'No students are selected to promote. Confirm only if every visible student should be archived as non-continuing.'
+      );
     }
 
     setIsBulkDialogOpen(true);
@@ -643,6 +693,8 @@ export default function RegistryPage() {
     if (filteredPromotionStudents.length === 0) return;
 
     setIsBulkPromoting(true);
+    setBulkPromotionMessage(null);
+    setBulkPromotionResult(null);
     try {
       const response = await fetch('/api/academic-years/auto-promote/bulk', {
         method: 'POST',
@@ -650,6 +702,7 @@ export default function RegistryPage() {
         body: JSON.stringify({
           studentIds: selectedPromotionStudents.map((student) => student.id),
           cohortStudentIds: filteredPromotionStudents.map((student) => student.id),
+          transitionDecisions: getImplicitPromotionDecisions(selectedPromotionStudents),
         }),
         credentials: 'include',
       });
@@ -660,12 +713,16 @@ export default function RegistryPage() {
       }
 
       if (!response.ok || !result.success) {
-        toast.error(result.error || result.message || 'Failed to promote selected students.');
+        setBulkPromotionMessage(
+          result.error ||
+            result.message ||
+            'No selected students were processed. Review the validation details below.'
+        );
         return;
       }
 
       if (result.data?.errorCount) {
-        toast.error(
+        setBulkPromotionMessage(
           `Bulk promotion completed with ${result.data.errorCount} issue(s). Review the summary.`
         );
       } else {
@@ -680,7 +737,7 @@ export default function RegistryPage() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to promote selected students.';
-      toast.error(message);
+      setBulkPromotionMessage(message);
     } finally {
       setIsBulkPromoting(false);
     }
@@ -771,8 +828,8 @@ export default function RegistryPage() {
               <ShieldCheck className="h-7 w-7 text-emerald-300" />
               <h2 className="mt-4 text-xl font-semibold">Selection controls promotion.</h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">
-                Check only students continuing at Bosco/FSE. Unchecked students in the current
-                list are archived so they are not carried into the next academic level.
+                Check only students continuing at Bosco/FSE. Unchecked students in the current list
+                are archived so they are not carried into the next academic level.
               </p>
             </div>
             <div className="mt-8 grid grid-cols-2 gap-3 text-sm">
@@ -833,12 +890,7 @@ export default function RegistryPage() {
             <Button
               type="button"
               onClick={handleOpenBulkDialog}
-              disabled={
-                !isAdmin ||
-                promotionLoading ||
-                filteredPromotionStudents.length === 0 ||
-                !!promotionPreview?.activeAcademicYear?.promotionProcessedAt
-              }
+              disabled={!!promotionActionBlocker || isBulkPromoting}
               className="bg-emerald-600 text-white hover:bg-emerald-700"
             >
               {isBulkPromoting ? (
@@ -879,9 +931,7 @@ export default function RegistryPage() {
             <div className="grid gap-2 text-sm sm:grid-cols-3 xl:min-w-[420px]">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
                 <p className="text-xs font-medium text-emerald-700">Promote</p>
-                <p className="font-semibold text-emerald-950">
-                  {selectedPromotionSummary.promote}
-                </p>
+                <p className="font-semibold text-emerald-950">{selectedPromotionSummary.promote}</p>
               </div>
               <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
                 <p className="text-xs font-medium text-orange-700">Archive Unchecked</p>
@@ -901,6 +951,15 @@ export default function RegistryPage() {
           <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             This academic year has already been promoted. Selected bulk promotion is unavailable
             until the last promotion is undone.
+          </div>
+        )}
+
+        {promotionFeedbackMessage && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="flex gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{promotionFeedbackMessage}</p>
+            </div>
           </div>
         )}
 
@@ -930,15 +989,12 @@ export default function RegistryPage() {
                 </div>
               </div>
               {bulkPromotionResult.errorCount > 0 && (
-                <div className="max-w-xl text-sm text-amber-900">
-                  {bulkPromotionResult.results
-                    .filter((result) => !result.success)
-                    .slice(0, 3)
-                    .map((result) => (
-                      <p key={result.studentId}>
-                        {result.studentName}: {result.error}
-                      </p>
-                    ))}
+                <div className="max-h-32 max-w-xl overflow-y-auto text-sm text-amber-900">
+                  {failedBulkPromotionResults.map((result) => (
+                    <p key={result.studentId}>
+                      {result.studentName}: {result.error}
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
@@ -1033,7 +1089,14 @@ export default function RegistryPage() {
                       </TableCell>
                       <TableCell>
                         <div className="max-w-[340px] text-sm text-slate-700">
-                          <p className="font-medium">{formatPromotionTarget(student)}</p>
+                          <p className="font-medium">
+                            {selected
+                              ? formatSelectedPromotionTarget(student)
+                              : formatPromotionTarget(student)}
+                          </p>
+                          {shouldShowPromotionReason(student) && (
+                            <p className="text-xs text-amber-700">{student.reason}</p>
+                          )}
                           {student.nextProgram && student.action === 'PROMOTE' && (
                             <p className="text-xs text-slate-500">
                               {student.nextProgram}
@@ -1068,11 +1131,37 @@ export default function RegistryPage() {
           <AlertDialogHeader className={DIALOG_HEADER_CLASS}>
             <AlertDialogTitle>Promote Selected Students</AlertDialogTitle>
             <AlertDialogDescription>
-              Checked students will continue at Bosco/FSE and be promoted. Unchecked students in
-              the current filtered list will be archived.
+              Checked students will continue at Bosco/FSE and be promoted. Unchecked students in the
+              current filtered list will be archived.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className={cn(DIALOG_BODY_CLASS, 'space-y-4')}>
+            {bulkPromotionMessage && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <div className="flex gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>{bulkPromotionMessage}</p>
+                </div>
+              </div>
+            )}
+
+            {failedBulkPromotionResults.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-white">
+                <div className="border-b border-amber-100 px-3 py-2">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Students that could not be promoted
+                  </p>
+                </div>
+                <div className="max-h-40 overflow-y-auto px-3 py-2 text-sm text-amber-900">
+                  {failedBulkPromotionResults.map((result) => (
+                    <p key={result.studentId}>
+                      {result.studentName}: {result.error || 'Promotion validation failed.'}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-medium text-slate-500">Current List</p>
@@ -1114,10 +1203,13 @@ export default function RegistryPage() {
                           {selectedStudentIds.has(student.id)
                             ? 'Promote to next grade level'
                             : 'Archive as non-continuing'}
+                          {shouldShowPromotionReason(student) && (
+                            <p className="mt-1 text-xs text-amber-700">{student.reason}</p>
+                          )}
                         </TableCell>
                         <TableCell>
                           {selectedStudentIds.has(student.id)
-                            ? formatPromotionTarget(student)
+                            ? formatSelectedPromotionTarget(student)
                             : 'Archived'}
                         </TableCell>
                       </TableRow>
@@ -1281,11 +1373,8 @@ export default function RegistryPage() {
                             <Select
                               value={selectedDecision}
                               onValueChange={(value) => {
-                                if (value !== 'UNSET') {
-                                  handleDecisionChange(
-                                    row.studentId,
-                                    value as StudentTransitionDecision
-                                  );
+                                if (isStudentTransitionDecision(value)) {
+                                  handleDecisionChange(row.studentId, value);
                                 }
                               }}
                               disabled={isSavingDecision}

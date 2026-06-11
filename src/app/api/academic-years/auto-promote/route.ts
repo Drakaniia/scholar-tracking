@@ -8,28 +8,12 @@ import {
 } from '@/lib/academic-year-service';
 import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { SEPARATED_STUDENT_STATUSES, STUDENT_TRANSITION_DECISIONS } from '@/types';
-
-const GRADE_10_TRANSITION_DECISIONS = new Set([
-  'CONTINUE_SENIOR_HIGH',
-  'COMPLETED_JHS',
-  'TRANSFERRED_OUT',
-  'WITHDRAWN',
-  'RETAINED',
-]);
-const GRADE_12_TRANSITION_DECISIONS = new Set([
-  'CONTINUE_COLLEGE',
-  'GRADUATED_SHS',
-  'TRANSFERRED_OUT',
-  'WITHDRAWN',
-  'RETAINED',
-]);
-
-function getAllowedTransitionDecisions(yearLevel: string) {
-  if (yearLevel === 'Grade 10') return GRADE_10_TRANSITION_DECISIONS;
-  if (yearLevel === 'Grade 12') return GRADE_12_TRANSITION_DECISIONS;
-  return null;
-}
+import {
+  isPromotionDecisionAllowed,
+  isStudentTransitionDecision,
+} from '@/lib/promotion-decisions';
+import { getPromotionTargetBlocker } from '@/lib/promotion-validation';
+import { SEPARATED_STUDENT_STATUSES, type StudentTransitionDecision } from '@/types';
 
 function isSeparatedStatus(status?: string | null) {
   return !!status && (SEPARATED_STUDENT_STATUSES as readonly string[]).includes(status);
@@ -108,17 +92,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const allowedDecisions = new Set<string>(STUDENT_TRANSITION_DECISIONS);
+    const decisions: Array<{ studentId: number; decision: StudentTransitionDecision }> = [];
     for (const decision of rawDecisions) {
-      if (!Number.isInteger(decision?.studentId) || !allowedDecisions.has(decision?.decision)) {
+      if (!Number.isInteger(decision?.studentId) || !isStudentTransitionDecision(decision?.decision)) {
         return NextResponse.json(
           { success: false, error: 'Invalid transition decision payload.' },
           { status: 400 }
         );
       }
+
+      decisions.push({
+        studentId: decision.studentId,
+        decision: decision.decision,
+      });
     }
 
-    const decisions = rawDecisions as Array<{ studentId: number; decision: string }>;
     const studentIds = [...new Set(decisions.map((decision) => decision.studentId))];
     const decisionTargets = await prisma.student.findMany({
       where: {
@@ -126,6 +114,7 @@ export async function PATCH(request: NextRequest) {
       },
       select: {
         id: true,
+        gradeLevel: true,
         yearLevel: true,
         status: true,
         graduationStatus: true,
@@ -144,9 +133,7 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      const allowedForYearLevel = getAllowedTransitionDecisions(student.yearLevel);
       if (
-        !allowedForYearLevel ||
         student.isArchived ||
         student.status !== 'Active' ||
         isSeparatedStatus(student.status) ||
@@ -155,13 +142,14 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Only active Grade 10 and Grade 12 students can receive transition decisions.',
+            error:
+              'Only active, unarchived, non-separated students can receive transition decisions.',
           },
           { status: 400 }
         );
       }
 
-      if (!allowedForYearLevel.has(decision.decision)) {
+      if (!isPromotionDecisionAllowed(student, decision.decision)) {
         return NextResponse.json(
           {
             success: false,
@@ -173,7 +161,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     await prisma.$transaction(
-      decisions.map((decision: { studentId: number; decision: string }) =>
+      decisions.map((decision) =>
         prisma.student.update({
           where: { id: decision.studentId },
           data: {
@@ -321,6 +309,7 @@ export async function GET(request: NextRequest) {
 
     const promotionPreview = students.map((student) => {
       const target = resolvePromotionTarget(student);
+      const reason = getPromotionTargetBlocker(target);
       return {
         ...student,
         nextGradeLevel: target.action === 'PROMOTE' ? target.gradeLevel : null,
@@ -337,7 +326,7 @@ export async function GET(request: NextRequest) {
         nextProgram: target.action === 'PROMOTE' ? target.program || student.program : null,
         nextTermType: target.action === 'PROMOTE' ? target.termType || student.termType : null,
         action: target.action,
-        reason: target.action === 'SKIP' ? target.reason : undefined,
+        reason: reason || undefined,
         transitionDecision: student.transitionDecision,
         requiresDecision:
           target.action === 'SKIP' && target.reason.includes('requires an end-of-year decision'),

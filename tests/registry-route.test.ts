@@ -133,7 +133,7 @@ describe('registry route', () => {
     });
   });
 
-  it('shows current Grade 6 students as ready for Junior High promotion', async () => {
+  it('shows current Grade 6 students as requiring a decision before Junior High promotion', async () => {
     prismaMock.studentAcademicRecord.findMany.mockResolvedValueOnce([]);
     prismaMock.student.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
       {
@@ -169,10 +169,48 @@ describe('registry route', () => {
       expect.objectContaining({
         studentId: 6,
         lane: 'grade-school-to-jhs',
+        outcome: 'PENDING_DECISION',
+        toLevel: 'Pending decision',
+        decisionLabel: 'No decision recorded',
+        canDecide: true,
+        requiresDecision: true,
+      }),
+    ]);
+  });
+
+  it('shows non-boundary active students in the promotion decision list', async () => {
+    prismaMock.studentAcademicRecord.findMany.mockResolvedValueOnce([]);
+    prismaMock.student.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        id: 7,
+        firstName: 'LUIS',
+        lastName: 'DELA CRUZ',
+        program: 'Junior High',
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 7',
+        status: 'Active',
+        graduationStatus: 'Active',
+        transitionDecision: 'TRANSFERRED_OUT',
+        transitionDecisionAt: new Date('2026-05-31T00:00:00.000Z'),
+        separatedAt: null,
+        updatedAt: new Date('2026-05-31T00:00:00.000Z'),
+        academicRecords: [],
+      },
+    ]);
+
+    const { GET } = await import('@/app/api/registry/route');
+    const response = await GET(registryRequest('?limit=50'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        studentId: 7,
+        lane: 'other',
         outcome: 'READY_FOR_PROMOTION',
-        toLevel: 'Junior High - Grade 7',
-        decisionLabel: 'Automatic promotion',
-        canDecide: false,
+        toLevel: 'Transferred Out',
+        decisionLabel: 'Transferred Out',
+        canDecide: true,
         requiresDecision: false,
       }),
     ]);

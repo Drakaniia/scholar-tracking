@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { StudentTransitionDecision } from '@/types';
+
 const prismaMock = vi.hoisted(() => ({
   academicYear: {
     findFirst: vi.fn(),
@@ -143,6 +145,7 @@ describe('promoteSelectedStudents', () => {
         lastName: 'Six',
         gradeLevel: 'GRADE_SCHOOL',
         yearLevel: 'Grade 6',
+        transitionDecision: 'CONTINUE_NEXT_LEVEL',
       }),
       activeStudent({
         id: 11,
@@ -151,6 +154,7 @@ describe('promoteSelectedStudents', () => {
         gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 11',
         program: 'STEM',
+        transitionDecision: 'CONTINUE_NEXT_LEVEL',
       }),
       activeStudent({
         id: 12,
@@ -174,6 +178,13 @@ describe('promoteSelectedStudents', () => {
       skippedCount: 0,
       errorCount: 0,
     });
+    expect(prismaMock.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        maxWait: 10_000,
+        timeout: 60_000,
+      })
+    );
     expect(txMock.academicYear.updateMany).not.toHaveBeenCalled();
     expect(txMock.student.update).toHaveBeenCalledWith({
       where: { id: 2 },
@@ -203,6 +214,7 @@ describe('promoteSelectedStudents', () => {
         lastName: 'Villanueva',
         gradeLevel: 'GRADE_SCHOOL',
         yearLevel: 'Grade 6',
+        transitionDecision: 'CONTINUE_NEXT_LEVEL',
       }),
       activeStudent({
         id: 12,
@@ -316,6 +328,103 @@ describe('promoteSelectedStudents', () => {
     );
     expect(txMock.student.update).not.toHaveBeenCalled();
     expect(txMock.studentAcademicRecord.create).not.toHaveBeenCalled();
+  });
+
+  it('promotes selected undecided students when a continue decision is supplied with the selection', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 7,
+        firstName: 'Luis',
+        lastName: 'Dela Cruz',
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 7',
+      }),
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const transitionDecisions = new Map<number, StudentTransitionDecision>([
+      [7, 'CONTINUE_NEXT_LEVEL'],
+    ]);
+    const result = await promoteSelectedStudents([7], 23, undefined, [7], transitionDecisions);
+
+    expect(result).toMatchObject({
+      success: true,
+      selectedCount: 1,
+      promotedCount: 1,
+      skippedCount: 0,
+      errorCount: 0,
+    });
+    expect(txMock.student.update).toHaveBeenCalledWith({
+      where: { id: 7 },
+      data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 8' }),
+    });
+    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        studentId: 7,
+        decision: 'CONTINUE_NEXT_LEVEL',
+        outcome: 'PROMOTED',
+      }),
+    });
+  });
+
+  it('explains why an archived selected student cannot be promoted', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 8,
+        firstName: 'Archived',
+        lastName: 'Student',
+        isArchived: true,
+      }),
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const result = await promoteSelectedStudents([8], 23);
+
+    expect(result).toMatchObject({
+      success: false,
+      selectedCount: 1,
+      promotedCount: 0,
+      skippedCount: 1,
+      errorCount: 1,
+    });
+    expect(result.results[0]).toMatchObject({
+      studentId: 8,
+      success: false,
+      error: 'This student is archived and cannot be promoted.',
+    });
+    expect(txMock.student.update).not.toHaveBeenCalled();
+  });
+
+  it('explains when a selected Grade 12 student is marked as not continuing to college', async () => {
+    txMock.student.findMany.mockResolvedValueOnce([
+      activeStudent({
+        id: 12,
+        firstName: 'Maria',
+        lastName: 'Santos',
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 12',
+        transitionDecision: 'GRADUATED_SHS',
+      }),
+    ]);
+
+    const { promoteSelectedStudents } = await import('@/lib/academic-year-service');
+    const result = await promoteSelectedStudents([12], 23);
+
+    expect(result).toMatchObject({
+      success: false,
+      selectedCount: 1,
+      promotedCount: 0,
+      skippedCount: 1,
+      errorCount: 1,
+    });
+    expect(result.results[0]).toMatchObject({
+      studentId: 12,
+      action: 'SEPARATE',
+      success: false,
+      error:
+        'Student graduated Senior High and is not continuing to College in this school. Change the transition decision to continue if this student should be promoted.',
+    });
+    expect(txMock.student.update).not.toHaveBeenCalled();
   });
 });
 

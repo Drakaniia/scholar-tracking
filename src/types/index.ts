@@ -355,29 +355,35 @@ export const SCHOLARSHIP_SOURCE_LABELS: Record<ScholarshipSource, string> = {
 export const DISBURSEMENT_METHODS = ['Bank Transfer', 'Check', 'Cash'] as const;
 
 export type StudentTransitionDecision =
+  | 'CONTINUE_NEXT_LEVEL'
   | 'CONTINUE_SENIOR_HIGH'
   | 'CONTINUE_COLLEGE'
   | 'COMPLETED_JHS'
   | 'GRADUATED_SHS'
+  | 'GRADUATED_COLLEGE'
   | 'TRANSFERRED_OUT'
   | 'WITHDRAWN'
   | 'RETAINED';
 
 export const STUDENT_TRANSITION_DECISIONS: StudentTransitionDecision[] = [
+  'CONTINUE_NEXT_LEVEL',
   'CONTINUE_SENIOR_HIGH',
   'CONTINUE_COLLEGE',
   'COMPLETED_JHS',
   'GRADUATED_SHS',
+  'GRADUATED_COLLEGE',
   'TRANSFERRED_OUT',
   'WITHDRAWN',
   'RETAINED',
 ] as const;
 
 export const STUDENT_TRANSITION_DECISION_LABELS: Record<StudentTransitionDecision, string> = {
+  CONTINUE_NEXT_LEVEL: 'Continue to Next Level',
   CONTINUE_SENIOR_HIGH: 'Continue to Grade 11',
   CONTINUE_COLLEGE: 'Continue to College',
   COMPLETED_JHS: 'Completed Junior High',
   GRADUATED_SHS: 'Graduated Senior High',
+  GRADUATED_COLLEGE: 'Graduated College',
   TRANSFERRED_OUT: 'Transferred Out',
   WITHDRAWN: 'Withdrawn',
   RETAINED: 'Retained',

@@ -67,6 +67,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { clientCache, fetchWithCache } from '@/lib/cache';
+import { getPromotionDecisionOptions, isStudentTransitionDecision } from '@/lib/promotion-decisions';
 import { formatCurrency } from '@/lib/utils';
 import {
   GRADE_LEVEL_LABELS,
@@ -1847,7 +1848,7 @@ export default function SettingsPage() {
         const initialDecisions: Record<number, StudentTransitionDecision> = {};
         result.data.preview.forEach(
           (student: { id: number; transitionDecision: StudentTransitionDecision | null }) => {
-            if (student.transitionDecision) {
+            if (isStudentTransitionDecision(student.transitionDecision)) {
               initialDecisions[student.id] = student.transitionDecision;
             }
           }
@@ -2041,10 +2042,7 @@ export default function SettingsPage() {
   const handleSaveTransitionDecisions = async () => {
     if (!promotionPreview) return;
 
-    const boundaryStudents = promotionPreview.preview.filter(
-      (student) => student.yearLevel === 'Grade 10' || student.yearLevel === 'Grade 12'
-    );
-    const decisions = boundaryStudents
+    const decisions = promotionPreview.preview
       .filter((student) => transitionDecisions[student.id])
       .map((student) => ({
         studentId: student.id,
@@ -2052,7 +2050,7 @@ export default function SettingsPage() {
       }));
 
     if (decisions.length === 0) {
-      toast.error('Select at least one Grade 10 or Grade 12 decision first.');
+      toast.error('Select at least one transition decision first.');
       return;
     }
 
@@ -3764,8 +3762,8 @@ export default function SettingsPage() {
                         <p>
                           {hasPromotionDecisionBlockers ? (
                             <>
-                              <strong>{promotionDecisionBlockers.length}</strong> Grade 10/12
-                              student(s) need a transition decision before promotion can start.
+                              <strong>{promotionDecisionBlockers.length}</strong> student(s) need a
+                              transition decision before promotion can start.
                             </>
                           ) : (
                             <>
@@ -3807,28 +3805,11 @@ export default function SettingsPage() {
                       </TableHeader>
                       <TableBody>
                         {promotionPreview.preview.map((student) => {
-                          const isBoundaryStudent =
-                            student.yearLevel === 'Grade 10' || student.yearLevel === 'Grade 12';
-                          const selectedDecision =
+                          const selectedDecision: StudentTransitionDecision | 'UNSET' =
                             transitionDecisions[student.id] ||
                             student.transitionDecision ||
-                            ('UNSET' as StudentTransitionDecision | 'UNSET');
-                          const decisionOptions =
-                            student.yearLevel === 'Grade 10'
-                              ? ([
-                                  'CONTINUE_SENIOR_HIGH',
-                                  'COMPLETED_JHS',
-                                  'TRANSFERRED_OUT',
-                                  'WITHDRAWN',
-                                  'RETAINED',
-                                ] as StudentTransitionDecision[])
-                              : ([
-                                  'CONTINUE_COLLEGE',
-                                  'GRADUATED_SHS',
-                                  'TRANSFERRED_OUT',
-                                  'WITHDRAWN',
-                                  'RETAINED',
-                                ] as StudentTransitionDecision[]);
+                            'UNSET';
+                          const decisionOptions = getPromotionDecisionOptions(student);
                           const actionLabel =
                             student.action === 'GRADUATE'
                               ? 'Graduate'
@@ -3837,7 +3818,9 @@ export default function SettingsPage() {
                                 : student.action === 'RETAIN'
                                   ? 'Retain'
                                   : student.action === 'SKIP'
-                                    ? 'Blocked'
+                                    ? student.requiresDecision
+                                      ? 'Decision needed'
+                                      : 'Blocked'
                                     : 'Promote';
 
                           return (
@@ -3849,35 +3832,28 @@ export default function SettingsPage() {
                                 {student.gradeLevel} - {student.yearLevel}
                               </TableCell>
                               <TableCell className="min-w-[220px]">
-                                {isBoundaryStudent ? (
-                                  <Select
-                                    value={selectedDecision}
-                                    onValueChange={(value) => {
-                                      if (value !== 'UNSET') {
-                                        handleTransitionDecisionChange(
-                                          student.id,
-                                          value as StudentTransitionDecision
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-9">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="UNSET" disabled>
-                                        Choose decision
+                                <Select
+                                  value={selectedDecision}
+                                  onValueChange={(value) => {
+                                    if (isStudentTransitionDecision(value)) {
+                                      handleTransitionDecisionChange(student.id, value);
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="UNSET" disabled>
+                                      Choose decision
+                                    </SelectItem>
+                                    {decisionOptions.map((decision) => (
+                                      <SelectItem key={decision} value={decision}>
+                                        {STUDENT_TRANSITION_DECISION_LABELS[decision]}
                                       </SelectItem>
-                                      {decisionOptions.map((decision) => (
-                                        <SelectItem key={decision} value={decision}>
-                                          {STUDENT_TRANSITION_DECISION_LABELS[decision]}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <span className="text-muted-foreground">Auto</span>
-                                )}
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell>
                                 <Badge
@@ -3903,8 +3879,14 @@ export default function SettingsPage() {
                                   <span className="font-medium text-amber-700">
                                     Retain in {student.yearLevel}
                                   </span>
+                                ) : student.action === 'SKIP' && student.requiresDecision ? (
+                                  <span className="font-medium text-amber-700">
+                                    Select decision first
+                                  </span>
                                 ) : student.action === 'SKIP' ? (
-                                  <span className="text-muted-foreground">{student.reason}</span>
+                                  <span className="text-muted-foreground">
+                                    {student.reason || 'Blocked'}
+                                  </span>
                                 ) : (
                                   <div className="space-y-1">
                                     <span className="text-green-600">

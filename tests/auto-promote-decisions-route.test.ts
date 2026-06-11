@@ -79,6 +79,7 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
     prismaMock.student.findMany.mockResolvedValueOnce([
       {
         id: 10,
+        gradeLevel: 'JUNIOR_HIGH',
         yearLevel: 'Grade 10',
         isArchived: false,
         status: 'Active',
@@ -109,6 +110,7 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
     prismaMock.student.findMany.mockResolvedValueOnce([
       {
         id: 12,
+        gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 12',
         isArchived: false,
         status: 'Active',
@@ -139,6 +141,7 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
     prismaMock.student.findMany.mockResolvedValueOnce([
       {
         id: 10,
+        gradeLevel: 'JUNIOR_HIGH',
         yearLevel: 'Grade 10',
         isArchived: false,
         status: 'Active',
@@ -162,6 +165,7 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
     prismaMock.student.findMany.mockResolvedValueOnce([
       {
         id: 12,
+        gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 12',
         isArchived: false,
         status: 'Active',
@@ -196,10 +200,42 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 
-  it('rejects non-boundary students', async () => {
+  it('saves a valid non-boundary transition decision', async () => {
     prismaMock.student.findMany.mockResolvedValueOnce([
       {
         id: 11,
+        gradeLevel: 'SENIOR_HIGH',
+        yearLevel: 'Grade 11',
+        isArchived: false,
+        status: 'Active',
+        graduationStatus: 'Active',
+      },
+    ]);
+
+    const { PATCH } = await import('@/app/api/academic-years/auto-promote/route');
+    const response = await PATCH(
+      decisionRequest([{ studentId: 11, decision: 'CONTINUE_NEXT_LEVEL' }])
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(prismaMock.$transaction).toHaveBeenCalledWith([
+      expect.objectContaining({
+        where: { id: 11 },
+        data: expect.objectContaining({
+          transitionDecision: 'CONTINUE_NEXT_LEVEL',
+          transitionDecisionBy: 1,
+        }),
+      }),
+    ]);
+  });
+
+  it('rejects a non-boundary student with a Grade 12-only decision', async () => {
+    prismaMock.student.findMany.mockResolvedValueOnce([
+      {
+        id: 11,
+        gradeLevel: 'SENIOR_HIGH',
         yearLevel: 'Grade 11',
         isArchived: false,
         status: 'Active',
@@ -215,7 +251,7 @@ describe('PATCH /api/academic-years/auto-promote transition decisions', () => {
 
     expect(response.status).toBe(400);
     expect(body.success).toBe(false);
-    expect(body.error).toContain('Only active Grade 10 and Grade 12 students');
+    expect(body.error).toContain('Invalid transition decision for Grade 11');
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 });

@@ -34,11 +34,15 @@ vi.mock('@/lib/academic-year-service', () => ({
   promoteSelectedStudents: promoteSelectedStudentsMock,
 }));
 
-function bulkRequest(studentIds: unknown[], cohortStudentIds: unknown[] = studentIds) {
+function bulkRequest(
+  studentIds: unknown[],
+  cohortStudentIds: unknown[] = studentIds,
+  transitionDecisions: unknown[] = []
+) {
   return new NextRequest('http://localhost/api/academic-years/auto-promote/bulk', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ studentIds, cohortStudentIds }),
+    body: JSON.stringify({ studentIds, cohortStudentIds, transitionDecisions }),
   });
 }
 
@@ -74,6 +78,37 @@ describe('POST /api/academic-years/auto-promote/bulk', () => {
       archivedCount: 0,
     });
     expect(promoteSelectedStudentsMock).toHaveBeenCalledWith([6, 12], 1, undefined, [6, 12]);
+  });
+
+  it('passes implicit continue decisions for selected undecided students', async () => {
+    const { POST } = await import('@/app/api/academic-years/auto-promote/bulk/route');
+    const response = await POST(
+      bulkRequest([7], [7], [{ studentId: 7, decision: 'CONTINUE_NEXT_LEVEL' }])
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(promoteSelectedStudentsMock).toHaveBeenCalledWith(
+      [7],
+      1,
+      undefined,
+      [7],
+      new Map([[7, 'CONTINUE_NEXT_LEVEL']])
+    );
+  });
+
+  it('rejects transition decisions for students not selected for promotion', async () => {
+    const { POST } = await import('@/app/api/academic-years/auto-promote/bulk/route');
+    const response = await POST(
+      bulkRequest([], [7], [{ studentId: 7, decision: 'CONTINUE_NEXT_LEVEL' }])
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('must be selected');
+    expect(promoteSelectedStudentsMock).not.toHaveBeenCalled();
   });
 
   it('archives the current promotion list when no continuing students are selected', async () => {
@@ -162,6 +197,19 @@ describe('POST /api/academic-years/auto-promote/bulk', () => {
       skippedCount: 1,
       errorCount: 1,
     });
+  });
+
+  it('returns the underlying reason when promotion throws unexpectedly', async () => {
+    promoteSelectedStudentsMock.mockRejectedValueOnce(new Error('Database connection timed out'));
+
+    const { POST } = await import('@/app/api/academic-years/auto-promote/bulk/route');
+    const response = await POST(bulkRequest([7], [7]));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.success).toBe(false);
+    expect(body.error).toContain('Database connection timed out');
+    expect(body.error).toContain('refresh the promotion list and try again');
   });
 
   it('rejects non-admin users', async () => {

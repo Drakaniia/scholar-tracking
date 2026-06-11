@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { isStudentTransitionDecision } from '@/lib/promotion-decisions';
 import prisma from '@/lib/prisma';
 import {
   SEPARATED_STUDENT_STATUSES,
   STUDENT_TRANSITION_DECISION_LABELS,
-  StudentTransitionDecision,
 } from '@/types';
 
 const BOUNDARY_YEAR_LEVELS = ['Grade 6', 'Grade 10', 'Grade 12'];
@@ -26,10 +26,8 @@ const OUTCOME_LABELS: Record<string, string> = {
 
 function formatDecision(decision?: string | null) {
   if (!decision) return 'No decision recorded';
-  return (
-    STUDENT_TRANSITION_DECISION_LABELS[decision as StudentTransitionDecision] ||
-    decision.replace(/_/g, ' ')
-  );
+  if (isStudentTransitionDecision(decision)) return STUDENT_TRANSITION_DECISION_LABELS[decision];
+  return decision.replace(/_/g, ' ');
 }
 
 function formatOutcome(outcome: string) {
@@ -94,6 +92,8 @@ type RegistryRow = {
   studentName: string;
   program: string;
   academicYear: string;
+  gradeLevel: string;
+  yearLevel: string;
   fromLevel: string;
   toLevel: string;
   outcome: string;
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'all';
     const skip = (page - 1) * limit;
 
-    const [records, separatedStudents, currentBoundaryStudents] = await Promise.all([
+    const [records, separatedStudents, currentPromotionStudents] = await Promise.all([
       prisma.studentAcademicRecord.findMany({
         where: {
           OR: [
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
       prisma.student.findMany({
         where: {
           isArchived: false,
-          yearLevel: { in: BOUNDARY_YEAR_LEVELS },
+          status: 'Active',
           NOT: {
             OR: [
               { status: { in: [...SEPARATED_STUDENT_STATUSES] } },
@@ -203,6 +203,8 @@ export async function GET(request: NextRequest) {
         studentName: `${record.student.lastName}, ${record.student.firstName}`,
         program: record.program || record.student.program,
         academicYear: record.academicYear,
+        gradeLevel: record.gradeLevel,
+        yearLevel: record.yearLevel,
         fromLevel: `${record.gradeLevel} - ${record.yearLevel}`,
         toLevel,
         outcome: record.outcome || 'RECORDED',
@@ -222,14 +224,11 @@ export async function GET(request: NextRequest) {
         .filter((record) => isSeparatedOutcome(record.outcome))
         .map((record) => record.studentId)
     );
-    const studentsWithRegistryRows = new Set(records.map((record) => record.studentId));
 
-    const currentBoundaryRows: RegistryRow[] = currentBoundaryStudents
-      .filter((student) => !studentsWithRegistryRows.has(student.id))
+    const currentPromotionRows: RegistryRow[] = currentPromotionStudents
       .map((student) => {
         const latestRecord = student.academicRecords[0];
         const laneFromStudent = getBoundaryLane(student.yearLevel);
-        const isGradeSixBoundary = student.yearLevel === 'Grade 6';
 
         return {
           id: `current-${student.id}`,
@@ -237,26 +236,21 @@ export async function GET(request: NextRequest) {
           studentName: `${student.lastName}, ${student.firstName}`,
           program: student.program,
           academicYear: latestRecord?.academicYear || 'Current record',
+          gradeLevel: student.gradeLevel,
+          yearLevel: student.yearLevel,
           fromLevel: `${student.gradeLevel} - ${student.yearLevel}`,
-          toLevel: isGradeSixBoundary
-            ? 'Junior High - Grade 7'
-            : student.transitionDecision
-              ? formatDecision(student.transitionDecision)
-              : 'Pending decision',
-          outcome:
-            isGradeSixBoundary || student.transitionDecision
-              ? 'READY_FOR_PROMOTION'
-              : 'PENDING_DECISION',
+          toLevel: student.transitionDecision
+            ? formatDecision(student.transitionDecision)
+            : 'Pending decision',
+          outcome: student.transitionDecision ? 'READY_FOR_PROMOTION' : 'PENDING_DECISION',
           decision: student.transitionDecision,
-          decisionLabel: isGradeSixBoundary
-            ? 'Automatic promotion'
-            : formatDecision(student.transitionDecision),
+          decisionLabel: formatDecision(student.transitionDecision),
           status: student.status,
           separatedAt: student.separatedAt,
           recordedAt: student.transitionDecisionAt || latestRecord?.createdAt || student.updatedAt,
           lane: laneFromStudent,
-          canDecide: !isGradeSixBoundary,
-          requiresDecision: !isGradeSixBoundary && !student.transitionDecision,
+          canDecide: true,
+          requiresDecision: !student.transitionDecision,
         };
       });
 
@@ -271,6 +265,8 @@ export async function GET(request: NextRequest) {
           studentName: `${student.lastName}, ${student.firstName}`,
           program: student.program,
           academicYear: latestRecord?.academicYear || 'Current record',
+          gradeLevel: student.gradeLevel,
+          yearLevel: student.yearLevel,
           fromLevel: `${student.gradeLevel} - ${student.yearLevel}`,
           toLevel: formatOutcome(outcome),
           outcome,
@@ -285,7 +281,7 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    const allRows = [...rowsFromRecords, ...currentBoundaryRows, ...fallbackSeparatedRows].sort(
+    const allRows = [...rowsFromRecords, ...currentPromotionRows, ...fallbackSeparatedRows].sort(
       (a, b) => {
         const aTime = a.recordedAt ? new Date(a.recordedAt).getTime() : 0;
         const bTime = b.recordedAt ? new Date(b.recordedAt).getTime() : 0;

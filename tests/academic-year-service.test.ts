@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolvePromotionTarget } from '@/lib/academic-year-service';
 
 describe('resolvePromotionTarget', () => {
-  it('promotes Grade 7 to Grade 8 within junior high', () => {
+  it('blocks Grade 7 promotion until an end-of-year decision is recorded', () => {
     expect(
       resolvePromotionTarget({
         gradeLevel: 'JUNIOR_HIGH',
@@ -12,9 +12,43 @@ describe('resolvePromotionTarget', () => {
         termType: 'SEMESTER',
       })
     ).toEqual({
+      action: 'SKIP',
+      reason:
+        'Grade 7 requires an end-of-year decision before promotion: continue to next level, transferred out, withdrawn, or retained.',
+    });
+  });
+
+  it('promotes Grade 7 to Grade 8 when continuing to the next level', () => {
+    expect(
+      resolvePromotionTarget({
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 7',
+        program: 'General Education',
+        termType: 'SEMESTER',
+        transitionDecision: 'CONTINUE_NEXT_LEVEL',
+      })
+    ).toEqual({
       action: 'PROMOTE',
       gradeLevel: 'JUNIOR_HIGH',
       yearLevel: 'Grade 8',
+    });
+  });
+
+  it('moves non-boundary transferred students to the separated registry', () => {
+    expect(
+      resolvePromotionTarget({
+        gradeLevel: 'JUNIOR_HIGH',
+        yearLevel: 'Grade 7',
+        program: 'General Education',
+        termType: 'SEMESTER',
+        transitionDecision: 'TRANSFERRED_OUT',
+      })
+    ).toEqual({
+      action: 'SEPARATE',
+      status: 'Transferred Out',
+      graduationStatus: 'Transferred Out',
+      outcome: 'TRANSFERRED_OUT',
+      reason: 'Student transferred out after the school year',
     });
   });
 
@@ -100,6 +134,21 @@ describe('resolvePromotionTarget', () => {
     });
   });
 
+  it('blocks graduating college students until an end-of-year decision is recorded', () => {
+    expect(
+      resolvePromotionTarget({
+        gradeLevel: 'COLLEGE',
+        yearLevel: '3rd Year',
+        program: 'BS Computer Science',
+        termType: 'TRIMESTER',
+      })
+    ).toEqual({
+      action: 'SKIP',
+      reason:
+        '3rd Year requires an end-of-year decision before promotion: graduated college, transferred out, withdrawn, or retained.',
+    });
+  });
+
   it('graduates College 3rd Year students', () => {
     expect(
       resolvePromotionTarget({
@@ -107,6 +156,7 @@ describe('resolvePromotionTarget', () => {
         yearLevel: '3rd Year',
         program: 'BS Computer Science',
         termType: 'TRIMESTER',
+        transitionDecision: 'GRADUATED_COLLEGE',
       })
     ).toEqual({
       action: 'GRADUATE',
@@ -120,6 +170,7 @@ describe('resolvePromotionTarget', () => {
         yearLevel: '4th Year',
         program: 'BS Computer Science',
         termType: 'SEMESTER',
+        transitionDecision: 'GRADUATED_COLLEGE',
       })
     ).toEqual({
       action: 'GRADUATE',
@@ -131,6 +182,7 @@ describe('resolvePromotionTarget', () => {
         yearLevel: '5th Year',
         program: 'BS Engineering',
         termType: 'SEMESTER',
+        transitionDecision: 'GRADUATED_COLLEGE',
       })
     ).toEqual({
       action: 'GRADUATE',

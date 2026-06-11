@@ -1,9 +1,15 @@
 import type { Prisma } from '@prisma/client';
 
-import { GradeLevel, StudentAcademicOutcome, StudentTransitionDecision, TermType } from '@/types';
+import type { GradeLevel, StudentAcademicOutcome, StudentTransitionDecision, TermType } from '@/types';
 
 import { logAudit } from './auth';
 import prisma from './prisma';
+import {
+  getPromotionDecisionRequirementReason,
+  isPromotionDecisionAllowed,
+  isStudentTransitionDecision,
+} from './promotion-decisions';
+import { getPromotionStateBlocker, getPromotionTargetBlocker } from './promotion-validation';
 
 export const UNDECLARED_COLLEGE_PROGRAM = 'Undeclared College Program';
 
@@ -99,29 +105,24 @@ export interface SelectedPromotionRunResult extends PromotionRunResult {
   results: SelectedPromotionStudentResult[];
 }
 
-const GRADE_10_DECISIONS = new Set<StudentTransitionDecision>([
-  'CONTINUE_SENIOR_HIGH',
-  'COMPLETED_JHS',
-  'TRANSFERRED_OUT',
-  'WITHDRAWN',
-  'RETAINED',
-]);
+type SelectedPromotionDecisionMap = ReadonlyMap<number, StudentTransitionDecision>;
 
-const GRADE_12_DECISIONS = new Set<StudentTransitionDecision>([
-  'CONTINUE_COLLEGE',
-  'GRADUATED_SHS',
-  'TRANSFERRED_OUT',
-  'WITHDRAWN',
-  'RETAINED',
-]);
+const SELECTED_PROMOTION_TRANSACTION_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 60_000,
+} as const;
+
+type SeparatingPromotionDecision = Extract<
+  StudentTransitionDecision,
+  'COMPLETED_JHS' | 'GRADUATED_SHS' | 'TRANSFERRED_OUT' | 'WITHDRAWN'
+>;
 
 function normalizeTransitionDecision(decision?: string | null): StudentTransitionDecision | null {
-  if (!decision) return null;
-  return decision as StudentTransitionDecision;
+  return isStudentTransitionDecision(decision) ? decision : null;
 }
 
 function buildSeparateTarget(
-  decision: StudentTransitionDecision
+  decision: SeparatingPromotionDecision
 ): Extract<PromotionTarget, { action: 'SEPARATE' }> {
   if (decision === 'COMPLETED_JHS') {
     return {
@@ -162,6 +163,50 @@ function buildSeparateTarget(
   };
 }
 
+function assertNever(value: never): never {
+  throw new Error(`Unhandled transition decision: ${JSON.stringify(value)}`);
+}
+
+function resolveDecisionTarget(
+  decision: StudentTransitionDecision,
+  yearLevel: string
+): PromotionTarget | null {
+  switch (decision) {
+    case 'CONTINUE_NEXT_LEVEL':
+    case 'CONTINUE_SENIOR_HIGH':
+    case 'CONTINUE_COLLEGE':
+      return null;
+    case 'RETAINED':
+      return {
+        action: 'RETAIN',
+        reason: `Student retained in ${yearLevel}`,
+      };
+    case 'COMPLETED_JHS':
+    case 'GRADUATED_SHS':
+    case 'TRANSFERRED_OUT':
+    case 'WITHDRAWN':
+      return buildSeparateTarget(decision);
+    case 'GRADUATED_COLLEGE':
+      return { action: 'GRADUATE' };
+    default:
+      return assertNever(decision);
+  }
+}
+
+function getDecisionGateTarget(
+  student: PromotionStudentInput,
+  decision: StudentTransitionDecision | null
+): PromotionTarget | null {
+  if (!decision || !isPromotionDecisionAllowed(student, decision)) {
+    return {
+      action: 'SKIP',
+      reason: getPromotionDecisionRequirementReason(student),
+    };
+  }
+
+  return resolveDecisionTarget(decision, student.yearLevel);
+}
+
 function parseGradeNumber(yearLevel: string): number | null {
   const match = yearLevel.trim().match(/^Grade\s+(\d+)$/i);
   return match ? Number(match[1]) : null;
@@ -184,6 +229,16 @@ export function resolvePromotionTarget(student: PromotionStudentInput): Promotio
   const transitionDecision = normalizeTransitionDecision(student.transitionDecision);
 
   if (currentGrade !== null) {
+    if (currentGrade < 1 || currentGrade > 12) {
+      return {
+        action: 'SKIP',
+        reason: `Unsupported year level: ${student.yearLevel}`,
+      };
+    }
+
+    const decisionTarget = getDecisionGateTarget(student, transitionDecision);
+    if (decisionTarget) return decisionTarget;
+
     if (currentGrade >= 1 && currentGrade <= 5) {
       return {
         action: 'PROMOTE',
@@ -209,25 +264,6 @@ export function resolvePromotionTarget(student: PromotionStudentInput): Promotio
     }
 
     if (currentGrade === 10) {
-      if (!transitionDecision || !GRADE_10_DECISIONS.has(transitionDecision)) {
-        return {
-          action: 'SKIP',
-          reason:
-            'Grade 10 requires an end-of-year decision before promotion: continue to Grade 11, completed JHS, transferred out, withdrawn, or retained.',
-        };
-      }
-
-      if (transitionDecision === 'RETAINED') {
-        return {
-          action: 'RETAIN',
-          reason: 'Student retained in Grade 10',
-        };
-      }
-
-      if (transitionDecision !== 'CONTINUE_SENIOR_HIGH') {
-        return buildSeparateTarget(transitionDecision);
-      }
-
       return {
         action: 'PROMOTE',
         gradeLevel: 'SENIOR_HIGH',
@@ -244,25 +280,6 @@ export function resolvePromotionTarget(student: PromotionStudentInput): Promotio
     }
 
     if (currentGrade === 12) {
-      if (!transitionDecision || !GRADE_12_DECISIONS.has(transitionDecision)) {
-        return {
-          action: 'SKIP',
-          reason:
-            'Grade 12 requires an end-of-year decision before promotion: continue to College, graduated SHS, transferred out, withdrawn, or retained.',
-        };
-      }
-
-      if (transitionDecision === 'RETAINED') {
-        return {
-          action: 'RETAIN',
-          reason: 'Student retained in Grade 12',
-        };
-      }
-
-      if (transitionDecision !== 'CONTINUE_COLLEGE') {
-        return buildSeparateTarget(transitionDecision);
-      }
-
       return {
         action: 'PROMOTE',
         gradeLevel: 'COLLEGE',
@@ -283,9 +300,8 @@ export function resolvePromotionTarget(student: PromotionStudentInput): Promotio
       };
     }
 
-    if (collegeYear >= 3) {
-      return { action: 'GRADUATE' };
-    }
+    const decisionTarget = getDecisionGateTarget(student, transitionDecision);
+    if (decisionTarget) return decisionTarget;
 
     return {
       action: 'PROMOTE',
@@ -307,17 +323,38 @@ export function getNextYearLevel(
   gradeLevel: string,
   yearLevel: string
 ): { nextYearLevel: string | null; isGraduating: boolean } {
-  const target = resolvePromotionTarget({ gradeLevel, yearLevel });
+  const currentGrade = parseGradeNumber(yearLevel);
 
-  if (target.action === 'GRADUATE') {
-    return { nextYearLevel: null, isGraduating: true };
+  if (currentGrade !== null) {
+    if (currentGrade >= 1 && currentGrade <= 9) {
+      return { nextYearLevel: `Grade ${currentGrade + 1}`, isGraduating: false };
+    }
+
+    if (currentGrade === 10) {
+      return { nextYearLevel: 'Grade 11', isGraduating: false };
+    }
+
+    if (currentGrade === 11) {
+      return { nextYearLevel: 'Grade 12', isGraduating: false };
+    }
+
+    if (currentGrade === 12) {
+      return { nextYearLevel: '1st Year', isGraduating: false };
+    }
   }
 
-  if (target.action === 'PROMOTE') {
-    return {
-      nextYearLevel: target.yearLevel,
-      isGraduating: false,
-    };
+  if (gradeLevel === 'COLLEGE') {
+    const collegeYear = parseCollegeYearNumber(yearLevel);
+
+    if (collegeYear === null) {
+      return { nextYearLevel: null, isGraduating: false };
+    }
+
+    if (collegeYear >= 3) {
+      return { nextYearLevel: null, isGraduating: true };
+    }
+
+    return { nextYearLevel: ordinalCollegeYear(collegeYear + 1), isGraduating: false };
   }
 
   return { nextYearLevel: null, isGraduating: false };
@@ -729,7 +766,8 @@ export async function promoteSelectedStudents(
   studentIds: number[],
   userId?: number,
   academicYearId?: number,
-  cohortStudentIds?: number[]
+  cohortStudentIds?: number[],
+  transitionDecisions?: SelectedPromotionDecisionMap
 ): Promise<SelectedPromotionRunResult> {
   const selectedIds = [...new Set(studentIds.filter((id) => Number.isInteger(id)))];
   const cohortIds = [
@@ -890,12 +928,9 @@ export async function promoteSelectedStudents(
         continue;
       }
 
-      if (
-        student.isArchived ||
-        student.status !== 'Active' ||
-        student.graduationStatus === 'Graduated'
-      ) {
-        const error = 'Only active, unarchived, non-graduated students can be promoted.';
+      const stateBlocker = getPromotionStateBlocker(student, 'promote');
+      if (stateBlocker) {
+        const error = stateBlocker;
         skippedCount++;
         errorCount++;
         errors.push({ studentId, error });
@@ -911,14 +946,16 @@ export async function promoteSelectedStudents(
         continue;
       }
 
-      const target = resolvePromotionTarget(student);
-      const toLevel = getPromotionTargetToLevel(student, target);
+      const studentForPromotion = {
+        ...student,
+        transitionDecision: transitionDecisions?.get(student.id) || student.transitionDecision,
+      };
+      const target = resolvePromotionTarget(studentForPromotion);
+      const toLevel = getPromotionTargetToLevel(studentForPromotion, target);
 
+      const targetBlocker = getPromotionTargetBlocker(target);
       if (target.action !== 'PROMOTE') {
-        const error =
-          target.action === 'SKIP'
-            ? target.reason
-            : 'Only students continuing to the next Bosco/FSE academic level can be selected.';
+        const error = targetBlocker || 'Student cannot be promoted to the next academic level.';
         skippedCount++;
         errorCount++;
         errors.push({ studentId, error });
@@ -943,7 +980,7 @@ export async function promoteSelectedStudents(
 
       await createAcademicRecordForTransition(tx, {
         academicYear: activeAcademicYear,
-        student,
+        student: studentForPromotion,
         target,
         now,
       });
@@ -1010,13 +1047,9 @@ export async function promoteSelectedStudents(
         continue;
       }
 
-      if (
-        student.isArchived ||
-        student.status !== 'Active' ||
-        student.graduationStatus === 'Graduated'
-      ) {
-        const error =
-          'Only active, unarchived, non-graduated students can be archived by promotion.';
+      const stateBlocker = getPromotionStateBlocker(student, 'archive');
+      if (stateBlocker) {
+        const error = stateBlocker;
         skippedCount++;
         errorCount++;
         errors.push({ studentId, error });
@@ -1117,7 +1150,7 @@ export async function promoteSelectedStudents(
       errors: errors.length > 0 ? errors : undefined,
       results,
     };
-  });
+  }, SELECTED_PROMOTION_TRANSACTION_OPTIONS);
 }
 
 /**
