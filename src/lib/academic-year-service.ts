@@ -1,6 +1,11 @@
 import type { Prisma } from '@prisma/client';
 
-import type { GradeLevel, StudentAcademicOutcome, StudentTransitionDecision, TermType } from '@/types';
+import type {
+  GradeLevel,
+  StudentAcademicOutcome,
+  StudentTransitionDecision,
+  TermType,
+} from '@/types';
 
 import { logAudit } from './auth';
 import prisma from './prisma';
@@ -109,7 +114,7 @@ type SelectedPromotionDecisionMap = ReadonlyMap<number, StudentTransitionDecisio
 
 const SELECTED_PROMOTION_TRANSACTION_OPTIONS = {
   maxWait: 10_000,
-  timeout: 60_000,
+  timeout: 180_000,
 } as const;
 
 type SeparatingPromotionDecision = Extract<
@@ -379,6 +384,22 @@ function toJsonSafe(details: Record<string, unknown>) {
   return JSON.parse(JSON.stringify(details));
 }
 
+function buildAuditCreateInput(
+  userId: number | null,
+  action: string,
+  resourceType: string,
+  resourceId: number | undefined,
+  details: Record<string, unknown>
+): Prisma.AuditLogCreateManyInput {
+  return {
+    userId,
+    action,
+    resourceType,
+    resourceId: resourceId ?? null,
+    details: toJsonSafe(details),
+  };
+}
+
 async function createAudit(
   tx: Prisma.TransactionClient,
   userId: number | null,
@@ -388,13 +409,7 @@ async function createAudit(
   details: Record<string, unknown>
 ) {
   await tx.auditLog.create({
-    data: {
-      userId,
-      action,
-      resourceType,
-      resourceId,
-      details: toJsonSafe(details),
-    },
+    data: buildAuditCreateInput(userId, action, resourceType, resourceId, details),
   });
 }
 
@@ -423,46 +438,41 @@ function buildPromotionUpdate(target: Extract<PromotionTarget, { action: 'PROMOT
   return data;
 }
 
-async function backupStudentBeforePromotion(
-  tx: Prisma.TransactionClient,
-  params: {
-    academicYearId: number;
-    userId?: number;
-    operation: 'AUTO_PROMOTE_STUDENT' | 'AUTO_GRADUATE_STUDENT';
-    student: {
-      id: number;
-      gradeLevel: string;
-      yearLevel: string;
-      program: string;
-      termType: string;
-      status: string;
-      graduationStatus: string | null;
-      graduatedAt: Date | null;
-      isArchived: boolean;
-      transitionDecision: string | null;
-      transitionDecisionAt: Date | null;
-      transitionDecisionBy: number | null;
-      separatedAt: Date | null;
-      separationReason: string | null;
-    };
-    scholarships?: Array<Record<string, unknown>>;
-    disbursements?: Array<Record<string, unknown>>;
-  }
-) {
-  await tx.backup.create({
-    data: {
-      tableName: 'students',
-      recordId: params.student.id,
-      operation: params.operation,
-      operationContext: getPromotionBackupContext(params.academicYearId),
-      performedBy: params.userId || null,
-      oldValue: toJsonSafe({
-        student: params.student,
-        scholarships: params.scholarships || [],
-        disbursements: params.disbursements || [],
-      }),
-    },
-  });
+function buildPromotionBackupCreateInput(params: {
+  academicYearId: number;
+  userId?: number;
+  operation: 'AUTO_PROMOTE_STUDENT' | 'AUTO_GRADUATE_STUDENT';
+  student: {
+    id: number;
+    gradeLevel: string;
+    yearLevel: string;
+    program: string;
+    termType: string;
+    status: string;
+    graduationStatus: string | null;
+    graduatedAt: Date | null;
+    isArchived: boolean;
+    transitionDecision: string | null;
+    transitionDecisionAt: Date | null;
+    transitionDecisionBy: number | null;
+    separatedAt: Date | null;
+    separationReason: string | null;
+  };
+  scholarships?: Array<Record<string, unknown>>;
+  disbursements?: Array<Record<string, unknown>>;
+}): Prisma.BackupCreateManyInput {
+  return {
+    tableName: 'students',
+    recordId: params.student.id,
+    operation: params.operation,
+    operationContext: getPromotionBackupContext(params.academicYearId),
+    performedBy: params.userId || null,
+    oldValue: toJsonSafe({
+      student: params.student,
+      scholarships: params.scholarships || [],
+      disbursements: params.disbursements || [],
+    }),
+  };
 }
 
 function getPromotionOutcome(target: PromotionTarget): StudentAcademicOutcome {
@@ -473,48 +483,41 @@ function getPromotionOutcome(target: PromotionTarget): StudentAcademicOutcome {
   return 'SKIPPED';
 }
 
-async function createAcademicRecordForTransition(
-  tx: Prisma.TransactionClient,
-  params: {
-    academicYear: AcademicYearPromotionRecord;
-    student: {
-      id: number;
-      gradeLevel: string;
-      yearLevel: string;
-      program: string;
-      termType: string;
-      status: string;
-      transitionDecision: string | null;
-    };
-    target: PromotionTarget;
-    now: Date;
-  }
-) {
-  await tx.studentAcademicRecord.create({
-    data: {
-      studentId: params.student.id,
-      academicYearId: params.academicYear.id,
-      academicYear: params.academicYear.year,
-      gradeLevel: params.student.gradeLevel,
-      yearLevel: params.student.yearLevel,
-      program: params.student.program,
-      termType: params.student.termType,
-      status: params.student.status,
-      outcome: getPromotionOutcome(params.target),
-      decision: params.student.transitionDecision,
-      nextGradeLevel: params.target.action === 'PROMOTE' ? params.target.gradeLevel : null,
-      nextYearLevel: params.target.action === 'PROMOTE' ? params.target.yearLevel : null,
-      nextProgram:
-        params.target.action === 'PROMOTE' ? params.target.program || params.student.program : null,
-      nextTermType:
-        params.target.action === 'PROMOTE'
-          ? params.target.termType || params.student.termType
-          : null,
-      isCurrent: false,
-      startedAt: params.academicYear.startDate,
-      endedAt: params.now,
-    },
-  });
+function buildAcademicRecordForTransition(params: {
+  academicYear: AcademicYearPromotionRecord;
+  student: {
+    id: number;
+    gradeLevel: string;
+    yearLevel: string;
+    program: string;
+    termType: string;
+    status: string;
+    transitionDecision: string | null;
+  };
+  target: PromotionTarget;
+  now: Date;
+}): Prisma.StudentAcademicRecordCreateManyInput {
+  return {
+    studentId: params.student.id,
+    academicYearId: params.academicYear.id,
+    academicYear: params.academicYear.year,
+    gradeLevel: params.student.gradeLevel,
+    yearLevel: params.student.yearLevel,
+    program: params.student.program,
+    termType: params.student.termType,
+    status: params.student.status,
+    outcome: getPromotionOutcome(params.target),
+    decision: params.student.transitionDecision,
+    nextGradeLevel: params.target.action === 'PROMOTE' ? params.target.gradeLevel : null,
+    nextYearLevel: params.target.action === 'PROMOTE' ? params.target.yearLevel : null,
+    nextProgram:
+      params.target.action === 'PROMOTE' ? params.target.program || params.student.program : null,
+    nextTermType:
+      params.target.action === 'PROMOTE' ? params.target.termType || params.student.termType : null,
+    isCurrent: false,
+    startedAt: params.academicYear.startDate,
+    endedAt: params.now,
+  };
 }
 
 function getDatePartsInManila(date: Date) {
@@ -903,6 +906,15 @@ export async function promoteSelectedStudents(
     let errorCount = 0;
     const errors: Array<{ studentId?: number; error: string }> = [];
     const results: SelectedPromotionStudentResult[] = [];
+    const backupRows: Prisma.BackupCreateManyInput[] = [];
+    const academicRecordRows: Prisma.StudentAcademicRecordCreateManyInput[] = [];
+    const auditRows: Prisma.AuditLogCreateManyInput[] = [];
+    const promotionStudentUpdates: Array<{
+      studentId: number;
+      data: ReturnType<typeof buildPromotionUpdate>;
+    }> = [];
+    const archivedStudentIds: number[] = [];
+    const archiveReason = 'Not selected to continue at Bosco/FSE for the next academic level';
 
     for (const studentId of selectedIds) {
       const student = studentsById.get(studentId);
@@ -971,45 +983,50 @@ export async function promoteSelectedStudents(
         continue;
       }
 
-      await backupStudentBeforePromotion(tx, {
-        academicYearId: activeAcademicYear.id,
-        userId,
-        operation: 'AUTO_PROMOTE_STUDENT',
-        student,
-      });
+      backupRows.push(
+        buildPromotionBackupCreateInput({
+          academicYearId: activeAcademicYear.id,
+          userId,
+          operation: 'AUTO_PROMOTE_STUDENT',
+          student,
+        })
+      );
 
-      await createAcademicRecordForTransition(tx, {
-        academicYear: activeAcademicYear,
-        student: studentForPromotion,
-        target,
-        now,
-      });
+      academicRecordRows.push(
+        buildAcademicRecordForTransition({
+          academicYear: activeAcademicYear,
+          student: studentForPromotion,
+          target,
+          now,
+        })
+      );
 
-      await tx.student.update({
-        where: { id: student.id },
+      promotionStudentUpdates.push({
+        studentId: student.id,
         data: buildPromotionUpdate(target),
       });
 
-      await createAudit(
-        tx,
-        userId || null,
-        'MANUAL_SELECTED_PROMOTE_STUDENT',
-        'STUDENT',
-        student.id,
-        {
-          studentName,
-          previousGradeLevel: student.gradeLevel,
-          previousYearLevel: student.yearLevel,
-          previousProgram: student.program,
-          previousTermType: student.termType,
-          newGradeLevel: target.gradeLevel,
-          newYearLevel: target.yearLevel,
-          newProgram: target.program || student.program,
-          newTermType: target.termType || student.termType,
-          academicYear: activeAcademicYear.year,
-          reason: 'Selected continuing student for Bosco/FSE promotion',
-          source: 'MANUAL_SELECTED',
-        }
+      auditRows.push(
+        buildAuditCreateInput(
+          userId || null,
+          'MANUAL_SELECTED_PROMOTE_STUDENT',
+          'STUDENT',
+          student.id,
+          {
+            studentName,
+            previousGradeLevel: student.gradeLevel,
+            previousYearLevel: student.yearLevel,
+            previousProgram: student.program,
+            previousTermType: student.termType,
+            newGradeLevel: target.gradeLevel,
+            newYearLevel: target.yearLevel,
+            newProgram: target.program || student.program,
+            newTermType: target.termType || student.termType,
+            academicYear: activeAcademicYear.year,
+            reason: 'Selected continuing student for Bosco/FSE promotion',
+            source: 'MANUAL_SELECTED',
+          }
+        )
       );
 
       promotedCount++;
@@ -1065,48 +1082,44 @@ export async function promoteSelectedStudents(
         continue;
       }
 
-      const archiveReason = 'Not selected to continue at Bosco/FSE for the next academic level';
+      backupRows.push(
+        buildPromotionBackupCreateInput({
+          academicYearId: activeAcademicYear.id,
+          userId,
+          operation: 'AUTO_PROMOTE_STUDENT',
+          student,
+        })
+      );
 
-      await backupStudentBeforePromotion(tx, {
-        academicYearId: activeAcademicYear.id,
-        userId,
-        operation: 'AUTO_PROMOTE_STUDENT',
-        student,
-      });
+      academicRecordRows.push(
+        buildAcademicRecordForTransition({
+          academicYear: activeAcademicYear,
+          student,
+          target: {
+            action: 'SKIP',
+            reason: archiveReason,
+          },
+          now,
+        })
+      );
 
-      await createAcademicRecordForTransition(tx, {
-        academicYear: activeAcademicYear,
-        student,
-        target: {
-          action: 'SKIP',
-          reason: archiveReason,
-        },
-        now,
-      });
+      archivedStudentIds.push(student.id);
 
-      await tx.student.update({
-        where: { id: student.id },
-        data: {
-          isArchived: true,
-          separatedAt: now,
-          separationReason: archiveReason,
-        },
-      });
-
-      await createAudit(
-        tx,
-        userId || null,
-        'MANUAL_SELECTED_ARCHIVE_NON_CONTINUING_STUDENT',
-        'STUDENT',
-        student.id,
-        {
-          studentName,
-          gradeLevel: student.gradeLevel,
-          yearLevel: student.yearLevel,
-          academicYear: activeAcademicYear.year,
-          reason: archiveReason,
-          source: 'MANUAL_SELECTED',
-        }
+      auditRows.push(
+        buildAuditCreateInput(
+          userId || null,
+          'MANUAL_SELECTED_ARCHIVE_NON_CONTINUING_STUDENT',
+          'STUDENT',
+          student.id,
+          {
+            studentName,
+            gradeLevel: student.gradeLevel,
+            yearLevel: student.yearLevel,
+            academicYear: activeAcademicYear.year,
+            reason: archiveReason,
+            source: 'MANUAL_SELECTED',
+          }
+        )
       );
 
       archivedCount++;
@@ -1120,19 +1133,57 @@ export async function promoteSelectedStudents(
       });
     }
 
-    await createAudit(tx, userId || null, 'MANUAL_SELECTED_PROMOTE_STUDENTS', 'SYSTEM', undefined, {
-      academicYear: activeAcademicYear.year,
-      academicYearId: activeAcademicYear.id,
-      cohortCount: cohortIds.length,
-      selectedCount: selectedIds.length,
-      promotedCount,
-      graduatedCount,
-      archivedCount,
-      skippedCount,
-      errorCount,
-      source: 'MANUAL_SELECTED',
-      errors: errors.length > 0 ? errors : undefined,
-    });
+    auditRows.push(
+      buildAuditCreateInput(
+        userId || null,
+        'MANUAL_SELECTED_PROMOTE_STUDENTS',
+        'SYSTEM',
+        undefined,
+        {
+          academicYear: activeAcademicYear.year,
+          academicYearId: activeAcademicYear.id,
+          cohortCount: cohortIds.length,
+          selectedCount: selectedIds.length,
+          promotedCount,
+          graduatedCount,
+          archivedCount,
+          skippedCount,
+          errorCount,
+          source: 'MANUAL_SELECTED',
+          errors: errors.length > 0 ? errors : undefined,
+        }
+      )
+    );
+
+    if (backupRows.length > 0) {
+      await tx.backup.createMany({ data: backupRows });
+    }
+
+    if (academicRecordRows.length > 0) {
+      await tx.studentAcademicRecord.createMany({ data: academicRecordRows });
+    }
+
+    for (const update of promotionStudentUpdates) {
+      await tx.student.update({
+        where: { id: update.studentId },
+        data: update.data,
+      });
+    }
+
+    if (archivedStudentIds.length > 0) {
+      await tx.student.updateMany({
+        where: { id: { in: archivedStudentIds } },
+        data: {
+          isArchived: true,
+          separatedAt: now,
+          separationReason: archiveReason,
+        },
+      });
+    }
+
+    if (auditRows.length > 0) {
+      await tx.auditLog.createMany({ data: auditRows });
+    }
 
     return {
       success: promotedCount + graduatedCount + archivedCount > 0,

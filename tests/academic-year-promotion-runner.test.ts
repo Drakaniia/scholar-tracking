@@ -17,6 +17,7 @@ const txMock = vi.hoisted(() => ({
   },
   auditLog: {
     create: vi.fn(),
+    createMany: vi.fn(),
   },
   backup: {
     create: vi.fn(),
@@ -32,6 +33,7 @@ const txMock = vi.hoisted(() => ({
   student: {
     findMany: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
   },
   studentScholarship: {
     createMany: vi.fn(),
@@ -40,6 +42,7 @@ const txMock = vi.hoisted(() => ({
   },
   studentAcademicRecord: {
     create: vi.fn(),
+    createMany: vi.fn(),
     deleteMany: vi.fn(),
   },
 }));
@@ -106,11 +109,15 @@ describe('promoteSelectedStudents', () => {
       promotionProcessedAt: null,
     });
     txMock.auditLog.create.mockResolvedValue({});
+    txMock.auditLog.createMany.mockResolvedValue({ count: 0 });
     txMock.backup.create.mockResolvedValue({});
+    txMock.backup.createMany.mockResolvedValue({ count: 0 });
     txMock.disbursement.deleteMany.mockResolvedValue({ count: 0 });
     txMock.disbursement.findMany.mockResolvedValue([]);
     txMock.student.update.mockResolvedValue({});
+    txMock.student.updateMany.mockResolvedValue({ count: 0 });
     txMock.studentAcademicRecord.create.mockResolvedValue({});
+    txMock.studentAcademicRecord.createMany.mockResolvedValue({ count: 0 });
     txMock.studentScholarship.deleteMany.mockResolvedValue({ count: 0 });
     txMock.studentScholarship.findMany.mockResolvedValue([]);
   });
@@ -182,7 +189,7 @@ describe('promoteSelectedStudents', () => {
       expect.any(Function),
       expect.objectContaining({
         maxWait: 10_000,
-        timeout: 60_000,
+        timeout: 180_000,
       })
     );
     expect(txMock.academicYear.updateMany).not.toHaveBeenCalled();
@@ -203,7 +210,20 @@ describe('promoteSelectedStudents', () => {
         termType: 'TRIMESTER',
       }),
     });
-    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledTimes(3);
+    expect(txMock.studentAcademicRecord.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ studentId: 2, outcome: 'PROMOTED' }),
+        expect.objectContaining({ studentId: 11, outcome: 'PROMOTED' }),
+        expect.objectContaining({ studentId: 12, outcome: 'PROMOTED' }),
+      ]),
+    });
+    expect(txMock.backup.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ recordId: 2, operation: 'AUTO_PROMOTE_STUDENT' }),
+        expect.objectContaining({ recordId: 11, operation: 'AUTO_PROMOTE_STUDENT' }),
+        expect.objectContaining({ recordId: 12, operation: 'AUTO_PROMOTE_STUDENT' }),
+      ]),
+    });
   });
 
   it('archives unselected cohort students instead of promoting them', async () => {
@@ -242,19 +262,21 @@ describe('promoteSelectedStudents', () => {
       where: { id: 6 },
       data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 7' }),
     });
-    expect(txMock.student.update).toHaveBeenCalledWith({
+    expect(txMock.student.updateMany).toHaveBeenCalledWith({
       data: expect.objectContaining({
         isArchived: true,
         separatedAt: expect.any(Date),
         separationReason: expect.stringContaining('Not selected to continue'),
       }),
-      where: { id: 12 },
+      where: { id: { in: [12] } },
     });
-    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        studentId: 12,
-        outcome: 'SKIPPED',
-      }),
+    expect(txMock.studentAcademicRecord.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          studentId: 12,
+          outcome: 'SKIPPED',
+        }),
+      ]),
     });
   });
 
@@ -287,12 +309,8 @@ describe('promoteSelectedStudents', () => {
       archivedCount: 2,
       errorCount: 0,
     });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 6 },
-      data: expect.objectContaining({ isArchived: true }),
-    });
-    expect(txMock.student.update).toHaveBeenCalledWith({
-      where: { id: 10 },
+    expect(txMock.student.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: [6, 10] } },
       data: expect.objectContaining({ isArchived: true }),
     });
   });
@@ -328,6 +346,7 @@ describe('promoteSelectedStudents', () => {
     );
     expect(txMock.student.update).not.toHaveBeenCalled();
     expect(txMock.studentAcademicRecord.create).not.toHaveBeenCalled();
+    expect(txMock.studentAcademicRecord.createMany).not.toHaveBeenCalled();
   });
 
   it('promotes selected undecided students when a continue decision is supplied with the selection', async () => {
@@ -358,12 +377,14 @@ describe('promoteSelectedStudents', () => {
       where: { id: 7 },
       data: expect.objectContaining({ gradeLevel: 'JUNIOR_HIGH', yearLevel: 'Grade 8' }),
     });
-    expect(txMock.studentAcademicRecord.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        studentId: 7,
-        decision: 'CONTINUE_NEXT_LEVEL',
-        outcome: 'PROMOTED',
-      }),
+    expect(txMock.studentAcademicRecord.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          studentId: 7,
+          decision: 'CONTINUE_NEXT_LEVEL',
+          outcome: 'PROMOTED',
+        }),
+      ]),
     });
   });
 
