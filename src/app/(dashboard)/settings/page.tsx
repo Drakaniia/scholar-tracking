@@ -66,6 +66,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getAcademicYearPromotionStatus } from '@/lib/academic-year-promotion-reminder';
 import { clientCache, fetchWithCache } from '@/lib/cache';
 import { getPromotionDecisionOptions, isStudentTransitionDecision } from '@/lib/promotion-decisions';
 import { formatCurrency } from '@/lib/utils';
@@ -873,24 +874,33 @@ export default function SettingsPage() {
       };
     }
 
-    if (!academicYear.promotionDate) {
+    const status = getAcademicYearPromotionStatus(academicYear);
+    if (status === 'completed') {
       return {
+        label: 'Completed',
+        className: 'bg-green-600 text-white',
+      };
+    }
+
+    const statusMeta: Record<
+      Exclude<typeof status, 'completed'>,
+      { label: string; className: string }
+    > = {
+      disabled: {
         label: 'Disabled',
         className: '',
-      };
-    }
-
-    if (new Date(academicYear.promotionDate) <= new Date()) {
-      return {
+      },
+      due: {
         label: 'Due',
         className: 'bg-amber-500 text-white',
-      };
-    }
-
-    return {
-      label: 'Pending',
-      className: 'bg-blue-600 text-white',
+      },
+      pending: {
+        label: 'Pending',
+        className: 'bg-blue-600 text-white',
+      },
     };
+
+    return statusMeta[status];
   };
 
   interface Scholarship {
