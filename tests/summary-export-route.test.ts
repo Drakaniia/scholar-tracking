@@ -54,7 +54,7 @@ describe('summary export route', () => {
         eligibleGradeLevels: 'GRADE_SCHOOL,JUNIOR_HIGH,SENIOR_HIGH',
         grantType: 'FULL',
         amount: 5000,
-        amountSubsidy: 0,
+        amountSubsidy: 1000,
         tuitionFee: 0,
         miscellaneousFee: 0,
         laboratoryFee: 0,
@@ -108,7 +108,7 @@ describe('summary export route', () => {
     expect(sheet?.getCell(1, 8).text).toBe('2022-2023');
     expect(sheet?.getCell(2, 1).text).toBe('INTERNALLY FUNDED');
     expect(sheet?.getCell(3, 1).text).toBe('Employees Ward (BED/SHS)');
-    expect(sheet?.getCell(3, 4).text).toBe('5,000.00/STUDENT');
+    expect(sheet?.getCell(3, 4).text).toBe('5,000.00/STUDENT/1,000.00 SUBSIDY');
     expect(sheet?.getCell(3, 16).text).toBe('1');
     expect(sheet?.getCell(3, 18).text).toBe('0.10');
     expect(sheet?.getCell(3, 19).text).toBe('10%');

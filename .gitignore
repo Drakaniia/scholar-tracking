@@ -45,3 +45,4 @@ next-env.d.ts
 prisma/dev.db
 
 .vercel
+.opencode/plugins/emdash-notifications.js
