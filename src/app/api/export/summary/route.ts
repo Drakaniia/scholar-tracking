@@ -391,7 +391,10 @@ function formatFse(value: number, showZero = false) {
 
 function formatPercent(value: number, showZero = false) {
   if (value === 0 && !showZero) return '';
-  return `${Math.round(value * 100)}%`;
+  
+  // For grand total calculation: value is COUNT / GRAND_FSE, don't multiply
+  // Just floor to whole number
+  return `${Math.floor(value)}%`;
 }
 
 function formatMoney(value: DecimalLike) {
@@ -523,24 +526,68 @@ function aggregateScholarshipMetrics(
   );
 }
 
+function aggregatePercentFseMetrics(
+  scholarships: ScholarshipRecord[],
+  years: string[]
+): Record<string, SummaryMetric> {
+  const metrics = Object.fromEntries(
+    years.map((year) => [year, { studentIds: new Set<number>(), fse: 0 }])
+  ) as Record<string, { studentIds: Set<number>; fse: number }>;
+
+  scholarships.forEach((scholarship) => {
+    const scholarSubsidy = toNumber(scholarship.amountSubsidy);
+    if (!scholarSubsidy) return;
+
+    scholarship.students.forEach((assignment) => {
+      const feesByYear = aggregateFeesByYear(assignment.student?.fees ?? []);
+
+      years.forEach((year) => {
+        const fees = feesByYear.get(year);
+        if (!fees) return;
+
+        const totalFees = fees.tuitionFee + fees.otherFee + fees.miscellaneousFee + fees.laboratoryFee;
+        if (totalFees <= 0) return;
+
+        metrics[year].studentIds.add(assignment.studentId);
+        metrics[year].fse += scholarSubsidy / totalFees;
+      });
+    });
+  });
+
+  return Object.fromEntries(
+    years.map((year) => [
+      year,
+      {
+        count: metrics[year].studentIds.size,
+        fse: metrics[year].fse,
+      },
+    ])
+  );
+}
+
 function addMetricCells(
   row: string[],
   years: string[],
   metrics: Record<string, SummaryMetric>,
   totalStudentsByYear: Record<string, number>,
-  options: { showZero?: boolean } = {}
+  options: { showZero?: boolean; grandTotals?: Record<string, SummaryMetric> } = {},
+  percentMetrics?: Record<string, SummaryMetric>
 ) {
   years.forEach((year, index) => {
     const columns = METRIC_COLUMNS[index];
     const metric = metrics[year] ?? { count: 0, fse: 0 };
-    const denominator = totalStudentsByYear[year] ?? 0;
+    const pctMetric = percentMetrics?.[year] ?? metric;
+    const grandTotal = options.grandTotals?.[year];
 
     row[columns.count] = formatCount(metric.count, options.showZero);
     row[columns.fse] = formatFse(metric.fse, options.showZero);
-    row[columns.percent] = formatPercent(
-      denominator > 0 ? metric.fse / denominator : 0,
-      options.showZero
-    );
+    
+    // Calculate percentage as: COUNT / GRAND_TOTAL_FSE
+    const percentValue = grandTotal && grandTotal.fse > 0 
+      ? pctMetric.count / grandTotal.fse 
+      : (pctMetric.count > 0 ? pctMetric.fse / pctMetric.count : 0);
+    
+    row[columns.percent] = formatPercent(percentValue, options.showZero);
   });
 }
 
@@ -591,29 +638,11 @@ function buildCustomRows(
     template: {
       label: scholarship.scholarshipName.toUpperCase(),
       grant: '',
+      grantColumn: 4,
       match: () => false,
     },
     scholarships: [scholarship],
   }));
-}
-
-function buildDataRows(
-  templateRows: Array<{ template: TemplateRow; scholarships: ScholarshipRecord[] }>,
-  years: string[],
-  totalStudentsByYear: Record<string, number>
-) {
-  return templateRows.map(({ template, scholarships }) => {
-    const row = createRow({
-      0: template.label,
-      [template.grantColumn ?? 4]: getGrantDisplay(template, scholarships),
-    });
-    const metrics = aggregateScholarshipMetrics(scholarships, years);
-    addMetricCells(row, years, metrics, totalStudentsByYear);
-    return {
-      row: { kind: 'data', cells: row } satisfies SummaryRow,
-      metrics,
-    };
-  });
 }
 
 function buildSummaryRows(
@@ -654,49 +683,100 @@ function buildSummaryRows(
     ...takeTemplateScholarships(INTERNAL_ROWS, scholarships, usedIds),
     ...buildCustomRows(scholarships, 'INTERNAL', null, usedIds),
   ];
-  const internalRows = buildDataRows(internalTemplateRows, years, totalStudentsByYear);
-  internalRows.forEach(({ row }) => rows.push(row));
-
-  const internalTotals = sumMetrics(
-    years,
-    internalRows.map(({ metrics }) => metrics)
-  );
-  const internalTotalRow = createRow({ 2: 'TOTAL:' });
-  addMetricCells(internalTotalRow, years, internalTotals, totalStudentsByYear, { showZero: true });
-  rows.push({ kind: 'total', cells: internalTotalRow });
-
-  rows.push({ kind: 'section', cells: createRow({ 0: 'EXTERNALLY FUNDED ' }) });
-  rows.push({ kind: 'heading', cells: createRow({ 0: 'BED' }) });
 
   const bedTemplateRows = [
     ...takeTemplateScholarships(EXTERNAL_BED_ROWS, scholarships, usedIds),
     ...buildCustomRows(scholarships, 'EXTERNAL', 'BED', usedIds),
   ];
-  const bedRows = buildDataRows(bedTemplateRows, years, totalStudentsByYear);
-  bedRows.forEach(({ row }) => rows.push(row));
-
-  rows.push({ kind: 'heading', cells: createRow({ 0: 'HIED' }) });
 
   const hiedTemplateRows = [
     ...takeTemplateScholarships(EXTERNAL_HIED_ROWS, scholarships, usedIds),
     ...buildCustomRows(scholarships, 'EXTERNAL', 'HIED', usedIds),
   ];
-  const hiedRows = buildDataRows(hiedTemplateRows, years, totalStudentsByYear);
-  hiedRows.forEach(({ row }) => rows.push(row));
+
+  // Calculate all metrics first to get grand totals
+  const internalMetrics = internalTemplateRows.map(({ scholarships: schols }) => ({
+    metrics: aggregateScholarshipMetrics(schols, years),
+    percentMetrics: aggregatePercentFseMetrics(schols, years),
+  }));
+
+  const bedMetrics = bedTemplateRows.map(({ scholarships: schols }) => ({
+    metrics: aggregateScholarshipMetrics(schols, years),
+    percentMetrics: aggregatePercentFseMetrics(schols, years),
+  }));
+
+  const hiedMetrics = hiedTemplateRows.map(({ scholarships: schols }) => ({
+    metrics: aggregateScholarshipMetrics(schols, years),
+    percentMetrics: aggregatePercentFseMetrics(schols, years),
+  }));
+
+  const internalTotals = sumMetrics(
+    years,
+    internalMetrics.map(({ metrics }) => metrics)
+  );
+  const internalPctTotals = sumMetrics(
+    years,
+    internalMetrics.map(({ percentMetrics }) => percentMetrics)
+  );
 
   const externalTotals = sumMetrics(
     years,
-    [...bedRows, ...hiedRows].map(({ metrics }) => metrics)
+    [...bedMetrics, ...hiedMetrics].map(({ metrics }) => metrics)
   );
+  const externalPctTotals = sumMetrics(
+    years,
+    [...bedMetrics, ...hiedMetrics].map(({ percentMetrics }) => percentMetrics)
+  );
+
+  const grandTotals = sumMetrics(years, [internalTotals, externalTotals]);
+  const grandPctTotals = sumMetrics(years, [internalPctTotals, externalPctTotals]);
+
+  // Now build rows with grand totals available
+  internalTemplateRows.forEach(({ template, scholarships: schols }, idx) => {
+    const row = createRow({
+      0: template.label,
+      [template.grantColumn ?? 4]: getGrantDisplay(template, schols),
+    });
+    addMetricCells(row, years, internalMetrics[idx].metrics, totalStudentsByYear, { grandTotals }, internalMetrics[idx].percentMetrics);
+    rows.push({ kind: 'data', cells: row });
+  });
+
+  const internalTotalRow = createRow({ 2: 'TOTAL:' });
+  addMetricCells(internalTotalRow, years, internalTotals, totalStudentsByYear, { showZero: true, grandTotals }, internalPctTotals);
+  rows.push({ kind: 'total', cells: internalTotalRow });
+
+  rows.push({ kind: 'section', cells: createRow({ 0: 'EXTERNALLY FUNDED ' }) });
+  rows.push({ kind: 'heading', cells: createRow({ 0: 'BED' }) });
+
+  bedTemplateRows.forEach(({ template, scholarships: schols }, idx) => {
+    const row = createRow({
+      0: template.label,
+      [template.grantColumn ?? 4]: getGrantDisplay(template, schols),
+    });
+    addMetricCells(row, years, bedMetrics[idx].metrics, totalStudentsByYear, { grandTotals }, bedMetrics[idx].percentMetrics);
+    rows.push({ kind: 'data', cells: row });
+  });
+
+  rows.push({ kind: 'heading', cells: createRow({ 0: 'HIED' }) });
+
+  hiedTemplateRows.forEach(({ template, scholarships: schols }, idx) => {
+    const row = createRow({
+      0: template.label,
+      [template.grantColumn ?? 4]: getGrantDisplay(template, schols),
+    });
+    addMetricCells(row, years, hiedMetrics[idx].metrics, totalStudentsByYear, { grandTotals }, hiedMetrics[idx].percentMetrics);
+    rows.push({ kind: 'data', cells: row });
+  });
+
   const externalTotalRow = createRow({ 2: 'TOTAL:' });
   addMetricCells(externalTotalRow, years, externalTotals, totalStudentsByYear, {
     showZero: true,
-  });
+    grandTotals,
+  }, externalPctTotals);
   rows.push({ kind: 'total', cells: externalTotalRow });
 
-  const grandTotals = sumMetrics(years, [internalTotals, externalTotals]);
   const grandTotalRow = createRow({ 1: 'GRAND TOTAL:' });
-  addMetricCells(grandTotalRow, years, grandTotals, totalStudentsByYear, { showZero: true });
+  addMetricCells(grandTotalRow, years, grandTotals, totalStudentsByYear, { showZero: true, grandTotals }, grandPctTotals);
   rows.push({ kind: 'grand', cells: grandTotalRow });
 
   const studentTotalRow = createRow({ 0: 'TOTAL OF STRUDENTS:' });
