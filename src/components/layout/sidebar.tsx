@@ -39,7 +39,7 @@ const LOGO_IMAGE_URL = '/images/logo.webp';
 const navigationItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Students', href: '/students', icon: Users },
-  { name: 'Promotion Level', href: '/registry', icon: ClipboardList },
+  { name: 'Promotion Level', href: '/registry', icon: ClipboardList, adminOnly: true },
   { name: 'Scholarships', href: '/scholarships', icon: GraduationCap },
   { name: 'Comparative Data', href: '/scholarship-flow', icon: TrendingUp },
   { name: 'Reports', href: '/reports', icon: FileSpreadsheet },

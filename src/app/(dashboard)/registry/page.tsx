@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useRouter } from 'next/navigation';
+
 import {
   AlertTriangle,
   ArrowRight,
@@ -449,6 +451,13 @@ export default function RegistryPage() {
   const [savingDecisionStudentId, setSavingDecisionStudentId] = useState<number | null>(null);
   const debouncedSearch = useDebounce(search, 300);
   const isAdmin = user?.role === 'ADMIN';
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && !isAdmin) {
+      router.push('/');
+    }
+  }, [user, isAdmin, router]);
 
   useEffect(() => {
     setPage(1);
