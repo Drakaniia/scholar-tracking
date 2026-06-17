@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const source = searchParams.get('source') || '';
+    const academicYearId = searchParams.get('academicYearId') || '';
 
     // Build where clause based on provided filters
     const where: Record<string, unknown> = {
@@ -15,6 +16,16 @@ export async function GET(request: NextRequest) {
 
     if (source && source !== 'all') {
       where.source = source;
+    }
+
+    // Filter by academic year if provided — only count scholarships that have
+    // students assigned in the given academic year
+    if (academicYearId) {
+      where.students = {
+        some: {
+          academicYearId: parseInt(academicYearId),
+        },
+      };
     }
 
     // Use Promise.all to execute aggregation queries in parallel
