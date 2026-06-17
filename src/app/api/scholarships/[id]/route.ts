@@ -98,6 +98,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         miscellaneousFee: true,
         laboratoryFee: true,
         otherFee: true,
+        academicYearId: true,
         createdAt: true,
         updatedAt: true,
         students: {
@@ -201,6 +202,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       'amountSubsidy',
       'percentSubsidy',
       'coveredTerms',
+      'academicYearId',
     ];
 
     const existingScholarship = await prisma.scholarship.findUnique({

@@ -183,6 +183,8 @@ export interface Scholarship {
   amountSubsidy: number;
   percentSubsidy: number;
   coveredTerms: string; // Comma-separated term codes: 1ST,2ND,3RD
+  academicYearId?: number | null;
+  academicYearRel?: AcademicYear | null;
   students?: StudentScholarship[];
   disbursements?: Disbursement[];
 }
@@ -210,6 +212,7 @@ export interface CreateScholarshipInput {
   amountSubsidy?: number;
   percentSubsidy?: number;
   coveredTerms?: string;
+  academicYearId?: number | null;
 }
 
 export type UpdateScholarshipInput = Partial<CreateScholarshipInput>;

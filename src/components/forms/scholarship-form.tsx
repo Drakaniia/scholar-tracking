@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { CalendarPlus, Pencil } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 
 import {
@@ -32,8 +33,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  useAcademicYears,
+  useCreateAcademicYear,
+  useUpdateAcademicYear,
+} from '@/hooks/use-queries';
 import { LGU_COVERED_TERMS, parseCoveredTerms, serializeCoveredTerms } from '@/lib/terms';
 import {
+  AcademicYear,
+  AcademicYearInput,
   CreateScholarshipInput,
   GRADE_LEVELS,
   GRADE_LEVEL_LABELS,
@@ -49,6 +57,50 @@ import {
 } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
+
+function toDateInputValue(value: string | Date | null | undefined) {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  return value.toISOString().slice(0, 10);
+}
+
+function getDefaultAcademicYearInput(): AcademicYearInput {
+  const now = new Date();
+  const startYear = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+
+  return {
+    year: `${startYear}-${startYear + 1}`,
+    startDate: `${startYear}-06-01`,
+    endDate: `${startYear + 1}-05-31`,
+    semester: '1ST',
+    isActive: false,
+    promotionDate: '',
+  };
+}
+
+function getAcademicYearStartYear(year: string | null | undefined) {
+  if (!year) return null;
+
+  const match = year.match(/^(\d{4})\s*-\s*(\d{4})$/);
+  if (!match) return null;
+
+  const startYear = Number(match[1]);
+  const endYear = Number(match[2]);
+
+  return endYear === startYear + 1 ? startYear : null;
+}
+
+function getAcademicYearInputFromStartYear(
+  startYear: number,
+  current: AcademicYearInput
+): AcademicYearInput {
+  return {
+    ...current,
+    year: `${startYear}-${startYear + 1}`,
+    startDate: `${startYear}-06-01`,
+    endDate: `${startYear + 1}-05-31`,
+  };
+}
 
 interface ScholarshipFormProps {
   defaultValues?: Partial<CreateScholarshipInput>;
@@ -100,6 +152,30 @@ export function ScholarshipForm({
   const [laboratoryFee, setLaboratoryFee] = useState(defaultValues?.laboratoryFee || 0);
   const [otherFee, setOtherFee] = useState(defaultValues?.otherFee || 0);
   const [amountSubsidy, setAmountSubsidy] = useState(defaultValues?.amountSubsidy || 0);
+
+  // Academic Year management
+  const { data: academicYearsData } = useAcademicYears();
+  const createAcademicYearMutation = useCreateAcademicYear();
+  const updateAcademicYearMutation = useUpdateAcademicYear();
+  const academicYears = ((academicYearsData?.data || []) as AcademicYear[]).slice().sort((a, b) => {
+    const left = new Date(a.startDate).getTime();
+    const right = new Date(b.startDate).getTime();
+    return right - left;
+  });
+  const [academicYearId, setAcademicYearId] = useState<number | null>(
+    defaultValues?.academicYearId ?? null
+  );
+  const [yearDialogOpen, setYearDialogOpen] = useState(false);
+  const [editingAcademicYear, setEditingAcademicYear] = useState<AcademicYear | null>(null);
+  const [academicYearFormData, setAcademicYearFormData] = useState<AcademicYearInput>(() =>
+    getDefaultAcademicYearInput()
+  );
+  const [academicYearStartYearInput, setAcademicYearStartYearInput] = useState(() =>
+    String(getAcademicYearStartYear(getDefaultAcademicYearInput().year) || '')
+  );
+  const [academicYearSubmitting, setAcademicYearSubmitting] = useState(false);
+
+  const selectedAcademicYearStartYear = getAcademicYearStartYear(academicYearFormData.year);
 
   // Calculate total fees
   const totalFees = tuitionFee + miscellaneousFee + laboratoryFee + otherFee;
@@ -192,6 +268,94 @@ export function ScholarshipForm({
     }
   };
 
+  // Academic Year handlers
+  const handleAcademicYearChange = (value: string) => {
+    const id = Number(value);
+    setAcademicYearId(Number.isInteger(id) && id > 0 ? id : null);
+  };
+
+  const openCreateAcademicYearDialog = () => {
+    const defaultInput = getDefaultAcademicYearInput();
+    setEditingAcademicYear(null);
+    setAcademicYearFormData(defaultInput);
+    setAcademicYearStartYearInput(String(getAcademicYearStartYear(defaultInput.year) || ''));
+    setYearDialogOpen(true);
+  };
+
+  const openEditAcademicYearDialog = () => {
+    const year = academicYears.find((y) => y.id === academicYearId) || null;
+    if (!year) return;
+
+    setEditingAcademicYear(year);
+    setAcademicYearStartYearInput(String(getAcademicYearStartYear(year.year) || ''));
+    setAcademicYearFormData({
+      year: year.year,
+      startDate: toDateInputValue(year.startDate),
+      endDate: toDateInputValue(year.endDate),
+      semester: year.semester,
+      isActive: year.isActive,
+      promotionDate: toDateInputValue(year.promotionDate),
+    });
+    setYearDialogOpen(true);
+  };
+
+  const handleAcademicYearFormChange = (
+    field: keyof AcademicYearInput,
+    value: string | boolean
+  ) => {
+    setAcademicYearFormData((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handleAcademicYearStartYearChange = (value: string) => {
+    setAcademicYearStartYearInput(value);
+
+    if (!/^\d{4}$/.test(value)) return;
+
+    const startYear = Number(value);
+
+    if (startYear < 1900 || startYear > 2200) return;
+
+    setAcademicYearFormData((current) => getAcademicYearInputFromStartYear(startYear, current));
+  };
+
+  const handleAcademicYearStartYearBlur = () => {
+    if (!selectedAcademicYearStartYear) return;
+
+    setAcademicYearStartYearInput(String(selectedAcademicYearStartYear));
+  };
+
+  const handleAcademicYearSubmit = async () => {
+    setAcademicYearSubmitting(true);
+    try {
+      const payload: AcademicYearInput = {
+        ...academicYearFormData,
+        promotionDate: academicYearFormData.promotionDate || null,
+      };
+      const response = editingAcademicYear
+        ? await updateAcademicYearMutation.mutateAsync({
+            id: editingAcademicYear.id,
+            data: payload,
+          })
+        : await createAcademicYearMutation.mutateAsync(payload);
+      const savedAcademicYear = response.data;
+
+      if (savedAcademicYear?.id) {
+        setAcademicYearId(savedAcademicYear.id);
+      }
+      setYearDialogOpen(false);
+      setEditingAcademicYear(null);
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+    } finally {
+      setAcademicYearSubmitting(false);
+    }
+  };
+
   const handleFormSubmit = (data: CreateScholarshipInput) => {
     if (showCustomType && customType) {
       data.type = customType;
@@ -211,6 +375,7 @@ export function ScholarshipForm({
     data.otherFee = otherFee;
     data.amountSubsidy = amountSubsidy;
     data.percentSubsidy = calculatedPercentSubsidy;
+    data.academicYearId = academicYearId;
     onSubmit(data);
   };
 
@@ -293,6 +458,49 @@ export function ScholarshipForm({
                 </Select>
               )}
             />
+          </div>
+        </div>
+
+        {/* Academic Year */}
+        <div className="space-y-2">
+          <Label htmlFor="academicYear">Academic Year</Label>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Select
+                value={academicYearId ? String(academicYearId) : ''}
+                onValueChange={handleAcademicYearChange}
+              >
+                <SelectTrigger id="academicYear">
+                  <SelectValue placeholder="Select academic year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYears.map((year) => (
+                    <SelectItem key={year.id} value={String(year.id)}>
+                      {year.year} - {SCHOLARSHIP_TERM_LABELS[year.semester as ScholarshipTerm]} {year.isActive ? '(Active)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={openCreateAcademicYearDialog}
+              title="Create Academic Year"
+            >
+              <CalendarPlus className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={openEditAcademicYearDialog}
+              disabled={!academicYearId}
+              title="Edit Academic Year"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -647,6 +855,129 @@ export function ScholarshipForm({
           />
         </div>
       </div>
+
+      {/* Academic Year Create/Edit Dialog */}
+      <Dialog open={yearDialogOpen} onOpenChange={setYearDialogOpen}>
+        <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
+            <DialogTitle>
+              {editingAcademicYear ? 'Edit Academic Year' : 'Create Academic Year'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingAcademicYear
+                ? 'Update the selected academic year.'
+                : 'Add a new academic year and assign it to this scholarship.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className={`${DIALOG_BODY_CLASS} space-y-4`}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_1.15fr]">
+              <div className="space-y-2">
+                <Label htmlFor="scholarship-year-start-year">Start Year</Label>
+                <Input
+                  id="scholarship-year-start-year"
+                  type="number"
+                  min={1900}
+                  max={2200}
+                  step={1}
+                  value={academicYearStartYearInput}
+                  onChange={(event) => handleAcademicYearStartYearChange(event.target.value)}
+                  onBlur={handleAcademicYearStartYearBlur}
+                  className="h-11 border-slate-300 text-lg font-semibold"
+                  required
+                />
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-xs font-semibold text-emerald-700">Academic Year Preview</p>
+                <p className="mt-1 text-2xl font-semibold text-emerald-950">
+                  {academicYearFormData.year || 'Select start year'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="scholarship-year-start">Start Date</Label>
+                <Input
+                  id="scholarship-year-start"
+                  type="date"
+                  value={academicYearFormData.startDate}
+                  onChange={(event) =>
+                    handleAcademicYearFormChange('startDate', event.target.value)
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="scholarship-year-end">End Date</Label>
+                <Input
+                  id="scholarship-year-end"
+                  type="date"
+                  value={academicYearFormData.endDate}
+                  onChange={(event) => handleAcademicYearFormChange('endDate', event.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="scholarship-year-semester">Current Semester</Label>
+              <Select
+                value={academicYearFormData.semester}
+                onValueChange={(value) => handleAcademicYearFormChange('semester', value)}
+              >
+                <SelectTrigger id="scholarship-year-semester">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHOLARSHIP_TERMS.map((term) => (
+                    <SelectItem key={term} value={term}>
+                      {SCHOLARSHIP_TERM_LABELS[term]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border p-3">
+              <Checkbox
+                id="scholarship-year-active"
+                checked={!!academicYearFormData.isActive}
+                onCheckedChange={(checked) =>
+                  handleAcademicYearFormChange('isActive', checked === true)
+                }
+              />
+              <Label htmlFor="scholarship-year-active" className="cursor-pointer font-normal">
+                Set as active academic year
+              </Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="scholarship-year-promotion">Promotion Date</Label>
+              <Input
+                id="scholarship-year-promotion"
+                type="date"
+                value={academicYearFormData.promotionDate || ''}
+                onChange={(event) =>
+                  handleAcademicYearFormChange('promotionDate', event.target.value)
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter className={DIALOG_FOOTER_CLASS}>
+            <Button type="button" variant="outline" onClick={() => setYearDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAcademicYearSubmit}
+              disabled={
+                academicYearSubmitting ||
+                !selectedAcademicYearStartYear ||
+                !academicYearFormData.startDate ||
+                !academicYearFormData.endDate
+              }
+            >
+              {academicYearSubmitting ? 'Saving...' : editingAcademicYear ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Other Fee Name Dialog */}
       <Dialog open={showOtherFeeDialog} onOpenChange={setShowOtherFeeDialog}>

@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || '';
     const source = searchParams.get('source') || '';
     const status = searchParams.get('status') || '';
+    const academicYearId = searchParams.get('academicYearId') || '';
     const archivedParam = searchParams.get('archived');
     const includeArchived = archivedParam === 'true';
 
@@ -93,6 +94,7 @@ export async function GET(request: NextRequest) {
       type,
       source,
       status,
+      academicYearId,
     });
     const cachedData = queryOptimizer.get<{ scholarships: unknown[]; total: number }>(cacheKey);
 
@@ -127,6 +129,16 @@ export async function GET(request: NextRequest) {
     const where = buildSearchWhere(search, ['scholarshipName', 'sponsor'], {
       ...additionalFilters,
       isArchived: includeArchived ? true : false,
+      // Filter by academic year if provided
+      ...(academicYearId
+        ? {
+            students: {
+              some: {
+                academicYearId: parseInt(academicYearId),
+              },
+            },
+          }
+        : {}),
     });
 
     const [scholarships, total] = await Promise.all([
@@ -160,6 +172,7 @@ export async function GET(request: NextRequest) {
           miscellaneousFee: true,
           laboratoryFee: true,
           otherFee: true,
+          academicYearId: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -246,6 +259,7 @@ export async function POST(request: NextRequest) {
         laboratoryFee: body.laboratoryFee || 0,
         otherFee: body.otherFee || 0,
         amountSubsidy: body.amountSubsidy || 0,
+        academicYearId: body.academicYearId ?? null,
         coveredTerms:
           body.coveredTerms || (body.type === 'LGU' ? LGU_COVERED_TERMS : DEFAULT_COVERED_TERMS),
         percentSubsidy:

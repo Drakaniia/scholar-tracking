@@ -175,6 +175,8 @@ model Scholarship {
   otherFeeName         String?              @map("other_fee_name")
   tuitionFee           Decimal              @default(0) @map("tuition_fee") @db.Decimal(10, 2)
   eligible_year_levels String?
+  academicYearId       Int?                 @map("academic_year_id")
+  academicYearRel      AcademicYear?        @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
   disbursements        Disbursement[]
   students             StudentScholarship[]
 
@@ -183,6 +185,7 @@ model Scholarship {
   @@index([status])
   @@index([isArchived])
   @@index([grantType])
+  @@index([academicYearId])
   @@map("scholarships")
 }
 
@@ -282,6 +285,7 @@ model AcademicYear {
   studentScholarships    StudentScholarship[]
   studentAcademicRecords StudentAcademicRecord[]
   studentFees            StudentFees[]
+  scholarships           Scholarship[]
 
   @@index([isActive])
   @@index([year])
