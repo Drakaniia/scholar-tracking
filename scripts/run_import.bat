@@ -24,9 +24,9 @@ goto parse_args
 :args_done
 
 if "%DRY_RUN%"=="true" (
-    echo Mode: DRY RUN ^(no data will be written^)
+    echo Mode: DRY RUN - no data will be written
 ) else (
-    echo Mode: LIVE IMPORT ^(WARNING: data WILL be written to the database^)
+    echo Mode: LIVE IMPORT - WARNING: data WILL be written to the database
     echo.
     echo Press Ctrl+C within 5 seconds to cancel...
     timeout /t 5 /nobreak >nul
@@ -72,14 +72,18 @@ set PYTHONIOENCODING=utf-8
 REM --- Run the importer ---
 echo.
 if "%DRY_RUN%"=="true" (
-    echo Starting Excel data import (DRY RUN mode)...
+    echo Starting Excel data import - DRY RUN mode...
 ) else (
-    echo Starting Excel data import (LIVE IMPORT mode)...
+    echo Starting Excel data import - LIVE IMPORT mode...
 )
 echo.
 
 REM Redirect output to both console and log file
-python excel_data_importer.py 2>&1
+if "%DRY_RUN%"=="true" (
+    python excel_data_importer.py --dry-run 2>&1
+) else (
+    python excel_data_importer.py --live 2>&1
+)
 set EXIT_CODE=%errorlevel%
 
 echo.
@@ -104,7 +108,7 @@ exit /b %EXIT_CODE%
 echo Usage: run_import.bat [options]
 echo.
 echo Options:
-echo   --dry-run  -d   Preview what would be imported (DEFAULT)
+echo   --dry-run  -d   Preview what would be imported - DEFAULT
 echo   --live     -l   Perform actual database import
 echo   --help     /?   Show this help message
 echo.

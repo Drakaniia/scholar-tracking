@@ -1057,6 +1057,23 @@ export default function ScholarshipsPage() {
                           </Badge>
                         </div>
                         <div>
+                          <p className="text-sm font-medium text-muted-foreground">Academic Year</p>
+                          {selectedScholarship.academicYearRel ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default">
+                                {selectedScholarship.academicYearRel.year}
+                              </Badge>
+                              {selectedScholarship.academicYearRel.isActive && (
+                                <Badge variant="outline" className="text-xs">
+                                  Active
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not set</span>
+                          )}
+                        </div>
+                        <div>
                           <p className="text-sm font-medium text-muted-foreground">Grant Type</p>
                           <Badge
                             variant={

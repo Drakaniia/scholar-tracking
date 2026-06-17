@@ -120,16 +120,20 @@ function toDateInputValue(value: string | Date | null | undefined) {
 
 function getDefaultAcademicYearInput(): AcademicYearInput {
   const now = new Date();
+  // If we're past June (month 5), use current year as start, otherwise use previous year
   const startYear = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
 
-  return {
+  const result = {
     year: `${startYear}-${startYear + 1}`,
     startDate: `${startYear}-06-01`,
     endDate: `${startYear + 1}-05-31`,
     semester: '1ST',
     isActive: false,
-    promotionDate: '',
+    promotionDate: `${startYear + 1}-05-31`,
   };
+
+  console.log('Generated default academic year input:', result);
+  return result;
 }
 
 function getAcademicYearStartYear(year: string | null | undefined) {

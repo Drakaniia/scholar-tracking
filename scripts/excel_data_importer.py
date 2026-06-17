@@ -24,6 +24,10 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from decimal import Decimal
 import uuid
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 # ---------------------------------------------------------------------------
 # Windows console encoding fix
@@ -85,7 +89,7 @@ def sprint(*args, **kwargs):
 class ScholarshipDataImporter:
     def __init__(self, 
                  database_url: Optional[str] = None,
-                 api_base_url: str = "http://localhost:8080/api",
+                 api_base_url: str = "http://localhost:3000/api",
                  dry_run: bool = True):
         """
         Initialize the importer
@@ -95,13 +99,15 @@ class ScholarshipDataImporter:
             api_base_url: Base URL for API endpoints
             dry_run: If True, only show what would be imported without actual import
         """
-        self.database_url = database_url
+        # Use DIRECT_DATABASE_URL for direct connection, fallback to DATABASE_URL
+        self.database_url = database_url or os.getenv('DIRECT_DATABASE_URL') or os.getenv('DATABASE_URL')
         self.api_base_url = api_base_url
         self.dry_run = dry_run
         self.session = requests.Session()
+        self.db_conn = None
         
-        # Configure for 2024-2025 academic year
-        self.academic_year = "2024-2025"
+        # Configure for 2025-2026 academic year
+        self.academic_year = "2025-2026"
         self.academic_year_id = None
         
         # Statistics
@@ -114,6 +120,216 @@ class ScholarshipDataImporter:
             'student_scholarships_created': 0,
             'errors': []
         }
+        
+    def connect_database(self):
+        """Establish database connection"""
+        if self.dry_run:
+            return None
+        
+        if not self.database_url:
+            raise ValueError("DIRECT_DATABASE_URL or DATABASE_URL is required for live import mode")
+        
+        try:
+            # Parse connection URL
+            db_url = self.database_url
+            
+            # Handle Prisma Accelerate URL format if DATABASE_URL is used instead of DIRECT_DATABASE_URL
+            if db_url.startswith('prisma+postgres://'):
+                sprint("⚠️  Warning: Using Prisma Accelerate URL. Recommend using DIRECT_DATABASE_URL instead.")
+                db_url = db_url.replace('prisma+postgres://', 'postgresql://')
+                # Remove query parameters that psycopg2 doesn't understand
+                if '?' in db_url:
+                    db_url = db_url.split('?')[0]
+            
+            # Handle standard postgres:// format (convert to postgresql://)
+            elif db_url.startswith('postgres://'):
+                db_url = db_url.replace('postgres://', 'postgresql://')
+            
+            sprint(f"🔌 Connecting to database...")
+            sprint(f"   Using: {'DIRECT_DATABASE_URL' if 'DIRECT_DATABASE_URL' in os.environ and self.database_url == os.getenv('DIRECT_DATABASE_URL') else 'DATABASE_URL'}")
+            
+            self.db_conn = psycopg2.connect(db_url)
+            self.db_conn.autocommit = False  # Use transactions
+            sprint("✅ Database connection established")
+            return self.db_conn
+        except Exception as e:
+            sprint(f"❌ Database connection failed: {str(e)}")
+            sprint(f"   Connection string starts with: {self.database_url[:20]}...")
+            raise
+    
+    def close_database(self):
+        """Close database connection"""
+        if self.db_conn:
+            self.db_conn.close()
+            sprint("Database connection closed")
+    
+    def create_student_in_db(self, student_data: Dict[str, Any]) -> Optional[int]:
+        """
+        Create student record in database
+        
+        Returns:
+            Student ID if successful, None otherwise
+        """
+        if not self.db_conn:
+            return None
+        
+        try:
+            cursor = self.db_conn.cursor()
+            
+            # Check if student exists (by name combination)
+            # Note: Table name is 'students' (lowercase) due to @@ map directive
+            cursor.execute("""
+                SELECT student_id FROM students 
+                WHERE first_name = %s AND last_name = %s AND middle_initial = %s
+                LIMIT 1
+            """, (student_data['firstName'], student_data['lastName'], student_data['middleInitial']))
+            
+            existing = cursor.fetchone()
+            if existing:
+                return existing[0]
+            
+            # Insert new student
+            cursor.execute("""
+                INSERT INTO students (
+                    first_name, last_name, middle_initial, program, 
+                    year_level, grade_level, status, graduation_status,
+                    term_type, birth_date, is_archived, created_at, updated_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                ) RETURNING student_id
+            """, (
+                student_data['firstName'],
+                student_data['lastName'],
+                student_data['middleInitial'],
+                student_data['program'],
+                student_data['yearLevel'],
+                student_data['gradeLevel'],
+                student_data['status'],
+                student_data['graduationStatus'],
+                student_data['termType'],
+                student_data['birthDate'],
+                student_data['isArchived']
+            ))
+            
+            student_id = cursor.fetchone()[0]
+            self.stats['students_created'] += 1
+            return student_id
+            
+        except Exception as e:
+            sprint(f"❌ Error creating student: {str(e)}")
+            self.stats['errors'].append(f"Create student: {str(e)}")
+            return None
+    
+    def create_scholarship_in_db(self, scholarship_data: Dict[str, Any]) -> Optional[int]:
+        """
+        Create or get scholarship record in database
+        
+        Returns:
+            Scholarship ID if successful, None otherwise
+        """
+        if not self.db_conn:
+            return None
+        
+        try:
+            cursor = self.db_conn.cursor()
+            
+            # Check if scholarship exists (by name and type)
+            cursor.execute("""
+                SELECT scholarship_id FROM scholarships 
+                WHERE scholarship_name = %s AND type = %s
+                LIMIT 1
+            """, (scholarship_data['scholarshipName'], scholarship_data['type']))
+            
+            existing = cursor.fetchone()
+            if existing:
+                return existing[0]
+            
+            # Insert new scholarship
+            cursor.execute("""
+                INSERT INTO scholarships (
+                    scholarship_name, type, sponsor, amount, source,
+                    status, grant_type, eligible_grade_levels, eligible_programs,
+                    covered_terms, covers_tuition, covers_miscellaneous,
+                    covers_laboratory, covers_other, tuition_fee,
+                    miscellaneous_fee, laboratory_fee, other_fee,
+                    amount_subsidy, percent_subsidy, requirements,
+                    academic_year_id, created_at, updated_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW()
+                ) RETURNING scholarship_id
+            """, (
+                scholarship_data['scholarshipName'],
+                scholarship_data['type'],
+                scholarship_data['sponsor'],
+                scholarship_data['amount'],
+                scholarship_data['source'],
+                scholarship_data['status'],
+                scholarship_data['grantType'],
+                scholarship_data['eligibleGradeLevels'],
+                scholarship_data['eligiblePrograms'],
+                scholarship_data['coveredTerms'],
+                scholarship_data['coversTuition'],
+                scholarship_data['coversMiscellaneous'],
+                scholarship_data['coversLaboratory'],
+                scholarship_data['coversOther'],
+                scholarship_data['tuitionFee'],
+                scholarship_data['miscellaneousFee'],
+                scholarship_data['laboratoryFee'],
+                scholarship_data['otherFee'],
+                scholarship_data['amountSubsidy'],
+                scholarship_data['percentSubsidy'],
+                scholarship_data['requirements'],
+                scholarship_data['academicYearId']
+            ))
+            
+            scholarship_id = cursor.fetchone()[0]
+            self.stats['scholarships_created'] += 1
+            return scholarship_id
+            
+        except Exception as e:
+            sprint(f"❌ Error creating scholarship: {str(e)}")
+            self.stats['errors'].append(f"Create scholarship: {str(e)}")
+            return None
+    
+    def link_student_scholarship(self, student_id: int, scholarship_id: int) -> bool:
+        """
+        Create student-scholarship link in database
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.db_conn:
+            return False
+        
+        try:
+            cursor = self.db_conn.cursor()
+            
+            # Check if link exists
+            cursor.execute("""
+                SELECT student_scholarship_id FROM student_scholarships 
+                WHERE student_id = %s AND scholarship_id = %s
+                LIMIT 1
+            """, (student_id, scholarship_id))
+            
+            if cursor.fetchone():
+                return True  # Already linked
+            
+            # Create link
+            cursor.execute("""
+                INSERT INTO student_scholarships (
+                    student_id, scholarship_id, scholarship_status, grant_amount, award_date, start_term, end_term, created_at, updated_at
+                ) VALUES (
+                    %s, %s, 'Active', 0, NOW(), '1ST', '2ND', NOW(), NOW()
+                )
+            """, (student_id, scholarship_id))
+            
+            self.stats['student_scholarships_created'] += 1
+            return True
+            
+        except Exception as e:
+            sprint(f"❌ Error linking student-scholarship: {str(e)}")
+            self.stats['errors'].append(f"Link student-scholarship: {str(e)}")
+            return False
         
     def generate_random_name(self) -> Dict[str, str]:
         """Generate random Filipino-style names for anonymization"""
@@ -192,7 +408,7 @@ class ScholarshipDataImporter:
     
     def create_academic_year(self) -> bool:
         """
-        Create or get the academic year 2024-2025
+        Create or get the academic year 2025-2026
         
         Returns:
             True if successful, False otherwise
@@ -203,18 +419,42 @@ class ScholarshipDataImporter:
                 self.academic_year_id = 1  # Mock ID for dry run
                 return True
             
-            # TODO: Implement API call or database query to create/get academic year
-            academic_year_data = {
-                'year': self.academic_year,
-                'startDate': '2024-08-01T00:00:00Z',
-                'endDate': '2025-07-31T23:59:59Z',
-                'semester': '1ST',
-                'isActive': True
-            }
+            if not self.db_conn:
+                sprint(f"ERROR: No database connection for academic year creation")
+                return False
             
-            sprint(f"📅 Creating/verifying academic year: {self.academic_year}")
-            # This would be an API call in production
+            cursor = self.db_conn.cursor()
             
+            # Check if academic year already exists
+            cursor.execute("""
+                SELECT academic_year_id FROM academic_years 
+                WHERE year = %s
+                LIMIT 1
+            """, (self.academic_year,))
+            
+            existing = cursor.fetchone()
+            if existing:
+                self.academic_year_id = existing[0]
+                sprint(f"📅 Using existing academic year: {self.academic_year} (ID: {self.academic_year_id})")
+                return True
+            
+            # Create new academic year
+            cursor.execute("""
+                INSERT INTO academic_years (
+                    year, start_date, end_date, semester, is_active, created_at, updated_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, NOW(), NOW()
+                ) RETURNING academic_year_id
+            """, (
+                self.academic_year,
+                '2025-08-01',  # Start date
+                '2026-07-31',  # End date  
+                '1ST',         # Semester
+                True           # Is active
+            ))
+            
+            self.academic_year_id = cursor.fetchone()[0]
+            sprint(f"📅 Created academic year: {self.academic_year} (ID: {self.academic_year_id})")
             return True
             
         except Exception as e:
@@ -727,6 +967,10 @@ class ScholarshipDataImporter:
             sprint(f"\nStarting Excel Data Import for Academic Year {self.academic_year}")
             sprint(f"Mode: {'DRY RUN' if self.dry_run else 'LIVE IMPORT'}")
             
+            # Connect to database for live import
+            if not self.dry_run:
+                self.connect_database()
+            
             # Create academic year first
             if not self.create_academic_year():
                 return False
@@ -745,6 +989,12 @@ class ScholarshipDataImporter:
             else:
                 sprint(f"⚠️  External file not found: {external_file}")
             
+            # Commit transaction for live import
+            if not self.dry_run and self.db_conn:
+                sprint(f"\n💾 Committing changes to database...")
+                self.db_conn.commit()
+                sprint(f"✅ Changes committed successfully!")
+            
             # Print summary
             self.print_summary()
             
@@ -753,7 +1003,17 @@ class ScholarshipDataImporter:
         except Exception as e:
             sprint(f"❌ Error during import: {str(e)}")
             self.stats['errors'].append(f"Import process: {str(e)}")
+            
+            # Rollback on error
+            if not self.dry_run and self.db_conn:
+                sprint(f"⚠️  Rolling back changes due to error...")
+                self.db_conn.rollback()
+            
             return False
+        finally:
+            # Always close database connection
+            if not self.dry_run:
+                self.close_database()
     
     def process_scholarship_file(self, file_path: str, source: str):
         """
@@ -799,6 +1059,24 @@ class ScholarshipDataImporter:
             sprint(f"❌ Error processing file {file_path}: {str(e)}")
             self.stats['errors'].append(f"File processing {file_path}: {str(e)}")
     
+    def _begin_savepoint(self, sp_name: str):
+        """Create a savepoint for isolated transaction scope"""
+        if self.db_conn:
+            cursor = self.db_conn.cursor()
+            cursor.execute(f"SAVEPOINT {sp_name}")
+
+    def _rollback_savepoint(self, sp_name: str):
+        """Rollback to savepoint (recover from error within a row)"""
+        if self.db_conn:
+            cursor = self.db_conn.cursor()
+            cursor.execute(f"ROLLBACK TO SAVEPOINT {sp_name}")
+
+    def _release_savepoint(self, sp_name: str):
+        """Release savepoint after successful row processing"""
+        if self.db_conn:
+            cursor = self.db_conn.cursor()
+            cursor.execute(f"RELEASE SAVEPOINT {sp_name}")
+
     def process_student_scholarship_row(self, row: Dict[str, Any], source: str, sheet_name: str):
         """
         Process a single row to create student and scholarship records
@@ -839,22 +1117,45 @@ class ScholarshipDataImporter:
             sprint(f"        Type: {scholarship_data['type']}, Subsidy: ₱{scholarship_data['amountSubsidy']:,.2f}")
             sprint(f"        Fees - Tuition: ₱{financial_data['tuitionFee']:,.2f}, Misc: ₱{financial_data['miscellaneousFee']:,.2f}, Lab: ₱{financial_data['laboratoryFee']:,.2f}")
             sprint(f"        Total Fees: ₱{financial_data['totalFees']:,.2f}, Subsidy %: {financial_data['percentSubsidy']:.1%}")
-            self.stats['students_created'] += 1
             self.stats['scholarships_processed'] += 1
             return
         
-        # TODO: In production, implement actual API calls or database operations
-        # This would involve:
-        # 1. Check if student exists (by name or other identifier)
-        # 2. Create student if not exists
-        # 3. Check if scholarship exists
-        # 4. Create scholarship if not exists  
-        # 5. Create student-scholarship relationship
-        # 6. Create fees and disbursement records with actual financial data
-        
-        sprint(f"     ✅ Would create student and scholarship records with financial data")
-        self.stats['students_created'] += 1
-        self.stats['scholarships_processed'] += 1
+        # LIVE IMPORT - Use a savepoint per row so failures don't abort the transaction
+        sp_name = f"sp_row_{self.stats['students_processed']}"
+        try:
+            self._begin_savepoint(sp_name)
+
+            # 1. Create student
+            student_id = self.create_student_in_db(student_data)
+            if not student_id:
+                self._rollback_savepoint(sp_name)
+                sprint(f"     ❌ Failed to create student")
+                return
+            
+            # 2. Create scholarship
+            scholarship_id = self.create_scholarship_in_db(scholarship_data)
+            if not scholarship_id:
+                self._rollback_savepoint(sp_name)
+                sprint(f"     ❌ Failed to create scholarship")
+                return
+            
+            # 3. Link student to scholarship
+            if self.link_student_scholarship(student_id, scholarship_id):
+                self._release_savepoint(sp_name)
+                sprint(f"     ✅ Created student #{student_id}, scholarship #{scholarship_id}, and linked them")
+                self.stats['scholarships_processed'] += 1
+            else:
+                self._rollback_savepoint(sp_name)
+                sprint(f"     ⚠️  Created student/scholarship but failed to link")
+                
+        except Exception as e:
+            error_msg = f"Processing row: {str(e)}"
+            sprint(f"     ❌ Error: {error_msg}")
+            self.stats['errors'].append(error_msg)
+            try:
+                self._rollback_savepoint(sp_name)
+            except Exception:
+                pass  # savepoint may not exist
     
     def print_summary(self):
         """Print import summary statistics and save report to JSON file"""
@@ -939,7 +1240,7 @@ def main():
     
     dry_run = parse_cli_args()
     
-    # File paths
+    # File paths (using existing 2024-2025 files but treating as 2025-2026 data)
     docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'docs')
     internal_file = os.path.join(docs_dir, 'sample_InernallyFunded2024-2025.xlsx')
     external_file = os.path.join(docs_dir, 'sample_externallyFunded-2024-2025.xlsx')

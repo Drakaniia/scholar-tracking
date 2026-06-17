@@ -261,6 +261,7 @@ export interface StudentFees {
   percentSubsidy: number;
   term: string;
   academicYear: string;
+  academicYearId?: number | null;
   createdAt: Date;
   updatedAt: Date;
   student?: Student;

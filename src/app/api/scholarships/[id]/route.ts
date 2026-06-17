@@ -99,6 +99,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         laboratoryFee: true,
         otherFee: true,
         academicYearId: true,
+        academicYearRel: {
+          select: {
+            id: true,
+            year: true,
+            semester: true,
+            isActive: true,
+          },
+        },
         createdAt: true,
         updatedAt: true,
         students: {

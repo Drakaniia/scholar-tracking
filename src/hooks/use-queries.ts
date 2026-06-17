@@ -204,6 +204,7 @@ interface StudentDetail extends Student {
     percentSubsidy: number;
     term: string;
     academicYear: string;
+    academicYearId: number | null;
   }>;
 }
 
@@ -966,6 +967,8 @@ export function useCreateAcademicYear() {
 
   return useMutation<ApiResponse<AcademicYear>, Error, AcademicYearInput>({
     mutationFn: async (data) => {
+      console.log('Creating academic year with data:', data);
+      
       const response = await fetch('/api/academic-years', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -974,18 +977,24 @@ export function useCreateAcademicYear() {
       });
 
       const json = await response.json();
+      console.log('Academic year creation response:', { status: response.status, data: json });
+      
       if (!response.ok) {
-        throw new Error(json.error || 'Failed to create academic year');
+        const errorMessage = json.error || `Failed to create academic year (${response.status})`;
+        console.error('Academic year creation failed:', errorMessage);
+        throw new Error(errorMessage);
       }
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('Academic year created successfully:', result.data);
       queryClient.invalidateQueries({ queryKey: queryKeys.academicYears.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       toast.success('Academic year created successfully');
     },
     onError: (error: Error) => {
+      console.error('Academic year creation error:', error);
       toast.error(error.message || 'Failed to create academic year');
     },
   });

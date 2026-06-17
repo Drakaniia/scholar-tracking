@@ -67,7 +67,8 @@ function validateAcademicYearDateRange(startDate: Date, endDate: Date) {
 function parseSemester(value: string | null | undefined) {
   const semester = normalizeTermCode(value);
   if (!semester) {
-    throw new Error('Invalid semester');
+    const acceptedValues = ['1ST', '2ND', '3RD'];
+    throw new Error(`Invalid semester "${value}". Must be one of: ${acceptedValues.join(', ')}`);
   }
   return semester;
 }
@@ -162,25 +163,55 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
     if (!token) {
+      console.error('Academic year creation failed: No auth token');
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const payload = await verifyToken(token);
     if (!payload) {
+      console.error('Academic year creation failed: Invalid token');
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
     }
 
     if (!canManageStudentsAndScholarships(payload.role)) {
+      console.error('Academic year creation failed: Insufficient permissions for user', payload.username);
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
 
     const body: AcademicYearData = await request.json();
+    console.log('Academic year creation request:', JSON.stringify(body, null, 2));
+    
     const { year, startDate, endDate, semester, isActive = false, promotionDate } = body;
 
-    // Validation
-    if (!year || !startDate || !endDate || !semester) {
+    // Enhanced validation with detailed logging
+    if (!year?.trim()) {
+      console.error('Academic year creation failed: Missing year field');
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
+        { success: false, error: 'Academic year is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!startDate?.trim()) {
+      console.error('Academic year creation failed: Missing startDate field');
+      return NextResponse.json(
+        { success: false, error: 'Start date is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!endDate?.trim()) {
+      console.error('Academic year creation failed: Missing endDate field');
+      return NextResponse.json(
+        { success: false, error: 'End date is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!semester?.trim()) {
+      console.error('Academic year creation failed: Missing semester field');
+      return NextResponse.json(
+        { success: false, error: 'Semester is required' },
         { status: 400 }
       );
     }
@@ -188,21 +219,27 @@ export async function POST(request: NextRequest) {
     let parsedSemester: string;
     try {
       parsedSemester = parseSemester(semester);
+      console.log('Parsed semester:', parsedSemester);
     } catch (error) {
+      console.error('Academic year creation failed: Invalid semester', semester, error);
       return NextResponse.json(
-        { success: false, error: error instanceof Error ? error.message : 'Invalid semester' },
+        { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Invalid semester. Must be 1ST, 2ND, or 3RD' 
+        },
         { status: 400 }
       );
     }
 
     // Check if year already exists
     const existing = await prisma.academicYear.findUnique({
-      where: { year },
+      where: { year: year.trim() },
     });
 
     if (existing) {
+      console.error('Academic year creation failed: Year already exists', year);
       return NextResponse.json(
-        { success: false, error: 'Academic year already exists' },
+        { success: false, error: `Academic year ${year} already exists` },
         { status: 400 }
       );
     }
@@ -216,24 +253,44 @@ export async function POST(request: NextRequest) {
       parsedEndDate = parseDateInput(endDate, 'end date');
       parsedPromotionDate = parseOptionalDateInput(promotionDate, 'promotion date');
       validateAcademicYearDateRange(parsedStartDate, parsedEndDate);
+      
+      console.log('Parsed dates:', {
+        startDate: parsedStartDate.toISOString(),
+        endDate: parsedEndDate.toISOString(),
+        promotionDate: parsedPromotionDate?.toISOString() || null
+      });
     } catch (error) {
+      console.error('Academic year creation failed: Date validation error', error);
       return NextResponse.json(
-        { success: false, error: error instanceof Error ? error.message : 'Invalid date' },
+        { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Invalid date format. Use YYYY-MM-DD format.' 
+        },
         { status: 400 }
       );
     }
 
     const academicYear = await prisma.$transaction(async (tx) => {
       if (isActive) {
+        console.log('Deactivating existing active academic years');
         await tx.academicYear.updateMany({
           where: { isActive: true },
           data: { isActive: false },
         });
       }
 
+      console.log('Creating new academic year with data:', {
+        year: year.trim(),
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        semester: parsedSemester,
+        isActive,
+        promotionDate: parsedPromotionDate,
+      });
+
       return tx.academicYear.create({
         data: {
-          year,
+          year: year.trim(),
           startDate: parsedStartDate,
           endDate: parsedEndDate,
           semester: parsedSemester,
@@ -242,6 +299,8 @@ export async function POST(request: NextRequest) {
         },
       });
     });
+
+    console.log('Academic year created successfully:', academicYear);
 
     invalidateAcademicYearDependentCaches();
 

@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
                 },
               },
               select: {
+                academicYearId: true,
                 scholarship: {
                   select: {
                     scholarshipName: true,
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
             }
           : {
               select: {
+                academicYearId: true,
                 scholarship: {
                   select: {
                     scholarshipName: true,
@@ -101,6 +103,7 @@ export async function GET(request: NextRequest) {
             percentSubsidy: true,
             term: true,
             academicYear: true,
+            academicYearId: true,
           },
         },
       },
