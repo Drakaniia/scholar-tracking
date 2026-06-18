@@ -94,7 +94,7 @@ describe('summary export route', () => {
     );
 
     const workbook = await loadWorkbookFromBuffer(await response.arrayBuffer());
-    expect(workbook.worksheets.map((worksheet) => worksheet.name)).toEqual([
+    expect(workbook.worksheets.map((worksheet: ExcelJS.Worksheet) => worksheet.name)).toEqual([
       'Grade School',
       'Junior High',
       'Senior High',
