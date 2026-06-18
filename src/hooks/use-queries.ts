@@ -37,8 +37,8 @@ export const queryKeys = {
   dashboard: {
     all: ['dashboard'] as const,
     stats: (source?: string) => [...queryKeys.dashboard.all, 'stats', source] as const,
-    detailed: (source?: string, academicYearId?: string) =>
-      [...queryKeys.dashboard.all, 'detailed', source, academicYearId] as const,
+    detailed: (source?: string) =>
+      [...queryKeys.dashboard.all, 'detailed', source] as const,
   },
 
   // Students
@@ -419,18 +419,14 @@ export function useDashboardStats(
 
 export function useDashboardDetailed(
   source?: string,
-  academicYearId?: string,
   options?: Partial<UseQueryOptions<ApiResponse<StudentDetail[]>, Error>>
 ) {
   return useQuery<ApiResponse<StudentDetail[]>, Error>({
-    queryKey: queryKeys.dashboard.detailed(source, academicYearId),
+    queryKey: queryKeys.dashboard.detailed(source),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (source && source !== 'all') {
         params.append('source', source);
-      }
-      if (academicYearId && academicYearId !== 'all') {
-        params.append('academicYearId', academicYearId);
       }
       const url = `/api/dashboard/detailed${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url, { credentials: 'include' });
