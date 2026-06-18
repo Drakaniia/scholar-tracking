@@ -27,7 +27,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDashboardDetailed } from '@/hooks/use-queries';
+import { useAcademicYears, useDashboardDetailed } from '@/hooks/use-queries';
+import { deriveAcademicYearOptions } from '@/lib/academic-year-utils';
 import { formatCurrency } from '@/lib/utils';
 
 interface DetailedStudent {
@@ -189,6 +190,8 @@ export default function ReportsPage() {
     staleTime: 0,
     refetchOnWindowFocus: false,
   });
+  // Fetch all academic years defined in the system
+  const { data: academicYearsData } = useAcademicYears();
 
   // Update state when TanStack Query data changes
   useEffect(() => {
@@ -274,10 +277,18 @@ export default function ReportsPage() {
     }
   };
 
-  // Check if student has fee data for the selected academic year
+  // Check if student has data (fees or scholarships) for the selected academic year
   const hasAcademicYearData = (student: DetailedStudent): boolean => {
     if (academicYearFilter === 'all') return true;
-    return student.fees?.some((fee) => fee.academicYear === academicYearFilter) ?? false;
+    // Check fee records
+    if (student.fees?.some((fee) => fee.academicYear === academicYearFilter)) return true;
+    // Check scholarship records by academic year ID
+    if (student.scholarships?.some((ss) => {
+      if (!ss.academicYearId) return false;
+      const ayYear = yearById.get(ss.academicYearId);
+      return ayYear === academicYearFilter;
+    })) return true;
+    return false;
   };
 
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
@@ -368,16 +379,25 @@ export default function ReportsPage() {
     return detailedStudents.filter((s) => hasMatchingScholarship(s)).length;
   };
 
-  // Derive unique academic years from student fee data
-  const academicYearOptions = useMemo(() => {
-    const years = new Set<string>();
-    detailedStudents.forEach((student) => {
-      student.fees?.forEach((fee) => {
-        if (fee.academicYear) years.add(fee.academicYear);
+  // Build academicYearId → year string map from the AcademicYear table
+  const yearById = useMemo(() => {
+    const map = new Map<number, string>();
+    if (academicYearsData?.data) {
+      academicYearsData.data.forEach((ay) => {
+        if (ay.year) map.set(ay.id, ay.year);
       });
-    });
-    return Array.from(years).sort().reverse();
-  }, [detailedStudents]);
+    }
+    return map;
+  }, [academicYearsData]);
+
+  // Derive academic year options from the AcademicYear table only.
+  // This deliberately ignores phantom year strings that may exist in fee data
+  // (created by a date-based fallback when no active academic year was configured).
+  const academicYearOptions = useMemo(() => {
+    const academicYears = (academicYearsData?.data || []) as Array<{ id: number; year: string }>;
+    const allFees = detailedStudents.flatMap((s) => s.fees || []);
+    return deriveAcademicYearOptions(academicYears, allFees);
+  }, [detailedStudents, academicYearsData]);
 
   const exportSourceFilter =
     fundingTypeFilter === 'internal'
@@ -552,16 +572,11 @@ export default function ReportsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Academic Years</SelectItem>
-                    {academicYearOptions.map((year) => {
-                      const yearCount = detailedStudents.filter(
-                        (s) => s.fees?.some((fee) => fee.academicYear === year) ?? false
-                      ).length;
-                      return (
-                        <SelectItem key={year} value={year}>
-                          {year} ({yearCount})
-                        </SelectItem>
-                      );
-                    })}
+                    {academicYearOptions.map((option) => (
+                      <SelectItem key={option.year} value={option.year}>
+                        {option.year} ({option.count})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
