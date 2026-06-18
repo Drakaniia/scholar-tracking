@@ -67,6 +67,7 @@ import {
   GrantType,
   SCHOLARSHIP_TERMS,
   SCHOLARSHIP_TERM_LABELS,
+  StudentFees,
   TERM_TYPES,
   TERM_TYPE_LABELS,
   TermType,
@@ -207,6 +208,8 @@ interface StudentFormProps {
   cancelLabel?: string;
   idPrefix?: string;
   embedded?: boolean;
+  /** Full student fee records keyed by academicYearId, used to show correct fees when year dropdown changes */
+  allFees?: StudentFees[];
 }
 
 function getRequiredStudentFieldMessage(data: CreateStudentInput): string | null {
@@ -262,6 +265,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     cancelLabel = 'Cancel',
     idPrefix,
     embedded = false,
+    allFees,
   }: StudentFormProps,
   ref
 ) {
@@ -441,6 +445,29 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
+
+  // When the user selects a different academic year, load the matching fee record
+  useEffect(() => {
+    if (!isEditing || !allFees || allFees.length === 0) return;
+
+    if (selectedStudentAcademicYearId) {
+      const matchingFee = allFees.find(
+        (f) => f.academicYearId === selectedStudentAcademicYearId
+      );
+      if (matchingFee) {
+        setFees({
+          tuitionFee: Number(matchingFee.tuitionFee) || 0,
+          otherFee: Number(matchingFee.otherFee) || 0,
+          miscellaneousFee: Number(matchingFee.miscellaneousFee) || 0,
+          laboratoryFee: Number(matchingFee.laboratoryFee) || 0,
+        });
+        return;
+      }
+    }
+    // No matching fee record — reset to zeros
+    setFees({ tuitionFee: 0, otherFee: 0, miscellaneousFee: 0, laboratoryFee: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStudentAcademicYearId, allFees]);
 
   const fetchScholarships = async () => {
     setLoadingScholarships(true);
