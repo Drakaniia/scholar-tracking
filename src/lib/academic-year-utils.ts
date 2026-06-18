@@ -46,6 +46,34 @@ export interface ResolvedAcademicYear {
  * inventing a date-based fallback — preventing phantom year strings from leaking
  * into fee data.
  */
+/**
+ * Finds the best academic year ID from a list of available years.
+ * Priority:
+ *  1. Preferred ID if it exists in the list
+ *  2. Active academic year
+ *  3. Most recent academic year (by year desc)
+ *  4. null if list is empty
+ */
+export function findBestAcademicYearId(
+  academicYears: Array<{ id: number; isActive: boolean; year?: string }>,
+  preferredId?: number | null
+): number | null {
+  // 1. Use preferred ID if it's valid
+  if (preferredId && academicYears.some((ay) => ay.id === preferredId)) {
+    return preferredId;
+  }
+
+  if (academicYears.length === 0) return null;
+
+  // 2. Find active academic year
+  const active = academicYears.find((ay) => ay.isActive);
+  if (active) return active.id;
+
+  // 3. Fall back to most recent (sort by year descending)
+  const sorted = [...academicYears].sort((a, b) => String(b.year || '').localeCompare(String(a.year || '')));
+  return sorted[0]?.id ?? null;
+}
+
 export function resolveAcademicYearForFee(
   resolvedAcademicYear: { year: string; semester: string } | null
 ): ResolvedAcademicYear {
