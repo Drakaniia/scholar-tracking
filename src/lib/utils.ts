@@ -60,6 +60,19 @@ export function getStatusColor(status: string): string {
 }
 
 /**
+ * Format academic year for display.
+ * Converts single-year values like "2024" to "2024-2025".
+ * If already in "YYYY-YYYY" or other format, returns as-is.
+ */
+export function formatAcademicYearDisplay(year: string): string {
+  if (/^\d{4}$/.test(year)) {
+    const start = parseInt(year, 10);
+    return `${start}-${start + 1}`;
+  }
+  return year;
+}
+
+/**
  * Truncate text with ellipsis
  */
 export function truncate(text: string, maxLength: number): string {
