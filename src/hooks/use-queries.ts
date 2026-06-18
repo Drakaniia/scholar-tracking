@@ -18,6 +18,7 @@ import type { QueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { getScholarshipFlowEndYear } from '@/lib/scholarship-flow-years';
+import { clientCache } from '@/lib/cache';
 import type {
   AcademicYear,
   AcademicYearInput,
@@ -546,6 +547,7 @@ export function useCreateStudent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      clientCache.invalidate('/api/academic-years/auto-promote');
       toast.success('Student created successfully');
     },
     onError: (error: Error) => {
@@ -585,6 +587,7 @@ export function useCreateStudents() {
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      clientCache.invalidate('/api/academic-years/auto-promote');
       toast.success(`${response.data.length} students created successfully`);
     },
     onError: (error: Error) => {
@@ -618,6 +621,7 @@ export function useUpdateStudent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      clientCache.invalidate('/api/academic-years/auto-promote');
       toast.success('Student updated successfully');
     },
     onError: (error: Error) => {
@@ -648,6 +652,7 @@ export function useDeleteStudent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      clientCache.invalidate('/api/academic-years/auto-promote');
       toast.success('Student archived successfully');
     },
     onError: (error: Error) => {
@@ -680,6 +685,7 @@ export function useArchiveStudent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      clientCache.invalidate('/api/academic-years/auto-promote');
       toast.success(`Student ${variables.action}d successfully`);
     },
     onError: (error: Error) => {
@@ -722,6 +728,7 @@ export function useBulkArchiveStudents() {
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      clientCache.invalidate('/api/academic-years/auto-promote');
       const data = response.data;
       const action = data?.action ?? 'archive';
       const actionLabel = action === 'unarchive' ? 'unarchived' : 'archived';
