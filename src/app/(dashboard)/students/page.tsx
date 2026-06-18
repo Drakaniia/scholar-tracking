@@ -4,13 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
   Archive,
   Award,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Layers,
+  Loader2,
   Pencil,
   Plus,
 } from 'lucide-react';
@@ -35,10 +38,10 @@ import {
   DIALOG_HEADER_CLASS,
   FORM_DIALOG_CONTENT_CLASS,
 } from '@/components/shared/dialog-layout';
-import { ImportButton } from '@/components/shared/import-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -70,6 +73,7 @@ import {
   queryKeys,
   useAcademicYears,
   useArchiveStudent,
+  useBulkArchiveStudents,
   useCreateStudent,
   useCreateStudents,
   useStudent,
@@ -381,7 +385,14 @@ function getStudentFormDefaultValues(
   };
 }
 
-function StudentsTableLoading({ canManageStudents }: { canManageStudents: boolean }) {
+function StudentsTableLoading({
+  canManageStudents,
+  isAdmin,
+}: {
+  canManageStudents: boolean;
+  isAdmin: boolean;
+}) {
+  const checkboxCols = isAdmin ? 1 : 0;
   const bodyColumns = canManageStudents ? 7 : 6;
 
   return (
@@ -389,6 +400,7 @@ function StudentsTableLoading({ canManageStudents }: { canManageStudents: boolea
       <Table>
         <TableHeader>
           <TableRow>
+            {isAdmin && <TableHead className="w-12" />}
             <TableHead>Name</TableHead>
             <TableHead>Grade Level</TableHead>
             <TableHead>Year Level</TableHead>
@@ -401,6 +413,7 @@ function StudentsTableLoading({ canManageStudents }: { canManageStudents: boolea
         <TableBody>
           {[...Array(6)].map((_, rowIndex) => (
             <TableRow key={rowIndex}>
+              {isAdmin && <TableCell><Skeleton className="h-4 w-4 rounded-sm" /></TableCell>}
               {[...Array(bodyColumns)].map((__, columnIndex) => (
                 <TableCell key={columnIndex}>
                   <Skeleton
@@ -583,6 +596,18 @@ export default function StudentsPage() {
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hoveredScholarshipId, setHoveredScholarshipId] = useState<number | null>(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(() => new Set());
+  const [selectAllAcrossPages, setSelectAllAcrossPages] = useState(false);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [isBulkArchiving, setIsBulkArchiving] = useState(false);
+  const [bulkArchiveResult, setBulkArchiveResult] = useState<{
+    successCount: number;
+    errorCount: number;
+    archivedCount: number;
+    alreadyArchivedCount: number;
+    notFoundCount: number;
+    results: Array<{ studentId: number; studentName: string; success: boolean; error?: string }>;
+  } | null>(null);
   const studentPopulation = showArchived ? 'archived' : 'all';
 
   // TanStack Query hooks for data fetching
@@ -615,6 +640,7 @@ export default function StudentsPage() {
   const createStudentsMutation = useCreateStudents();
   const updateStudentMutation = useUpdateStudent();
   const archiveStudentMutation = useArchiveStudent();
+  const bulkArchiveMutation = useBulkArchiveStudents();
   const { data: academicYearsData } = useAcademicYears();
   const academicYears = ((academicYearsData?.data || []) as AcademicYear[]).slice().sort((a, b) => {
     const left = new Date(a.startDate).getTime();
@@ -707,6 +733,7 @@ export default function StudentsPage() {
   useEffect(() => {
     // Reset to page 1 when filters change
     setPage(1);
+    setSelectAllAcrossPages(false);
   }, [
     debouncedSearch,
     gradeLevelFilter,
@@ -853,6 +880,87 @@ export default function StudentsPage() {
     }
   };
 
+  // Bulk archive selection handlers
+  const toggleStudentSelection = (studentId: number, checked: boolean) => {
+    if (!isAdmin) return;
+    if (!checked) {
+      setSelectAllAcrossPages(false);
+    }
+    setSelectedStudentIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(studentId);
+      } else {
+        next.delete(studentId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (!isAdmin) return;
+    if (!checked) {
+      setSelectAllAcrossPages(false);
+    }
+    setSelectedStudentIds((current) => {
+      const next = new Set(current);
+      students.forEach((student) => {
+        if (checked) {
+          next.add(student.id);
+        } else {
+          next.delete(student.id);
+        }
+      });
+      return next;
+    });
+  };
+
+  const openBulkArchiveDialog = () => {
+    if (selectedStudentIds.size === 0) return;
+    setBulkArchiveResult(null);
+    setBulkDialogOpen(true);
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedStudentIds.size === 0 && !selectAllAcrossPages) return;
+
+    setIsBulkArchiving(true);
+    try {
+      let payload: number[] | { selectAll: true; filters: Record<string, string | boolean | undefined> };
+
+      if (selectAllAcrossPages) {
+        payload = {
+          selectAll: true,
+          filters: {
+            search: debouncedSearch || undefined,
+            gradeLevel: gradeLevelFilter === 'all' ? undefined : gradeLevelFilter,
+            program: programFilter === 'all' ? undefined : programFilter,
+            status: statusFilter === 'all' ? undefined : statusFilter,
+            scholarshipSource: scholarshipSourceFilter === 'all' ? undefined : scholarshipSourceFilter,
+            scholarshipId: scholarshipFilter === 'all' ? undefined : scholarshipFilter,
+            academicYearId: academicYearFilter === 'all' ? undefined : academicYearFilter,
+            archived: false,
+            population: 'active',
+          },
+        };
+      } else {
+        payload = Array.from(selectedStudentIds);
+      }
+
+      const result = await bulkArchiveMutation.mutateAsync(payload);
+      setBulkArchiveResult(result.data ?? null);
+      if (result.success || (result.data && result.data.errorCount === 0)) {
+        setSelectedStudentIds(new Set());
+        setSelectAllAcrossPages(false);
+        setBulkDialogOpen(false);
+      }
+    } catch {
+      // Error toast handled by mutation
+    } finally {
+      setIsBulkArchiving(false);
+    }
+  };
+
   const clearStudentFilters = () => {
     setSearch('');
     setGradeLevelFilter('all');
@@ -862,6 +970,23 @@ export default function StudentsPage() {
     setScholarshipFilter('all');
     setAcademicYearFilter('all');
   };
+
+  // Derived state for bulk selection
+  const allVisibleStudentsSelected =
+    students.length > 0 && students.every((student) => selectedStudentIds.has(student.id));
+  const someStudentsSelected = students.some((student) => selectedStudentIds.has(student.id));
+  const selectAllCheckState = allVisibleStudentsSelected
+    ? true
+    : someStudentsSelected
+      ? 'indeterminate'
+      : false;
+  const effectiveSelectedCount = selectAllAcrossPages ? total : selectedStudentIds.size;
+  const showSelectAllBanner =
+    isAdmin &&
+    !showArchived &&
+    allVisibleStudentsSelected &&
+    !selectAllAcrossPages &&
+    total > students.length;
 
   const selectedScholarshipLabel =
     scholarshipFilter === 'none'
@@ -960,19 +1085,7 @@ export default function StudentsPage() {
             variant="outline"
             className="bg-white/90"
           />
-          {isAdmin && (
-            <ImportButton
-              variant="outline"
-              className="bg-white/90"
-              onImportComplete={() => {
-                // Invalidate all queries to refresh data
-                queryClient.invalidateQueries();
-                sessionStorage.removeItem('dashboardData');
-                sessionStorage.removeItem('detailedStudents');
-                window.dispatchEvent(new Event('refreshDashboard'));
-              }}
-            />
-          )}
+
           {canManageStudents && (
             <Dialog
               open={dialogOpen}
@@ -1188,8 +1301,56 @@ export default function StudentsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
+          {/* Bulk Archive Action Bar */}
+          {isAdmin && !showArchived && selectedStudentIds.size > 0 && (
+            <div className="border-b border-slate-200">
+              <div className="flex items-center justify-between bg-primary/5 px-4 py-2.5">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium text-slate-950">
+                    {effectiveSelectedCount}
+                  </span>
+                  <span className="text-muted-foreground">
+                    student{effectiveSelectedCount !== 1 ? 's' : ''} selected
+                    {selectAllAcrossPages && ' across all pages'}
+                  </span>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={openBulkArchiveDialog}
+                  disabled={isBulkArchiving}
+                >
+                  {isBulkArchiving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Archive className="mr-2 h-4 w-4" />
+                  )}
+                  Archive Selected
+                </Button>
+              </div>
+              {/* Select all across pages banner */}
+              {showSelectAllBanner && (
+                <div className="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm">
+                  <span className="text-amber-900">
+                    All <strong>{students.length}</strong> student{students.length !== 1 ? 's' : ''}{' '}
+                    on this page selected.
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="font-medium text-amber-900 hover:bg-amber-100 hover:text-amber-950"
+                    onClick={() => setSelectAllAcrossPages(true)}
+                  >
+                    Select all <strong>{total}</strong> student{total !== 1 ? 's' : ''} matching
+                    this search
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {loading ? (
-            <StudentsTableLoading canManageStudents={canManageStudents} />
+            <StudentsTableLoading canManageStudents={canManageStudents} isAdmin={isAdmin} />
           ) : students.length === 0 ? (
             <div className="flex h-48 flex-col items-center justify-center text-muted-foreground">
               <p>No students found</p>
@@ -1200,6 +1361,16 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {isAdmin && (
+                      <TableHead className="w-12">
+                        <Checkbox
+                          aria-label="Select all students"
+                          checked={selectAllCheckState}
+                          onCheckedChange={(checked) => toggleSelectAllVisible(checked === true)}
+                          disabled={!showArchived && students.length === 0}
+                        />
+                      </TableHead>
+                    )}
                     <TableHead>Name</TableHead>
                     <TableHead>Grade Level</TableHead>
                     <TableHead>Year Level</TableHead>
@@ -1213,9 +1384,24 @@ export default function StudentsPage() {
                   {students.map((student) => (
                     <TableRow
                       key={student.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={cn(
+                        'cursor-pointer hover:bg-muted/50',
+                        selectedStudentIds.has(student.id) && 'bg-primary/5'
+                      )}
                       onClick={() => handleViewDetails(student.id)}
                     >
+                      {isAdmin && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            aria-label={`Select ${student.lastName}, ${student.firstName}`}
+                            checked={selectedStudentIds.has(student.id)}
+                            onCheckedChange={(checked) =>
+                              toggleStudentSelection(student.id, checked === true)
+                            }
+                            disabled={showArchived}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">
                         {student.lastName}, {student.firstName} {student.middleInitial || ''}
                       </TableCell>
@@ -1338,6 +1524,102 @@ export default function StudentsPage() {
             <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
               {submitting ? 'Archiving...' : 'Archive'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Archive Confirmation Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
+          <DialogHeader className={DIALOG_HEADER_CLASS}>
+            <DialogTitle>Bulk Archive Students</DialogTitle>
+            <DialogDescription>
+              You are about to archive {effectiveSelectedCount} student
+              {effectiveSelectedCount !== 1 ? 's' : ''}
+              {selectAllAcrossPages && ' matching the current filters'}.
+              This action can be undone by unarchiving individual students.
+              {selectAllAcrossPages && (
+                <span className="mt-2 block rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                  <strong>Select all across pages active:</strong> All{' '}
+                  {total} student{total !== 1 ? 's' : ''} matching the
+                  current search and filters will be archived.
+                </span>
+              )}
+              {!selectAllAcrossPages && effectiveSelectedCount > 0 && (
+                <span className="mt-2 block text-destructive font-medium">
+                  Warning: Archiving removes students from the active list. Scholarship
+                  assignments will be preserved but hidden.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Bulk archive result feedback */}
+          {bulkArchiveResult && (
+            <div
+              className={cn(
+                'mx-6 rounded-md border px-3 py-2 text-sm',
+                bulkArchiveResult.errorCount > 0
+                  ? 'border-amber-200 bg-amber-50 text-amber-900'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              )}
+            >
+              <div className="flex items-start gap-2">
+                {bulkArchiveResult.errorCount > 0 ? (
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                ) : (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                )}
+                <div>
+                  <p className="font-medium">
+                    {bulkArchiveResult.archivedCount} archived,{' '}
+                    {bulkArchiveResult.alreadyArchivedCount} already archived,
+                    {bulkArchiveResult.notFoundCount} not found
+                  </p>
+                  {bulkArchiveResult.errorCount > 0 && (
+                    <div className="mt-1 max-h-24 overflow-y-auto text-amber-800">
+                      {bulkArchiveResult.results
+                        .filter((r) => !r.success)
+                        .map((r) => (
+                          <p key={r.studentId}>
+                            {r.studentName}: {r.error}
+                          </p>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className={DIALOG_FOOTER_CLASS}>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDialogOpen(false)}
+              disabled={isBulkArchiving}
+            >
+              {bulkArchiveResult && bulkArchiveResult.errorCount === 0 ? 'Close' : 'Cancel'}
+            </Button>
+            {(!bulkArchiveResult || bulkArchiveResult.errorCount > 0) && (
+              <Button
+                variant="destructive"
+                onClick={handleBulkArchive}
+                disabled={isBulkArchiving}
+              >
+                {isBulkArchiving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Archiving...
+                  </>
+                ) : (
+                  <>
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive {effectiveSelectedCount} Student
+                    {effectiveSelectedCount !== 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
