@@ -544,6 +544,7 @@ export function useCreateStudent() {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Student created successfully');
     },
@@ -582,6 +583,7 @@ export function useCreateStudents() {
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success(`${response.data.length} students created successfully`);
     },
@@ -614,6 +616,7 @@ export function useUpdateStudent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Student updated successfully');
     },
@@ -643,6 +646,7 @@ export function useDeleteStudent() {
       // Invalidate relevant queries
       removeStudentsFromListQueries(queryClient, [id]);
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Student archived successfully');
     },
@@ -674,11 +678,63 @@ export function useArchiveStudent() {
       // Invalidate relevant queries
       removeStudentsFromListQueries(queryClient, [variables.id]);
       queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success(`Student ${variables.action}d successfully`);
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to archive student');
+    },
+  });
+}
+
+export function useBulkArchiveStudents() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (
+      payload:
+        | number[]
+        | { selectAll: true; action?: 'archive' | 'unarchive'; filters: Record<string, string | boolean | undefined> }
+        | { studentIds: number[]; action?: 'archive' | 'unarchive' }
+    ) => {
+      let body: string;
+      if (Array.isArray(payload)) {
+        body = JSON.stringify({ studentIds: payload });
+      } else {
+        body = JSON.stringify(payload);
+      }
+
+      const response = await fetch('/api/students/bulk-archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        credentials: 'include',
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'Failed to bulk archive students');
+      }
+      return json;
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      const data = response.data;
+      const action = data?.action ?? 'archive';
+      const actionLabel = action === 'unarchive' ? 'unarchived' : 'archived';
+      const count = data?.processedCount ?? 0;
+      const errors = data?.errorCount ?? 0;
+      if (errors > 0) {
+        toast.warning(`${count} student(s) ${actionLabel}, ${errors} issue(s)`);
+      } else {
+        toast.success(`${count} student(s) ${actionLabel} successfully`);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to bulk archive students');
     },
   });
 }
