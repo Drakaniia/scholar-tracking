@@ -39,6 +39,7 @@ interface StudentFees {
   percentSubsidy: number;
   term: string;
   academicYear: string;
+  academicYearId?: number | null;
 }
 
 interface Scholarship {
@@ -66,9 +67,10 @@ interface StudentScholarship {
 interface StudentFeesManagerProps {
   studentId: number;
   readOnly?: boolean;
+  academicYearIdFilter?: number | null;
 }
 
-export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesManagerProps) {
+export function StudentFeesManager({ studentId, readOnly = false, academicYearIdFilter }: StudentFeesManagerProps) {
   const queryClient = useQueryClient();
   const [fees, setFees] = useState<StudentFees[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +95,11 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
     otherFee: 0,
     amountSubsidy: 0,
   });
+
+  // Filter fees by academic year when a filter is active
+  const displayFees = academicYearIdFilter
+    ? fees.filter((fee) => fee.academicYearId === academicYearIdFilter)
+    : fees;
 
   // Fetch academic years for dropdown
   const { data: academicYearsData } = useAcademicYears();
@@ -132,7 +139,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
       }
     > = {};
 
-    fees.forEach((fee) => {
+    displayFees.forEach((fee) => {
       const year = fee.academicYear;
       if (!feesByYear[year]) {
         feesByYear[year] = {
@@ -478,7 +485,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
       )}
 
       {/* Annual Fee Summary by Academic Year */}
-      {fees.length > 0 &&
+      {displayFees.length > 0 &&
         (() => {
           const feesByYear = aggregateFeesByYear();
           const sortedYears = Object.keys(feesByYear).sort().reverse();
@@ -743,19 +750,21 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
       )}
 
       {/* Fees List */}
-      {fees.length === 0 ? (
+      {displayFees.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8 text-muted-foreground">
             <DollarSign className="h-12 w-12 mb-4 opacity-50" />
             <p className="text-sm">No fee records found</p>
             <p className="text-xs mt-1">
-              Fees are automatically created when scholarships are assigned
+              {academicYearIdFilter
+                ? 'No fee records for the selected academic year'
+                : 'Fees are automatically created when scholarships are assigned'}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {fees.map((fee) => {
+          {displayFees.map((fee) => {
             const isEditing = editingId === fee.id;
             const totalFees = calculateTotalFees(isEditing ? editData : fee);
 
