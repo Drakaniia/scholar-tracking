@@ -53,7 +53,6 @@ import {
   useUpdateAcademicYear,
 } from '@/hooks/use-queries';
 import {
-  getUnavailableAcademicYearIdsForScholarship,
   hasScholarshipSelectionForAcademicYear,
 } from '@/lib/student-scholarship-year-options';
 import { getCoveredTermsLabel } from '@/lib/terms';
@@ -316,7 +315,6 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   const activeAcademicYear = (activeAcademicYearData?.data || null) as AcademicYear | null;
   const [yearDialogOpen, setYearDialogOpen] = useState(false);
   const [editingAcademicYear, setEditingAcademicYear] = useState<AcademicYear | null>(null);
-  const [activeYearAssignmentKey, setActiveYearAssignmentKey] = useState<string | null>(null);
   const [academicYearFormData, setAcademicYearFormData] = useState<AcademicYearInput>(() =>
     getDefaultAcademicYearInput()
   );
@@ -355,7 +353,11 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   const currentGradeLevel = form.watch('gradeLevel') || selectedGradeLevel;
   const currentYearLevel = form.watch('yearLevel') || '';
   const currentProgram = form.watch('program') || '';
-  const defaultAssignmentAcademicYearId = activeAcademicYear?.id ?? null;
+  const [selectedStudentAcademicYearId, setSelectedStudentAcademicYearId] = useState<number | null>(
+    activeAcademicYear?.id ?? null
+  );
+  const [studentYearDialog, setStudentYearDialog] = useState(false);
+  const defaultAssignmentAcademicYearId = selectedStudentAcademicYearId;
 
   const selectedAcademicYearStartYear = getAcademicYearStartYear(academicYearStartYearInput);
   const hasValidAcademicYearStartYear = selectedAcademicYearStartYear !== null;
@@ -464,50 +466,22 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     }
   };
 
-  const handleAcademicYearChange = (clientKey: string, value: string) => {
-    const academicYearId = Number(value);
-    const selectedAcademicYearId =
-      Number.isInteger(academicYearId) && academicYearId > 0 ? academicYearId : null;
-    const assignment = selectedScholarships.find(
-      (scholarship) => scholarship.clientKey === clientKey
-    );
-
-    if (assignment && selectedAcademicYearId !== null) {
-      const unavailableAcademicYearIds = getUnavailableAcademicYearIdsForScholarship(
-        selectedScholarships,
-        clientKey,
-        assignment.scholarshipId,
-        defaultAssignmentAcademicYearId
-      );
-
-      if (unavailableAcademicYearIds.has(selectedAcademicYearId)) {
-        return;
-      }
-    }
-
-    updateScholarship(clientKey, 'academicYearId', selectedAcademicYearId);
-  };
-
-  const openCreateAcademicYearDialog = (clientKey: string) => {
+  const openStudentCreateAcademicYearDialog = () => {
     const defaultInput = getDefaultAcademicYearInput();
-
-    setActiveYearAssignmentKey(clientKey);
+    setStudentYearDialog(true);
     setEditingAcademicYear(null);
     setAcademicYearFormData(defaultInput);
     setAcademicYearStartYearInput(String(getAcademicYearStartYear(defaultInput.year) || ''));
     setYearDialogOpen(true);
   };
 
-  const openEditAcademicYearDialog = (clientKey: string) => {
-    const assignment = selectedScholarships.find(
-      (scholarship) => scholarship.clientKey === clientKey
-    );
+  const openStudentEditAcademicYearDialog = () => {
     const academicYear =
-      academicYears.find((year) => year.id === (assignment?.academicYearId ?? null)) || null;
+      academicYears.find((year) => year.id === selectedStudentAcademicYearId) || null;
 
     if (!academicYear) return;
 
-    setActiveYearAssignmentKey(clientKey);
+    setStudentYearDialog(true);
     setEditingAcademicYear(academicYear);
     setAcademicYearStartYearInput(String(getAcademicYearStartYear(academicYear.year) || ''));
     setAcademicYearFormData({
@@ -550,7 +524,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   };
 
   const handleAcademicYearSubmit = async () => {
-    if (!activeYearAssignmentKey) return;
+    if (!studentYearDialog) return;
 
     setAcademicYearSubmitting(true);
     try {
@@ -567,11 +541,11 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
       const savedAcademicYear = response.data;
 
       if (savedAcademicYear?.id) {
-        updateScholarship(activeYearAssignmentKey, 'academicYearId', savedAcademicYear.id);
+        setSelectedStudentAcademicYearId(savedAcademicYear.id);
       }
       setYearDialogOpen(false);
       setEditingAcademicYear(null);
-      setActiveYearAssignmentKey(null);
+      setStudentYearDialog(false);
     } catch (error) {
       if (!(error instanceof Error)) {
         throw error;
@@ -799,6 +773,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
           otherFee: fees.otherFee,
           miscellaneousFee: fees.miscellaneousFee,
           laboratoryFee: fees.laboratoryFee,
+          academicYearId: selectedStudentAcademicYearId,
         };
       }
 
@@ -858,9 +833,75 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     }
   };
 
+  // Filter selected scholarships by the student-level academic year
+  const filteredSelectedScholarships = selectedScholarships.filter((s) => {
+    if (!selectedStudentAcademicYearId) return true;
+    return s.academicYearId === selectedStudentAcademicYearId;
+  });
+
   return (
     <form onSubmit={form.handleSubmit(handleFormSubmit)} className={formClassName}>
       <div className={bodyClassName}>
+        {/* Academic Year Filter - positioned at the top of the form */}
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+          <Label className="text-sm font-semibold whitespace-nowrap">
+            Academic Year
+          </Label>
+          <Select
+            value={
+              selectedStudentAcademicYearId
+                ? String(selectedStudentAcademicYearId)
+                : ''
+            }
+            onValueChange={(value) => {
+              const id = Number(value);
+              setSelectedStudentAcademicYearId(
+                Number.isInteger(id) && id > 0 ? id : null
+              );
+            }}
+          >
+            <SelectTrigger className="h-9 min-w-[13rem]">
+              <SelectValue placeholder="Select academic year" />
+            </SelectTrigger>
+            <SelectContent>
+              {academicYears.map((academicYear) => (
+                <SelectItem
+                  key={academicYear.id}
+                  value={String(academicYear.id)}
+                >
+                  {academicYear.year}
+                  {academicYear.isActive ? ' (Active)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {canManageAcademicYears && (
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={openStudentCreateAcademicYearDialog}
+                title="Create academic year"
+              >
+                <CalendarPlus className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={openStudentEditAcademicYearDialog}
+                disabled={!selectedStudentAcademicYearId}
+                title="Edit selected academic year"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="space-y-3 col-span-1">
             <Label htmlFor={fieldId('lastName')} className="text-sm font-medium">
@@ -1224,11 +1265,11 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
           </div>
 
           {/* Selected Scholarships */}
-          {selectedScholarships.length > 0 && (
+          {filteredSelectedScholarships.length > 0 ? (
             <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground">Assigned Scholarships</h4>
               <div className="grid grid-cols-1 gap-4">
-                {selectedScholarships.map((scholarship) => {
+                {filteredSelectedScholarships.map((scholarship) => {
                   const scholarshipDetails = getSelectedScholarshipDetails(
                     scholarship.scholarshipId
                   );
@@ -1236,12 +1277,6 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                     scholarshipDetails?.source ||
                     (scholarship.scholarshipName.includes('CHED') ? 'EXTERNAL' : 'INTERNAL');
                   const type = scholarshipDetails?.type || scholarship.scholarshipName;
-                  const unavailableAcademicYearIds = getUnavailableAcademicYearIdsForScholarship(
-                    selectedScholarships,
-                    scholarship.clientKey,
-                    scholarship.scholarshipId,
-                    defaultAssignmentAcademicYearId
-                  );
 
                   return (
                     <Card key={scholarship.clientKey} className="border-2 p-4">
@@ -1276,75 +1311,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(18rem,1.4fr)_repeat(4,minmax(7.5rem,1fr))]">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Academic Year</Label>
-                          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-                            <Select
-                              value={
-                                scholarship.academicYearId ? String(scholarship.academicYearId) : ''
-                              }
-                              onValueChange={(value) =>
-                                handleAcademicYearChange(scholarship.clientKey, value)
-                              }
-                              disabled={academicYears.length === 0}
-                            >
-                              <SelectTrigger className="h-9 min-w-[10rem] flex-1 text-sm">
-                                <SelectValue
-                                  placeholder={
-                                    academicYears.length > 0 ? 'Select year' : 'No years'
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {academicYears.map((academicYear) => {
-                                  const isUnavailable = unavailableAcademicYearIds.has(
-                                    academicYear.id
-                                  );
-
-                                  return (
-                                    <SelectItem
-                                      key={academicYear.id}
-                                      value={String(academicYear.id)}
-                                      disabled={isUnavailable}
-                                    >
-                                      {academicYear.year}
-                                      {academicYear.isActive ? ' (Active)' : ''}
-                                      {isUnavailable ? ' (Already selected)' : ''}
-                                    </SelectItem>
-                                  );
-                                })}
-                              </SelectContent>
-                            </Select>
-                            {canManageAcademicYears && (
-                              <div className="flex shrink-0 gap-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-9 w-9"
-                                  onClick={() =>
-                                    openCreateAcademicYearDialog(scholarship.clientKey)
-                                  }
-                                  title="Create academic year"
-                                >
-                                  <CalendarPlus className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-9 w-9"
-                                  onClick={() => openEditAcademicYearDialog(scholarship.clientKey)}
-                                  disabled={!scholarship.academicYearId}
-                                  title="Edit selected academic year"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground">Start Term</Label>
                           <Input
@@ -1437,7 +1404,12 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                 })}
               </div>
             </div>
-          )}
+          ) : selectedScholarships.length > 0 && selectedStudentAcademicYearId ? (
+            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <p className="text-sm">No scholarships assigned for this academic year</p>
+              <p className="text-xs mt-1">Add a scholarship below</p>
+            </div>
+          ) : null}
 
           {/* Scholarship Selector */}
           {showScholarshipSelector && (
@@ -1665,7 +1637,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
         )}
       </div>
 
-      <Dialog open={yearDialogOpen} onOpenChange={setYearDialogOpen}>
+      <Dialog open={yearDialogOpen} onOpenChange={(open) => { if (!open) setStudentYearDialog(false); setYearDialogOpen(open); }}>
         <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
           <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>
