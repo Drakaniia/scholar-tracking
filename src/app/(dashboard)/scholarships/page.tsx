@@ -62,7 +62,6 @@ import {
 } from '@/components/ui/table';
 import { useDebounce } from '@/hooks/use-debounce';
 import {
-  useAcademicYears,
   useCreateScholarship,
   useDeleteScholarship,
   useScholarship,
@@ -72,9 +71,8 @@ import {
 } from '@/hooks/use-queries';
 import { canManageStudentsAndScholarships, isAdminRole } from '@/lib/rbac';
 import { getCoveredTermsLabel } from '@/lib/terms';
-import { cn, formatAcademicYearDisplay, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type {
-  AcademicYear,
   CreateScholarshipInput,
   GrantType,
   Scholarship,
@@ -295,7 +293,6 @@ export default function ScholarshipsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
-  const [academicYearFilter, setAcademicYearFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
@@ -318,7 +315,6 @@ export default function ScholarshipsPage() {
     {
       search: debouncedSearch,
       source: sourceFilter === 'all' ? undefined : sourceFilter,
-      academicYearId: academicYearFilter === 'all' ? undefined : academicYearFilter,
       page,
       limit: 10,
     },
@@ -337,15 +333,6 @@ export default function ScholarshipsPage() {
   // TanStack Query hook for filter options
   const { data: filterOptionsData } = useScholarshipFilterOptions({
     source: sourceFilter,
-    academicYearId: academicYearFilter,
-  });
-
-  // Fetch academic years for filter
-  const { data: academicYearsData } = useAcademicYears();
-  const academicYears = ((academicYearsData?.data || []) as AcademicYear[]).slice().sort((a, b) => {
-    const left = new Date(a.startDate).getTime();
-    const right = new Date(b.startDate).getTime();
-    return right - left;
   });
 
   const [counts, setCounts] = useState<ScholarshipCounts>({ total: 0, internal: 0, external: 0 });
@@ -379,7 +366,7 @@ export default function ScholarshipsPage() {
   useEffect(() => {
     // Reset to page 1 when filter changes
     setPage(1);
-  }, [sourceFilter, academicYearFilter, debouncedSearch]);
+  }, [sourceFilter, debouncedSearch]);
 
   const handleCreate = async (data: CreateScholarshipInput) => {
     setSubmitting(true);
@@ -466,14 +453,7 @@ export default function ScholarshipsPage() {
   const clearScholarshipFilters = () => {
     setSearch('');
     setSourceFilter('all');
-    setAcademicYearFilter('all');
   };
-  const selectedAcademicYearLabel =
-    academicYears.find((academicYear) => String(academicYear.id) === academicYearFilter)?.year
-      ? formatAcademicYearDisplay(
-          academicYears.find((academicYear) => String(academicYear.id) === academicYearFilter)?.year || ''
-        )
-      : 'Selected year';
   const scholarshipActiveFilters: ActiveFilter[] = [
     ...(search.trim()
       ? [
@@ -494,16 +474,6 @@ export default function ScholarshipsPage() {
               SCHOLARSHIP_SOURCE_LABELS[sourceFilter as keyof typeof SCHOLARSHIP_SOURCE_LABELS] ||
               sourceFilter,
             onRemove: () => setSourceFilter('all'),
-          },
-        ]
-      : []),
-    ...(academicYearFilter !== 'all'
-      ? [
-          {
-            key: 'academic-year',
-            label: 'Year',
-            value: selectedAcademicYearLabel,
-            onRemove: () => setAcademicYearFilter('all'),
           },
         ]
       : []),
@@ -573,22 +543,6 @@ export default function ScholarshipsPage() {
           </Select>
         </FilterField>
 
-        <FilterField label="Academic year">
-          <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
-            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
-              <SelectValue placeholder="Academic Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Years</SelectItem>
-              {academicYears.map((academicYear) => (
-                <SelectItem key={academicYear.id} value={String(academicYear.id)}>
-                  {formatAcademicYearDisplay(academicYear.year)}
-                  {academicYear.isActive ? ' (Active)' : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterField>
       </FilterCard>
 
       <Card className="border-gray-200">
@@ -962,7 +916,6 @@ export default function ScholarshipsPage() {
                     miscellaneousFee: editingScholarship.miscellaneousFee,
                     laboratoryFee: editingScholarship.laboratoryFee,
                     otherFee: editingScholarship.otherFee,
-                    academicYearId: editingScholarship.academicYearId ?? null,
                   }
                 : undefined
             }
@@ -1058,23 +1011,6 @@ export default function ScholarshipsPage() {
                           >
                             {selectedScholarship.source === 'INTERNAL' ? 'Internal' : 'External'}
                           </Badge>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Academic Year</p>
-                          {selectedScholarship.academicYearRel ? (
-                            <div className="flex items-center gap-2">
-                              <Badge variant="default">
-                                {selectedScholarship.academicYearRel.year}
-                              </Badge>
-                              {selectedScholarship.academicYearRel.isActive && (
-                                <Badge variant="outline" className="text-xs">
-                                  Active
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">Not set</span>
-                          )}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-muted-foreground">Grant Type</p>
@@ -1308,9 +1244,7 @@ export default function ScholarshipsPage() {
                               </div>
                               <div>
                                 <p className="text-muted-foreground">Term Period</p>
-                                <p>
-                                  {ss.startTerm} - {ss.endTerm}
-                                </p>
+                                <p>N/A</p>
                               </div>
                               <div>
                                 <p className="text-muted-foreground">Status</p>
