@@ -290,6 +290,7 @@ export interface StudentFeesInput {
   otherFee?: number;
   miscellaneousFee?: number;
   laboratoryFee?: number;
+  academicYearId?: number | null;
 }
 
 // ============================================
