@@ -326,7 +326,12 @@ export default function ReportsPage() {
 
   const scholarshipMatchesAcademicYear = (academicYearId: number | null | undefined): boolean => {
     if (academicYearFilter === 'all') return true;
-    return academicYearId === selectedAcademicYearId;
+    if (academicYearId === selectedAcademicYearId) return true;
+    // Legacy scholarship assignments may have null academicYearId.
+    // Still include them when a year is selected so students aren't left with
+    // no visible scholarship rows after filtering.
+    if (academicYearId == null) return true;
+    return false;
   };
 
   const scholarshipMatchesFundingFilter = (source?: string): boolean => {
@@ -471,12 +476,18 @@ export default function ReportsPage() {
     return feesByYear[sortedYears[0]];
   };
 
-  // Filter students by academic year - matches scholarships page logic which filters by
-  // StudentScholarship.academicYearId. A student only shows in reports for a given year when
-  // they have a scholarship assignment for that year, not merely fee records.
-  const studentsFilteredByYear = selectedAcademicYearId !== null
-    ? detailedStudents.filter((s) => s.scholarships?.some((ss) => ss.academicYearId === selectedAcademicYearId))
-    : detailedStudents;
+  // Filter students by academic year. A student matches if they have either a scholarship
+  // assignment OR a fee record for the selected academic year. This ensures students aren't
+  // excluded when their scholarship assignment has a null academicYearId (e.g. legacy data
+  // created before the field existed) but their fees are correctly linked to the year.
+  const studentsFilteredByYear =
+    selectedAcademicYearId !== null
+      ? detailedStudents.filter(
+          (s) =>
+            s.scholarships?.some((ss) => ss.academicYearId === selectedAcademicYearId) ||
+            s.fees?.some((f) => f.academicYearId === selectedAcademicYearId)
+        )
+      : detailedStudents;
 
   // Calculate percent subsidy from aggregated annual data
   const calculateAnnualPercentSubsidy = (aggregatedFees: {
@@ -865,7 +876,7 @@ export default function ReportsPage() {
             {studentsFilteredByYear.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 {academicYearFilter !== 'all'
-                  ? `No students found with fees for the selected academic year`
+                  ? `No students found with scholarship assignments or fee records for the selected academic year`
                   : 'No students with scholarships found'}
               </div>
             )}
