@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -176,6 +176,7 @@ export default function ReportsPage() {
     Record<string, Record<string, string[]>>
   >({});
   const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
+  const [academicYearFilter, setAcademicYearFilter] = useState<string>('all');
   const [fundingTypeFilter, setFundingTypeFilter] = useState<'all' | 'internal' | 'external'>(
     'all'
   );
@@ -273,9 +274,16 @@ export default function ReportsPage() {
     }
   };
 
+  // Check if student has fee data for the selected academic year
+  const hasAcademicYearData = (student: DetailedStudent): boolean => {
+    if (academicYearFilter === 'all') return true;
+    return student.fees?.some((fee) => fee.academicYear === academicYearFilter) ?? false;
+  };
+
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
     return detailedStudents.filter(
       (s) =>
+        hasAcademicYearData(s) &&
         s.gradeLevel === gradeLevel &&
         (scholarshipType === 'No Scholarship'
           ? fundingTypeFilter === 'all' && (!s.scholarships || s.scholarships.length === 0)
@@ -289,14 +297,17 @@ export default function ReportsPage() {
 
   // Get scholarship names for a specific grade level and type
   const getScholarshipNames = (gradeLevel: string, scholarshipType: string): string[] => {
-    if (fundingTypeFilter === 'all') {
+    if (fundingTypeFilter === 'all' && academicYearFilter === 'all') {
       return scholarshipNamesByGradeAndType[gradeLevel]?.[scholarshipType] || [];
     }
 
     return Array.from(
       new Set(
         detailedStudents
-          .filter((student) => student.gradeLevel === gradeLevel)
+          .filter(
+            (student) =>
+              student.gradeLevel === gradeLevel && hasAcademicYearData(student)
+          )
           .flatMap((student) => student.scholarships || [])
           .filter(
             (ss) =>
@@ -317,12 +328,12 @@ export default function ReportsPage() {
   };
 
   const filterScholarshipTypes = (gradeLevel: string, types: string[]) => {
-    if (fundingTypeFilter === 'all') return types;
+    if (fundingTypeFilter === 'all' && academicYearFilter === 'all') return types;
 
     return types.filter((type) => {
       // Find sources from the filtered student data for this grade level and type
       const matchingSources = detailedStudents
-        .filter((s) => s.gradeLevel === gradeLevel)
+        .filter((s) => s.gradeLevel === gradeLevel && hasAcademicYearData(s))
         .flatMap((s) => s.scholarships || [])
         .filter((ss) => ss.scholarship?.type === type)
         .map((ss) => ss.scholarship?.source)
@@ -334,6 +345,7 @@ export default function ReportsPage() {
   };
 
   const hasMatchingScholarship = (student: DetailedStudent): boolean => {
+    if (!hasAcademicYearData(student)) return false;
     if (fundingTypeFilter === 'all') return true;
     if (!student.scholarships || student.scholarships.length === 0) return false;
 
@@ -356,6 +368,17 @@ export default function ReportsPage() {
     return detailedStudents.filter((s) => hasMatchingScholarship(s)).length;
   };
 
+  // Derive unique academic years from student fee data
+  const academicYearOptions = useMemo(() => {
+    const years = new Set<string>();
+    detailedStudents.forEach((student) => {
+      student.fees?.forEach((fee) => {
+        if (fee.academicYear) years.add(fee.academicYear);
+      });
+    });
+    return Array.from(years).sort().reverse();
+  }, [detailedStudents]);
+
   const exportSourceFilter =
     fundingTypeFilter === 'internal'
       ? 'INTERNAL'
@@ -366,9 +389,21 @@ export default function ReportsPage() {
     ? `/api/export/students?source=${exportSourceFilter}`
     : '/api/export/students';
 
-  // Aggregate fees by academic year (sum all semesters), returning most recent year
-  const aggregateFeesByAcademicYear = (fees: DetailedStudent['fees']) => {
+  // Aggregate fees by academic year (sum all semesters), returning most recent year.
+  // When selectedYear is provided ('all' or specific year), only aggregate fees for that year.
+  const aggregateFeesByAcademicYear = (
+    fees: DetailedStudent['fees'],
+    selectedYear?: string
+  ) => {
     if (!fees || fees.length === 0) return null;
+
+    // Filter by selected academic year if specified
+    const workingFees =
+      selectedYear && selectedYear !== 'all'
+        ? fees.filter((fee) => fee.academicYear === selectedYear)
+        : fees;
+
+    if (workingFees.length === 0) return null;
 
     // Group by academic year and return the most recent
     const feesByYear: Record<
@@ -384,7 +419,7 @@ export default function ReportsPage() {
       }
     > = {};
 
-    fees.forEach((fee) => {
+    workingFees.forEach((fee) => {
       const year = fee.academicYear || 'Unknown';
       if (!feesByYear[year]) {
         feesByYear[year] = {
@@ -511,6 +546,25 @@ export default function ReportsPage() {
                   </SelectContent>
                 </Select>
 
+                <Select value={academicYearFilter} onValueChange={setAcademicYearFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by academic year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Academic Years</SelectItem>
+                    {academicYearOptions.map((year) => {
+                      const yearCount = detailedStudents.filter(
+                        (s) => s.fees?.some((fee) => fee.academicYear === year) ?? false
+                      ).length;
+                      return (
+                        <SelectItem key={year} value={year}>
+                          {year} ({yearCount})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+
               </div>
             </div>
 
@@ -555,7 +609,7 @@ export default function ReportsPage() {
               const allScholarshipTypes = [
                 ...new Set(
                   detailedStudents
-                    .filter((s) => s.gradeLevel === gradeLevel)
+                    .filter((s) => s.gradeLevel === gradeLevel && hasAcademicYearData(s))
                     .flatMap((s) => s.scholarships || [])
                     .map((ss) => ss.scholarship?.type)
                     .filter(Boolean) as string[]
@@ -572,6 +626,7 @@ export default function ReportsPage() {
                 detailedStudents.some(
                   (s) =>
                     s.gradeLevel === gradeLevel &&
+                    hasAcademicYearData(s) &&
                     (!s.scholarships || s.scholarships.length === 0)
                 ) &&
                 !allScholarshipTypes.includes('No Scholarship')
@@ -663,7 +718,8 @@ export default function ReportsPage() {
                                 {students.map((student) => {
                                   // Aggregate all fees by academic year
                                   const aggregatedFees = aggregateFeesByAcademicYear(
-                                      student.fees
+                                      student.fees,
+                                      academicYearFilter
                                     );
                                   const totalFees = aggregatedFees
                                     ? Number(aggregatedFees.tuitionFee) +
@@ -758,7 +814,8 @@ export default function ReportsPage() {
                                     {students
                                       .reduce((sum, s) => {
                                         const aggregatedFees = aggregateFeesByAcademicYear(
-                                          s.fees
+                                          s.fees,
+                                          academicYearFilter
                                         );
                                         const percentSubsidy = aggregatedFees
                                           ? calculateAnnualPercentSubsidy(aggregatedFees)
