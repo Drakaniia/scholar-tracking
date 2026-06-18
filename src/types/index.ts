@@ -55,8 +55,6 @@ export interface StudentScholarship {
   scholarshipId: number;
   academicYearId?: number | null;
   awardDate: Date;
-  startTerm: string;
-  endTerm: string;
   grantAmount: number;
   grantType: GrantType;
   scholarshipStatus: string;
@@ -101,8 +99,6 @@ export interface CreateStudentInput {
   termType?: TermType;
   scholarshipId?: number | null;
   awardDate?: Date | null;
-  startTerm?: string | null;
-  endTerm?: string | null;
   grantAmount?: number | null;
   grantType?: GrantType;
   scholarshipStatus?: string | null;
@@ -111,8 +107,6 @@ export interface CreateStudentInput {
     scholarshipId: number;
     academicYearId?: number | null;
     awardDate: Date;
-    startTerm: string;
-    endTerm: string;
     grantAmount: number;
     grantType?: GrantType;
     scholarshipStatus: string;
