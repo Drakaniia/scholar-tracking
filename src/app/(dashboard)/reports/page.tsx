@@ -663,10 +663,8 @@ export default function ReportsPage() {
                                 {students.map((student) => {
                                   // Aggregate all fees by academic year
                                   const aggregatedFees = aggregateFeesByAcademicYear(
-                                    student.fees,
-                                    selectedAcademicYearId,
-                                    selectedAcademicYearStr
-                                  );
+                                      student.fees
+                                    );
                                   const totalFees = aggregatedFees
                                     ? Number(aggregatedFees.tuitionFee) +
                                       Number(aggregatedFees.otherFee) +
@@ -760,9 +758,7 @@ export default function ReportsPage() {
                                     {students
                                       .reduce((sum, s) => {
                                         const aggregatedFees = aggregateFeesByAcademicYear(
-                                          s.fees,
-                                          selectedAcademicYearId,
-                                          selectedAcademicYearStr
+                                          s.fees
                                         );
                                         const percentSubsidy = aggregatedFees
                                           ? calculateAnnualPercentSubsidy(aggregatedFees)
