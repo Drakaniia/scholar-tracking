@@ -783,9 +783,7 @@ export default function ReportsPage() {
 
             {detailedStudents.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                {academicYearFilter !== 'all'
-                  ? `No students found with scholarship assignments or fee records for the selected academic year`
-                  : 'No students with scholarships found'}
+                No students with scholarships found
               </div>
             )}
           </div>
