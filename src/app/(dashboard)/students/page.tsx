@@ -1116,6 +1116,7 @@ export default function StudentsPage() {
                         ? `${editingStudent.firstName} ${editingStudent.lastName}`
                         : undefined
                     }
+                    allFees={editingStudent?.fees ?? undefined}
                   />
                 ) : (
                   <StudentBatchForm
@@ -1849,6 +1850,7 @@ export default function StudentsPage() {
                       <StudentFeesManager
                         studentId={selectedStudent.id}
                         readOnly={!canManageStudentFees}
+                        academicYearIdFilter={academicYearFilter === 'all' ? undefined : Number(academicYearFilter)}
                       />
                     </div>
                   </>
