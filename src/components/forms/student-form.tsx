@@ -67,7 +67,6 @@ import {
   GrantType,
   SCHOLARSHIP_TERMS,
   SCHOLARSHIP_TERM_LABELS,
-  TERM_FORMATS,
   TERM_TYPES,
   TERM_TYPE_LABELS,
   TermType,
@@ -181,8 +180,6 @@ interface SelectedScholarship {
   scholarshipName: string;
   academicYearId?: number | null;
   awardDate: Date;
-  startTerm: string;
-  endTerm: string;
   grantAmount: number;
   grantType: GrantType;
   scholarshipStatus: string;
@@ -291,8 +288,6 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
         scholarships.find((sch) => sch.id === s.scholarshipId)?.scholarshipName || '', // Populate with name if available
       academicYearId: s.academicYearId ?? null,
       awardDate: s.awardDate,
-      startTerm: s.startTerm,
-      endTerm: s.endTerm,
       grantAmount: s.grantAmount,
       grantType: s.grantType || 'FULL',
       scholarshipStatus: s.scholarshipStatus,
@@ -589,92 +584,12 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
       return;
     }
 
-    // Calculate startTerm and endTerm based on student's grade level and term type
-    let startTerm = '';
-    let endTerm = '';
-
-    // Calculate based on student's grade level
-    if (currentGradeLevel) {
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth(); // 0-11
-
-      // Determine academic year based on current date (assuming academic year starts in June)
-      const academicYearStart = currentMonth >= 5 ? currentYear : currentYear - 1; // June = 5 in 0-indexed
-      const academicYearEnd = academicYearStart + 1;
-
-      // Get term format based on selected term type
-      const termFormat = TERM_FORMATS[selectedTermType];
-
-      // Calculate end year based on grade level
-      let endYear = academicYearEnd;
-
-      if (currentGradeLevel === 'GRADE_SCHOOL') {
-        // Grade school: assume until they complete grade school (Grade 6)
-        if (form.getValues('yearLevel')) {
-          const yearLevelValue = form.getValues('yearLevel');
-          const gradeNumber = parseInt(yearLevelValue.split(' ')[1] || '6'); // Extract grade number
-          endYear = academicYearEnd + (6 - gradeNumber); // Grade 6 is the last grade
-        } else {
-          endYear = academicYearEnd + 5; // Default to 6 years from now if grade level is unknown
-        }
-      } else if (currentGradeLevel === 'JUNIOR_HIGH') {
-        // Junior high: assume until they complete senior high (Grade 10 to Grade 12)
-        if (form.getValues('yearLevel')) {
-          const yearLevelValue = form.getValues('yearLevel');
-          const yearMatch = yearLevelValue.match(/Grade (\d+)/);
-          if (yearMatch) {
-            const currentGrade = parseInt(yearMatch[1]);
-            endYear = academicYearEnd + (10 - currentGrade); // Grade 10 is the last for JHS
-          } else {
-            endYear = academicYearEnd + 4; // Default to 4 years for JHS
-          }
-        } else {
-          endYear = academicYearEnd + 4; // Default to 4 years for JHS
-        }
-      } else if (currentGradeLevel === 'SENIOR_HIGH') {
-        // Senior high: assume until they complete SHS (Grade 11-12)
-        if (form.getValues('yearLevel')) {
-          const yearLevelValue = form.getValues('yearLevel');
-          const yearMatch = yearLevelValue.match(/Grade (\d+)/);
-          if (yearMatch) {
-            const currentGrade = parseInt(yearMatch[1]);
-            endYear = academicYearEnd + (12 - currentGrade); // Grade 12 is the last
-          } else {
-            endYear = academicYearEnd + 2; // Default to 2 years for SHS
-          }
-        } else {
-          endYear = academicYearEnd + 2; // Default to 2 years for SHS
-        }
-      } else if (currentGradeLevel === 'COLLEGE') {
-        // College: assume 4-5 years for semester, 3-4 years for trimester
-        if (form.getValues('yearLevel')) {
-          const yearLevelValue = form.getValues('yearLevel');
-          const yearMatch = yearLevelValue.match(/(\d+)(st|nd|rd|th) Year/);
-          if (yearMatch) {
-            const currentYearNum = parseInt(yearMatch[1]);
-            const totalYears = selectedTermType === 'TRIMESTER' ? 3 : 4; // 3 years for trimester, 4 for semester
-            endYear = academicYearEnd + (totalYears - currentYearNum);
-          } else {
-            endYear = academicYearEnd + (selectedTermType === 'TRIMESTER' ? 3 : 4);
-          }
-        } else {
-          endYear = academicYearEnd + (selectedTermType === 'TRIMESTER' ? 3 : 4);
-        }
-      }
-
-      // Format as academic year terms using term format
-      startTerm = `${termFormat.labels[0]} ${termFormat.prefix} ${academicYearStart}-${academicYearEnd}`;
-      endTerm = `${termFormat.labels[termFormat.labels.length - 1]} ${termFormat.prefix} ${endYear}-${endYear + 1}`;
-    }
-
     const newScholarship: SelectedScholarship = {
       clientKey: `new-${scholarship.id}-${Date.now()}`,
       scholarshipId: scholarship.id,
       scholarshipName: scholarship.scholarshipName,
       academicYearId: defaultAssignmentAcademicYearId,
       awardDate: new Date(),
-      startTerm: startTerm,
-      endTerm: endTerm,
       grantAmount:
         scholarship.grantType === 'TUITION_ONLY' || scholarship.grantType === 'NONE'
           ? 0
@@ -758,8 +673,6 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                 scholarshipId: scholarship.scholarshipId,
                 academicYearId: scholarship.academicYearId ?? null,
                 awardDate: scholarship.awardDate,
-                startTerm: scholarship.startTerm,
-                endTerm: scholarship.endTerm,
                 grantAmount: scholarship.grantAmount,
                 grantType: scholarship.grantType,
                 scholarshipStatus: scholarship.scholarshipStatus,
@@ -1311,29 +1224,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">Start Term</Label>
-                          <Input
-                            placeholder="Enter start term"
-                            value={scholarship.startTerm}
-                            onChange={(e) =>
-                              updateScholarship(scholarship.clientKey, 'startTerm', e.target.value)
-                            }
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground">End Term</Label>
-                          <Input
-                            placeholder="Enter end term"
-                            value={scholarship.endTerm}
-                            onChange={(e) =>
-                              updateScholarship(scholarship.clientKey, 'endTerm', e.target.value)
-                            }
-                            className="h-9 text-sm"
-                          />
-                        </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {scholarship.grantType !== 'TUITION_ONLY' &&
                           scholarship.grantType !== 'NONE' && (
                             <div className="space-y-2">
