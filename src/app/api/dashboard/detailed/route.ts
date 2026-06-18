@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const sourceFilter = searchParams.get('source') || '';
-    const cacheKey = generateQueryKey('dashboard-detailed', { source: sourceFilter || 'all' });
+    const academicYearIdParam = searchParams.get('academicYearId') || '';
+    const cacheKey = generateQueryKey('dashboard-detailed', {
+      source: sourceFilter || 'all',
+      academicYearId: academicYearIdParam || 'all',
+    });
     const cachedData = queryOptimizer.get(cacheKey);
 
     if (cachedData) {
@@ -33,23 +37,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build where clause - include all students, filter by scholarship source if specified
+    // Build where clause - include all active, non-archived students
     const whereClause: Prisma.StudentWhereInput = {
       isArchived: false,
       status: 'Active',
     };
 
-    // Only filter by scholarship if a source is specified
+    // Collect filter conditions to combine with AND
+    const conditions: Prisma.StudentWhereInput[] = [];
+
+    // Filter by scholarship source if specified
     if (sourceFilter) {
-      whereClause.scholarships = {
-        some: {
-          scholarship: {
-            source: sourceFilter,
+      conditions.push({
+        scholarships: {
+          some: {
+            scholarship: {
+              source: sourceFilter,
+            },
           },
         },
-      };
+      });
     }
-    // If no source filter, don't add scholarships filter - include all students
+
+    // Filter by academic year if specified (matches scholarship assignment OR fee record)
+    if (academicYearIdParam) {
+      const parsedAyId = parseInt(academicYearIdParam);
+      conditions.push({
+        OR: [
+          {
+            scholarships: {
+              some: { academicYearId: parsedAyId },
+            },
+          },
+          {
+            fees: {
+              some: { academicYearId: parsedAyId },
+            },
+          },
+        ],
+      });
+    }
+
+    if (conditions.length === 1) {
+      Object.assign(whereClause, conditions[0]);
+    } else if (conditions.length > 1) {
+      whereClause.AND = conditions;
+    }
 
     const students = await prisma.student.findMany({
       where: whereClause,
