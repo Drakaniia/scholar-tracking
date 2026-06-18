@@ -244,7 +244,6 @@ export function ScholarshipForm({
     data.otherFee = otherFee;
     data.amountSubsidy = amountSubsidy;
     data.percentSubsidy = calculatedPercentSubsidy;
-    data.academicYearId = defaultValues?.academicYearId ?? null;
     onSubmit(data);
   };
 
