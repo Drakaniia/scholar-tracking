@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAcademicYears, useDashboardDetailed } from '@/hooks/use-queries';
-import { formatCurrency } from '@/lib/utils';
+import { formatAcademicYearDisplay, formatCurrency } from '@/lib/utils';
 import type { AcademicYear } from '@/types';
 
 interface DetailedStudent {
@@ -194,10 +194,15 @@ export default function ReportsPage() {
   // TanStack Query hook for data fetching
   // staleTime: 0 ensures fresh data is always fetched when this page mounts,
   // so fee/subsidy edits from the student page appear immediately.
-  const { data: detailedData, refetch: refetchDetailedView } = useDashboardDetailed(undefined, {
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-  });
+  // academicYearFilter is passed to the API for server-side filtering.
+  const { data: detailedData, refetch: refetchDetailedView } = useDashboardDetailed(
+    undefined,
+    academicYearFilter,
+    {
+      staleTime: 0,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   // Update state when TanStack Query data changes
   useEffect(() => {
@@ -284,7 +289,7 @@ export default function ReportsPage() {
   };
 
   const getStudentsByGradeLevelAndScholarship = (gradeLevel: string, scholarshipType: string) => {
-    return studentsFilteredByYear.filter(
+    return detailedStudents.filter(
       (s) =>
         s.gradeLevel === gradeLevel &&
         (scholarshipType === 'No Scholarship'
@@ -292,8 +297,7 @@ export default function ReportsPage() {
           : s.scholarships?.some(
               (ss) =>
                 ss.scholarship?.type === scholarshipType &&
-                scholarshipMatchesFundingFilter(ss.scholarship?.source) &&
-                scholarshipMatchesAcademicYear(ss.academicYearId)
+                scholarshipMatchesFundingFilter(ss.scholarship?.source)
             ))
     );
   };
@@ -306,14 +310,13 @@ export default function ReportsPage() {
 
     return Array.from(
       new Set(
-        studentsFilteredByYear
+        detailedStudents
           .filter((student) => student.gradeLevel === gradeLevel)
           .flatMap((student) => student.scholarships || [])
           .filter(
             (ss) =>
               ss.scholarship?.type === scholarshipType &&
-              scholarshipMatchesFundingFilter(ss.scholarship?.source) &&
-              scholarshipMatchesAcademicYear(ss.academicYearId)
+              scholarshipMatchesFundingFilter(ss.scholarship?.source)
           )
           .map((ss) => ss.scholarship?.scholarshipName || '')
           .filter(Boolean)
@@ -321,18 +324,9 @@ export default function ReportsPage() {
     ).sort();
   };
 
+  // Computed selected academic year ID for fee aggregation (API already filters students)
   const selectedAcademicYearId =
     academicYearFilter === 'all' ? null : Number(academicYearFilter);
-
-  const scholarshipMatchesAcademicYear = (academicYearId: number | null | undefined): boolean => {
-    if (academicYearFilter === 'all') return true;
-    if (academicYearId === selectedAcademicYearId) return true;
-    // Legacy scholarship assignments may have null academicYearId.
-    // Still include them when a year is selected so students aren't left with
-    // no visible scholarship rows after filtering.
-    if (academicYearId == null) return true;
-    return false;
-  };
 
   const scholarshipMatchesFundingFilter = (source?: string): boolean => {
     if (fundingTypeFilter === 'all') return true;
@@ -345,15 +339,11 @@ export default function ReportsPage() {
     if (fundingTypeFilter === 'all' && academicYearFilter === 'all') return types;
 
     return types.filter((type) => {
-      // Find sources from the filtered student data for this grade level, type, and academic year
-      const matchingSources = studentsFilteredByYear
+      // Find sources from the filtered student data for this grade level and type
+      const matchingSources = detailedStudents
         .filter((s) => s.gradeLevel === gradeLevel)
         .flatMap((s) => s.scholarships || [])
-        .filter(
-          (ss) =>
-            ss.scholarship?.type === type &&
-            scholarshipMatchesAcademicYear(ss.academicYearId)
-        )
+        .filter((ss) => ss.scholarship?.type === type)
         .map((ss) => ss.scholarship?.source)
         .filter(Boolean);
 
@@ -363,20 +353,18 @@ export default function ReportsPage() {
   };
 
   const hasMatchingScholarship = (student: DetailedStudent): boolean => {
-    if (fundingTypeFilter === 'all' && academicYearFilter === 'all') return true;
+    if (fundingTypeFilter === 'all') return true;
     if (!student.scholarships || student.scholarships.length === 0) return false;
 
-    return student.scholarships?.some(
-      (ss) =>
-        scholarshipMatchesFundingFilter(ss.scholarship?.source) &&
-        scholarshipMatchesAcademicYear(ss.academicYearId)
+    return student.scholarships?.some((ss) =>
+      scholarshipMatchesFundingFilter(ss.scholarship?.source)
     );
   };
 
   const getFilteredGradeLevelCounts = (): Record<string, number> => {
     const counts: Record<string, number> = {};
     GRADE_LEVELS.forEach((level) => {
-      counts[level] = studentsFilteredByYear.filter(
+      counts[level] = detailedStudents.filter(
         (s) => s.gradeLevel === level && hasMatchingScholarship(s)
       ).length;
     });
@@ -384,7 +372,7 @@ export default function ReportsPage() {
   };
 
   const getFilteredTotalCount = (): number => {
-    return studentsFilteredByYear.filter((s) => hasMatchingScholarship(s)).length;
+    return detailedStudents.filter((s) => hasMatchingScholarship(s)).length;
   };
 
   const exportSourceFilter =
@@ -475,19 +463,6 @@ export default function ReportsPage() {
     const sortedYears = yearsWithData.sort().reverse();
     return feesByYear[sortedYears[0]];
   };
-
-  // Filter students by academic year. A student matches if they have either a scholarship
-  // assignment OR a fee record for the selected academic year. This ensures students aren't
-  // excluded when their scholarship assignment has a null academicYearId (e.g. legacy data
-  // created before the field existed) but their fees are correctly linked to the year.
-  const studentsFilteredByYear =
-    selectedAcademicYearId !== null
-      ? detailedStudents.filter(
-          (s) =>
-            s.scholarships?.some((ss) => ss.academicYearId === selectedAcademicYearId) ||
-            s.fees?.some((f) => f.academicYearId === selectedAcademicYearId)
-        )
-      : detailedStudents;
 
   // Calculate percent subsidy from aggregated annual data
   const calculateAnnualPercentSubsidy = (aggregatedFees: {
@@ -594,7 +569,7 @@ export default function ReportsPage() {
                     <SelectItem value="all">All Academic Years</SelectItem>
                     {academicYears.map((academicYear) => (
                       <SelectItem key={academicYear.id} value={String(academicYear.id)}>
-                        {academicYear.year}
+                        {formatAcademicYearDisplay(academicYear.year)}
                         {academicYear.isActive ? ' (Active)' : ''}
                       </SelectItem>
                     ))}
@@ -643,10 +618,9 @@ export default function ReportsPage() {
               // Get scholarship types for this grade level from filtered data
               const allScholarshipTypes = [
                 ...new Set(
-                  studentsFilteredByYear
+                  detailedStudents
                     .filter((s) => s.gradeLevel === gradeLevel)
                     .flatMap((s) => s.scholarships || [])
-                    .filter((ss) => scholarshipMatchesAcademicYear(ss.academicYearId))
                     .map((ss) => ss.scholarship?.type)
                     .filter(Boolean) as string[]
                 ),
@@ -659,7 +633,7 @@ export default function ReportsPage() {
 
               // Also add 'No Scholarship' if there are unassigned students in the filtered set
               if (
-                studentsFilteredByYear.some(
+                detailedStudents.some(
                   (s) =>
                     s.gradeLevel === gradeLevel &&
                     (!s.scholarships || s.scholarships.length === 0)
@@ -873,7 +847,7 @@ export default function ReportsPage() {
               );
             })}
 
-            {studentsFilteredByYear.length === 0 && (
+            {detailedStudents.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 {academicYearFilter !== 'all'
                   ? `No students found with scholarship assignments or fee records for the selected academic year`
