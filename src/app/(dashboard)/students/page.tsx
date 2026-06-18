@@ -121,8 +121,6 @@ type StudentMutationData = {
   scholarships?: Array<{
     scholarshipId: number;
     awardDate: Date;
-    startTerm: string;
-    endTerm: string;
     grantAmount: number;
     grantType?: GrantType;
     scholarshipStatus: string;
@@ -262,11 +260,6 @@ function ScholarshipPortfolioCell({
                   <span className="truncate">
                     {getCompactScholarshipName(scholarship.scholarshipName)}
                   </span>
-                  {ss.academicYearRel?.year && (
-                    <span className="shrink-0 text-[10px] font-medium text-slate-600">
-                      {ss.academicYearRel.year}
-                    </span>
-                  )}
                 </Badge>
               </PopoverTrigger>
               <PopoverContent
@@ -321,18 +314,6 @@ function ScholarshipPortfolioCell({
                         {new Date(ss.awardDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-slate-500">Academic Year</p>
-                      <p className="font-medium text-slate-950">
-                        {ss.academicYearRel?.year || 'No year'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Term</p>
-                      <p className="font-medium text-slate-950">
-                        {ss.startTerm} - {ss.endTerm}
-                      </p>
-                    </div>
                   </div>
                 </div>
               </PopoverContent>
@@ -376,8 +357,6 @@ function getStudentFormDefaultValues(
         scholarshipId: ss.scholarshipId,
         academicYearId: ss.academicYearId ?? null,
         awardDate: new Date(ss.awardDate),
-        startTerm: ss.startTerm,
-        endTerm: ss.endTerm,
         grantAmount: ss.grantAmount,
         grantType: ss.grantType,
         scholarshipStatus: ss.scholarshipStatus,
@@ -815,8 +794,6 @@ export default function StudentsPage() {
     scholarships: data.scholarships?.map((s) => ({
       scholarshipId: s.scholarshipId,
       awardDate: s.awardDate,
-      startTerm: s.startTerm,
-      endTerm: s.endTerm,
       grantAmount: s.grantAmount,
       grantType: s.grantType,
       scholarshipStatus: s.scholarshipStatus,
@@ -1736,14 +1713,6 @@ export default function StudentsPage() {
                                 <div>
                                   <p className="text-muted-foreground">Academic Year</p>
                                   <p>{ss.academicYearRel?.year || 'No year'}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Start Term</p>
-                                  <p>{ss.startTerm}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">End Term</p>
-                                  <p>{ss.endTerm}</p>
                                 </div>
                               </div>
                             </CardContent>
