@@ -13,7 +13,8 @@ import {
 } from '@/lib/query-optimizer';
 import { canManageStudentFees, canManageStudentsAndScholarships } from '@/lib/rbac';
 import { validateMultipleStudentScholarshipEligibility } from '@/lib/scholarship-validation';
-import { getAcademicTermCode, getAcademicTermLabel, scholarshipCoversTerm } from '@/lib/terms';
+import { scholarshipCoversTerm } from '@/lib/terms';
+import { resolveAcademicYearForFee } from '@/lib/academic-year-utils';
 import { SEPARATED_STUDENT_STATUSES } from '@/types';
 
 const nullablePositiveIntSchema = z.preprocess(
@@ -54,8 +55,6 @@ const studentScholarshipAssignmentSchema = z.object({
     .positive('Scholarship is required'),
   academicYearId: nullablePositiveIntSchema.optional(),
   awardDate: optionalDateSchema,
-  startTerm: z.string().optional(),
-  endTerm: z.string().optional(),
   grantAmount: z.coerce.number().optional(),
   grantType: z.enum(['FULL', 'TUITION_ONLY', 'MISC_ONLY', 'LAB_ONLY', 'NONE']).optional(),
   scholarshipStatus: z.string().optional(),
@@ -76,8 +75,6 @@ const createStudentInputSchema = z.object({
   termType: z.enum(['SEMESTER', 'TRIMESTER']).optional(),
   scholarshipId: nullablePositiveIntSchema.optional(),
   awardDate: nullableDateSchema.optional(),
-  startTerm: z.string().nullable().optional(),
-  endTerm: z.string().nullable().optional(),
   grantAmount: z.coerce.number().nullable().optional(),
   grantType: z.enum(['FULL', 'TUITION_ONLY', 'MISC_ONLY', 'LAB_ONLY', 'NONE']).optional(),
   scholarshipStatus: z.string().nullable().optional(),
@@ -388,8 +385,6 @@ export async function GET(request: NextRequest) {
               id: true,
               scholarshipId: true,
               awardDate: true,
-              startTerm: true,
-              endTerm: true,
               grantAmount: true,
               grantType: true,
               scholarshipStatus: true,
@@ -582,8 +577,8 @@ async function createStudentRecord(client: StudentRouteClient, body: CreateStude
         studentId: student.id,
         scholarshipId: scholarship.scholarshipId,
         awardDate: scholarship.awardDate || new Date(),
-        startTerm: scholarship.startTerm || '',
-        endTerm: scholarship.endTerm || '',
+        startTerm: '',
+        endTerm: '',
         grantAmount: scholarship.grantAmount || 0,
         grantType: scholarship.grantType || 'FULL',
         scholarshipStatus: scholarship.scholarshipStatus || 'Active',
@@ -598,8 +593,8 @@ async function createStudentRecord(client: StudentRouteClient, body: CreateStude
         studentId: student.id,
         scholarshipId: body.scholarshipId,
         awardDate: body.awardDate || new Date(),
-        startTerm: body.startTerm || '',
-        endTerm: body.endTerm || '',
+        startTerm: '',
+        endTerm: '',
         grantAmount: body.grantAmount || 0,
         grantType: body.grantType || 'FULL',
         scholarshipStatus: body.scholarshipStatus || 'Active',
@@ -658,10 +653,7 @@ async function createStudentFeesManual(
       })
     : null;
 
-  const termCode = getAcademicTermCode(resolvedAcademicYear?.semester);
-  const term = getAcademicTermLabel(termCode);
-
-  const academicYear = resolvedAcademicYear?.year || `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`;
+  const { year: academicYear, termCode, term } = resolveAcademicYearForFee(resolvedAcademicYear);
   const finalAcademicYearId = resolvedAcademicYear?.id ? resolvedAcademicYear.id : null;
 
   // Calculate total fees
