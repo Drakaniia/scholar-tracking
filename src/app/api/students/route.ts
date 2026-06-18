@@ -646,6 +646,15 @@ async function createStudentFeesManual(
     resolvedAcademicYearId = currentAcademicYear?.id ?? null;
   }
 
+  // Last resort: use the most recent academic year so fees always have a valid linkage
+  if (!resolvedAcademicYearId) {
+    const mostRecent = await client.academicYear.findFirst({
+      orderBy: { year: 'desc' },
+      select: { id: true },
+    });
+    resolvedAcademicYearId = mostRecent?.id ?? null;
+  }
+
   const resolvedAcademicYear = resolvedAcademicYearId
     ? await client.academicYear.findUnique({
         where: { id: resolvedAcademicYearId },
