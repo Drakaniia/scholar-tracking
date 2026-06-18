@@ -701,6 +701,8 @@ export default function SettingsPage() {
   const [loadingArchived, setLoadingArchived] = useState(false);
   const [unarchivingItem, setUnarchivingItem] = useState<string | null>(null);
   const [selectedArchivedStudentIds, setSelectedArchivedStudentIds] = useState<number[]>([]);
+  const [studentSelectAllAcrossPages, setStudentSelectAllAcrossPages] = useState(false);
+  const [isBulkUnarchivingArchived, setIsBulkUnarchivingArchived] = useState(false);
   const [selectedArchivedScholarshipIds, setSelectedArchivedScholarshipIds] = useState<number[]>(
     []
   );
@@ -1513,6 +1515,7 @@ export default function SettingsPage() {
   // Fetch archived students
   const fetchArchivedStudents = async (page = 1) => {
     setLoadingArchived(true);
+    setStudentSelectAllAcrossPages(false);
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -1636,6 +1639,67 @@ export default function SettingsPage() {
       toast.error('Failed to unarchive student');
     } finally {
       setUnarchivingItem(null);
+    }
+  };
+
+  // Handle bulk unarchive
+  const handleBulkUnarchiveArchived = async () => {
+    if (selectedArchivedStudentIds.length === 0 && !studentSelectAllAcrossPages) return;
+
+    setIsBulkUnarchivingArchived(true);
+    try {
+      let payload: { studentIds: number[]; action: 'unarchive' } | { selectAll: true; action: 'unarchive'; filters: Record<string, string | boolean | undefined> };
+
+      if (studentSelectAllAcrossPages) {
+        payload = {
+          selectAll: true,
+          action: 'unarchive',
+          filters: {
+            archived: true,
+          },
+        };
+      } else {
+        payload = { studentIds: selectedArchivedStudentIds, action: 'unarchive' };
+      }
+
+      const response = await fetch('/api/students/bulk-archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to bulk unarchive students');
+      }
+
+      const data = result.data;
+      const count = data?.processedCount ?? 0;
+
+      if (count > 0) {
+        setSelectedArchivedStudentIds([]);
+        setStudentSelectAllAcrossPages(false);
+        const nextPage =
+          archivedStudents.length === count && studentPage > 1 ? studentPage - 1 : studentPage;
+        const nextTotal = Math.max(studentTotal - count, 0);
+        setStudentPage(nextPage);
+        setStudentTotal(nextTotal);
+        setStudentTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+      }
+
+      if (data?.errorCount > 0) {
+        toast.warning(`${count} student(s) unarchived, ${data.errorCount} issue(s)`);
+      } else {
+        toast.success(`${count} student(s) unarchived successfully`);
+      }
+
+      void fetchArchivedStudents(studentPage);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to bulk unarchive students';
+      toast.error(message);
+    } finally {
+      setIsBulkUnarchivingArchived(false);
     }
   };
 
@@ -2176,6 +2240,11 @@ export default function SettingsPage() {
   const canUndoPromotion = Boolean(activeAcademicYear?.promotionProcessedAt);
   const allArchivedStudentsSelected =
     archivedStudents.length > 0 && selectedArchivedStudentIds.length === archivedStudents.length;
+  const effectiveArchivedCount = studentSelectAllAcrossPages ? studentTotal : selectedArchivedStudentIds.length;
+  const showArchivedSelectAllBanner =
+    allArchivedStudentsSelected &&
+    !studentSelectAllAcrossPages &&
+    studentTotal > archivedStudents.length;
   const allArchivedScholarshipsSelected =
     archivedScholarships.length > 0 &&
     selectedArchivedScholarshipIds.length === archivedScholarships.length;
@@ -2919,26 +2988,65 @@ export default function SettingsPage() {
                     <div className="mb-8">
                       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-lg font-semibold">Archived Students</h3>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={
-                            selectedArchivedStudentIds.length === 0 || isDeletingArchivedItem
-                          }
-                          onClick={() =>
-                            openArchiveDeleteDialog(
-                              'student',
-                              selectedArchivedStudentIds,
-                              `${selectedArchivedStudentIds.length} selected archived ${
-                                selectedArchivedStudentIds.length === 1 ? 'student' : 'students'
-                              }`
-                            )
-                          }
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete selected
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              (selectedArchivedStudentIds.length === 0 && !studentSelectAllAcrossPages) || isBulkUnarchivingArchived
+                            }
+                            onClick={handleBulkUnarchiveArchived}
+                          >
+                            {isBulkUnarchivingArchived ? (
+                              <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                                Unarchiving...
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Unarchive {studentSelectAllAcrossPages ? 'All' : 'Selected'}
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={
+                              selectedArchivedStudentIds.length === 0 || isDeletingArchivedItem
+                            }
+                            onClick={() =>
+                              openArchiveDeleteDialog(
+                                'student',
+                                selectedArchivedStudentIds,
+                                `${selectedArchivedStudentIds.length} selected archived ${
+                                  selectedArchivedStudentIds.length === 1 ? 'student' : 'students'
+                                }`
+                              )
+                            }
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete selected
+                          </Button>
+                        </div>
                       </div>
+                      {/* Select all across pages banner */}
+                      {showArchivedSelectAllBanner && (
+                        <div className="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm -mt-3 mb-4">
+                          <span className="text-amber-900">
+                            All <strong>{archivedStudents.length}</strong> archived student{archivedStudents.length !== 1 ? 's' : ''}{' '}
+                            on this page selected.
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="font-medium text-amber-900 hover:bg-amber-100 hover:text-amber-950"
+                            onClick={() => setStudentSelectAllAcrossPages(true)}
+                          >
+                            Select all <strong>{studentTotal}</strong> archived student{studentTotal !== 1 ? 's' : ''} across all pages
+                          </Button>
+                        </div>
+                      )}
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
@@ -2947,6 +3055,9 @@ export default function SettingsPage() {
                                 <Checkbox
                                   checked={allArchivedStudentsSelected}
                                   onCheckedChange={(checked) => {
+                                    if (checked !== true) {
+                                      setStudentSelectAllAcrossPages(false);
+                                    }
                                     setSelectedArchivedStudentIds(
                                       checked === true
                                         ? archivedStudents.map((student) => student.id)
@@ -2970,6 +3081,9 @@ export default function SettingsPage() {
                                   <Checkbox
                                     checked={selectedArchivedStudentIds.includes(student.id)}
                                     onCheckedChange={(checked) => {
+                                      if (checked !== true) {
+                                        setStudentSelectAllAcrossPages(false);
+                                      }
                                       setSelectedArchivedStudentIds((selectedIds) => {
                                         if (checked === true) {
                                           return selectedIds.includes(student.id)
