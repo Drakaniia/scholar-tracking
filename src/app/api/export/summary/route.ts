@@ -366,17 +366,17 @@ function currentAcademicYear(date = new Date()) {
 }
 
 function resolveDisplayYears(years: string[]) {
-  const cleanedYears = Array.from(new Set(years.filter(Boolean)));
-  // Normalize all years to display format (e.g., "2024" -> "2024-2025")
-  const normalizedYears = cleanedYears.map(formatAcademicYearDisplay);
-  const sortedYears = sortAcademicYears(normalizedYears);
+  // Normalize first, then deduplicate to handle mixed formats (e.g., "2026" and "2026-2027")
+  const normalizedYears = years.filter(Boolean).map(formatAcademicYearDisplay);
+  const uniqueYears = [...new Set(normalizedYears)];
+  const sortedYears = sortAcademicYears(uniqueYears);
   const resolved = sortedYears.length > 0 ? sortedYears.slice(-3) : [currentAcademicYear()];
 
   while (resolved.length < 3) {
     resolved.unshift(previousAcademicYear(resolved[0]));
   }
 
-  return sortAcademicYears(resolved).slice(-3).map(formatAcademicYearDisplay);
+  return sortAcademicYears(resolved).slice(-3);
 }
 
 function formatCount(value: number, showZero = false) {

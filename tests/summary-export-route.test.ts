@@ -32,6 +32,52 @@ describe('summary export route', () => {
     vi.clearAllMocks();
   });
 
+  it('deduplicates academic years when mixed formats exist (e.g. "2026" and "2026-2027")', async () => {
+    prismaMock.studentFees.findMany.mockResolvedValueOnce([
+      {
+        studentId: 1,
+        academicYear: '2026-2027', // full format
+        student: { gradeLevel: 'GRADE_SCHOOL' },
+      },
+    ]);
+    prismaMock.academicYear.findMany.mockResolvedValueOnce([
+      { year: '2026' }, // short format (start year only)
+    ]);
+    prismaMock.scholarship.findMany.mockResolvedValueOnce([]);
+
+    const { GET } = await import('@/app/api/export/summary/route');
+    const response = await GET(new NextRequest('http://localhost/api/export/summary?format=xlsx'));
+
+    expect(response.status).toBe(200);
+
+    const workbook = await loadWorkbookFromBuffer(await response.arrayBuffer());
+    const sheet = workbook.getWorksheet('Grade School');
+    expect(sheet).toBeDefined();
+
+    // Header row: columns 8, 12, 16 should have 3 unique consecutive years
+    const year1 = sheet?.getCell(1, 8).text;
+    const year2 = sheet?.getCell(1, 12).text;
+    const year3 = sheet?.getCell(1, 16).text;
+
+    // No duplicates
+    expect(year1).not.toBe(year2);
+    expect(year2).not.toBe(year3);
+    expect(year1).not.toBe(year3);
+
+    // Should resolve to 3 consecutive years: 2024-2025, 2025-2026, 2026-2027
+    // (2026-2027 is the only real year, so it pads back 2 years)
+    const uniqueYears = [year1, year2, year3].filter(Boolean);
+    expect(uniqueYears).toHaveLength(3);
+    expect(uniqueYears).toContain('2026-2027');
+    // The 3 years should be consecutive: parse start years should differ by 1
+    const startYears = [year1, year2, year3]
+      .filter(Boolean)
+      .map((y) => parseInt(y!.match(/^(\d{4})/)![1], 10))
+      .sort((a, b) => a - b);
+    expect(startYears[1] - startYears[0]).toBe(1);
+    expect(startYears[2] - startYears[1]).toBe(1);
+  });
+
   it('exports the sample-style summary workbook as XLSX', async () => {
     prismaMock.studentFees.findMany.mockResolvedValueOnce([
       {
