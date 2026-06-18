@@ -89,6 +89,7 @@ interface ArchivedDeleteTarget {
   kind: ArchivedDeleteKind;
   ids: number[];
   label: string;
+  selectAll?: boolean;
 }
 
 interface PermanentDeleteResponse {
@@ -1594,13 +1595,14 @@ export default function SettingsPage() {
   const openArchiveDeleteDialog = (
     kind: ArchivedDeleteKind,
     ids: number[],
-    label: string
+    label: string,
+    selectAll?: boolean
   ) => {
-    if (ids.length === 0) {
+    if (ids.length === 0 && !selectAll) {
       return;
     }
 
-    setArchiveDeleteTarget({ kind, ids, label });
+    setArchiveDeleteTarget({ kind, ids, label, selectAll });
   };
 
   // Handle unarchive student
@@ -1703,41 +1705,57 @@ export default function SettingsPage() {
     }
   };
 
-  const handlePermanentDeleteStudents = async (studentIds: number[]) => {
+  const handlePermanentDeleteStudents = async (studentIds: number[], selectAll?: boolean) => {
     setIsDeletingArchivedItem(true);
     try {
+      const body = selectAll
+        ? { selectAll: true as const, filters: { archived: true } }
+        : { ids: studentIds };
+
       const response = await fetch('/api/students/permanent-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: studentIds }),
+        body: JSON.stringify(body),
         credentials: 'include',
       });
       const result: PermanentDeleteResponse = await response.json();
 
       if (response.ok && result.success) {
         const deletedCount = result.data?.deletedCount ?? studentIds.length;
-        const nextPage = getNextArchivedPageAfterDelete(
-          archivedStudents.length,
-          studentIds,
-          studentPage
-        );
-        const nextTotal = Math.max(studentTotal - deletedCount, 0);
-        const deletedIdSet = new Set(studentIds);
 
-        setArchivedStudents((students) =>
-          students.filter((student) => !deletedIdSet.has(student.id))
-        );
-        setSelectedArchivedStudentIds((selectedIds) =>
-          selectedIds.filter((selectedId) => !deletedIdSet.has(selectedId))
-        );
-        setStudentPage(nextPage);
-        setStudentTotal(nextTotal);
-        setStudentTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+        if (selectAll) {
+          setArchivedStudents([]);
+          setSelectedArchivedStudentIds([]);
+          setStudentSelectAllAcrossPages(false);
+          setStudentPage(1);
+          setStudentTotal(0);
+          setStudentTotalPages(0);
+        } else {
+          const nextPage = getNextArchivedPageAfterDelete(
+            archivedStudents.length,
+            studentIds,
+            studentPage
+          );
+          const nextTotal = Math.max(studentTotal - deletedCount, 0);
+          const deletedIdSet = new Set(studentIds);
+
+          setArchivedStudents((students) =>
+            students.filter((student) => !deletedIdSet.has(student.id))
+          );
+          setSelectedArchivedStudentIds((selectedIds) =>
+            selectedIds.filter((selectedId) => !deletedIdSet.has(selectedId))
+          );
+          setStudentPage(nextPage);
+          setStudentTotal(nextTotal);
+          setStudentTotalPages(Math.ceil(nextTotal / ARCHIVED_ITEMS_PAGE_SIZE));
+        }
 
         toast.success(
           `${deletedCount} archived ${deletedCount === 1 ? 'student' : 'students'} deleted`
         );
-        void fetchArchivedStudents(nextPage);
+        if (!selectAll) {
+          void fetchArchivedStudents(studentPage);
+        }
       } else {
         toast.error(result.error || 'Failed to delete archived students');
       }
@@ -1846,7 +1864,7 @@ export default function SettingsPage() {
     }
 
     if (archiveDeleteTarget.kind === 'student') {
-      await handlePermanentDeleteStudents(archiveDeleteTarget.ids);
+      await handlePermanentDeleteStudents(archiveDeleteTarget.ids, archiveDeleteTarget.selectAll);
     } else {
       await handlePermanentDeleteScholarships(archiveDeleteTarget.ids);
     }
@@ -3013,20 +3031,27 @@ export default function SettingsPage() {
                             variant="destructive"
                             size="sm"
                             disabled={
-                              selectedArchivedStudentIds.length === 0 || isDeletingArchivedItem
+                              (selectedArchivedStudentIds.length === 0 && !studentSelectAllAcrossPages) || isDeletingArchivedItem
                             }
                             onClick={() =>
-                              openArchiveDeleteDialog(
-                                'student',
-                                selectedArchivedStudentIds,
-                                `${selectedArchivedStudentIds.length} selected archived ${
-                                  selectedArchivedStudentIds.length === 1 ? 'student' : 'students'
-                                }`
-                              )
+                              studentSelectAllAcrossPages
+                                ? openArchiveDeleteDialog(
+                                    'student',
+                                    [],
+                                    `all ${studentTotal} archived ${studentTotal === 1 ? 'student' : 'students'} across all pages`,
+                                    true
+                                  )
+                                : openArchiveDeleteDialog(
+                                    'student',
+                                    selectedArchivedStudentIds,
+                                    `${selectedArchivedStudentIds.length} selected archived ${
+                                      selectedArchivedStudentIds.length === 1 ? 'student' : 'students'
+                                    }`
+                                  )
                             }
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete selected
+                            Delete {studentSelectAllAcrossPages ? 'All' : 'selected'}
                           </Button>
                         </div>
                       </div>
