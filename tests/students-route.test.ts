@@ -121,8 +121,6 @@ describe('students route scholarship saves', () => {
           {
             scholarshipId: 3,
             awardDate: '2026-05-28T00:00:00.000Z',
-            startTerm: '1st Semester AY 2026-2027',
-            endTerm: '2nd Semester AY 2026-2027',
             grantAmount: 0,
             grantType: 'TUITION_ONLY',
             scholarshipStatus: 'Active',
@@ -216,19 +214,17 @@ describe('students route scholarship saves', () => {
             yearLevel: 'Grade 7',
             status: 'Active',
             scholarships: [
-              {
-                scholarshipId: 3,
-                awardDate: '2026-05-28T00:00:00.000Z',
-                startTerm: '1st Semester AY 2026-2027',
-                endTerm: '2nd Semester AY 2026-2027',
-                grantAmount: 0,
-                grantType: 'TUITION_ONLY',
-                scholarshipStatus: 'Active',
-              },
-            ],
-          },
           {
-            lastName: 'Santos',
+            scholarshipId: 3,
+            awardDate: '2026-05-28T00:00:00.000Z',
+            grantAmount: 0,
+            grantType: 'TUITION_ONLY',
+            scholarshipStatus: 'Active',
+          },
+        ],
+      },
+      {
+        lastName: 'Santos',
             firstName: 'Luis',
             program: 'Grade 8',
             gradeLevel: 'JUNIOR_HIGH',
@@ -328,8 +324,6 @@ describe('students route scholarship saves', () => {
           {
             scholarshipId: 4,
             awardDate: '2026-05-28T00:00:00.000Z',
-            startTerm: '1st Semester AY 2026-2027',
-            endTerm: '2nd Semester AY 2026-2027',
             grantAmount: 0,
             grantType: 'NONE',
             scholarshipStatus: 'Active',

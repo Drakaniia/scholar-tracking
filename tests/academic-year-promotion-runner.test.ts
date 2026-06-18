@@ -513,8 +513,6 @@ describe('undoLastAcademicYearPromotion', () => {
               studentId: 2,
               scholarshipId: 5,
               awardDate: '2026-01-01T00:00:00.000Z',
-              startTerm: '1ST',
-              endTerm: '2ND',
               grantAmount: '1000',
               scholarshipStatus: 'Active',
               grantType: 'FULL',
