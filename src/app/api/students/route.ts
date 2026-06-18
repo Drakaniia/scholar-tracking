@@ -40,6 +40,7 @@ const studentFeesInputSchema = z.object({
   otherFee: z.coerce.number().optional(),
   miscellaneousFee: z.coerce.number().optional(),
   laboratoryFee: z.coerce.number().optional(),
+  academicYearId: nullablePositiveIntSchema.optional(),
 });
 
 const studentScholarshipAssignmentSchema = z.object({
@@ -637,18 +638,31 @@ async function createStudentFeesManual(
     otherFee?: number;
     miscellaneousFee?: number;
     laboratoryFee?: number;
+    academicYearId?: number | null;
   }
 ) {
-  // Get current academic year
-  const currentAcademicYear = await client.academicYear.findFirst({
-    where: { isActive: true },
-  });
+  // Use provided academicYearId, otherwise fall back to active academic year
+  let resolvedAcademicYearId = fees.academicYearId ?? null;
 
-  const termCode = getAcademicTermCode(currentAcademicYear?.semester);
+  if (!resolvedAcademicYearId) {
+    const currentAcademicYear = await client.academicYear.findFirst({
+      where: { isActive: true },
+    });
+    resolvedAcademicYearId = currentAcademicYear?.id ?? null;
+  }
+
+  const resolvedAcademicYear = resolvedAcademicYearId
+    ? await client.academicYear.findUnique({
+        where: { id: resolvedAcademicYearId },
+        select: { id: true, year: true, semester: true },
+      })
+    : null;
+
+  const termCode = getAcademicTermCode(resolvedAcademicYear?.semester);
   const term = getAcademicTermLabel(termCode);
 
-  const academicYear = currentAcademicYear?.year || `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`;
-  const academicYearId = currentAcademicYear?.id || null;
+  const academicYear = resolvedAcademicYear?.year || `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`;
+  const finalAcademicYearId = resolvedAcademicYear?.id ? resolvedAcademicYear.id : null;
 
   // Calculate total fees
   const totalFees =
@@ -695,7 +709,7 @@ async function createStudentFeesManual(
         laboratoryFee: fees.laboratoryFee || 0,
         amountSubsidy,
         percentSubsidy,
-        academicYearId,
+        academicYearId: finalAcademicYearId,
       },
     });
   } else {
@@ -711,7 +725,7 @@ async function createStudentFeesManual(
         percentSubsidy,
         term: `${term} ${academicYear}`,
         academicYear,
-        academicYearId,
+        academicYearId: finalAcademicYearId,
       },
     });
   }
