@@ -258,6 +258,10 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
         totalFees
       );
 
+      // Resolve academicYearId from the selected academic year string
+      const matchedAy = academicYears.find((ay) => ay.year === editData.academicYear);
+      const resolvedAcademicYearId = matchedAy?.id ?? null;
+
       const res = await fetch(`/api/students/${studentId}/fees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -271,6 +275,7 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
           percentSubsidy,
           term: editData.term,
           academicYear: editData.academicYear,
+          academicYearId: resolvedAcademicYearId,
           studentId,
         }),
       });
@@ -297,12 +302,17 @@ export function StudentFeesManager({ studentId, readOnly = false }: StudentFeesM
         totalFees
       );
 
+      // Resolve academicYearId from the selected academic year string
+      const matchedAy = academicYears.find((ay) => ay.year === newFeeData.academicYear);
+      const resolvedAcademicYearId = matchedAy?.id ?? null;
+
       const res = await fetch(`/api/students/${studentId}/fees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newFeeData,
           percentSubsidy,
+          academicYearId: resolvedAcademicYearId,
           studentId,
         }),
       });
