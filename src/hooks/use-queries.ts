@@ -17,8 +17,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { getScholarshipFlowEndYear } from '@/lib/scholarship-flow-years';
 import { clientCache } from '@/lib/cache';
+import { getScholarshipFlowEndYear } from '@/lib/scholarship-flow-years';
 import type {
   AcademicYear,
   AcademicYearInput,
@@ -37,8 +37,7 @@ export const queryKeys = {
   dashboard: {
     all: ['dashboard'] as const,
     stats: (source?: string) => [...queryKeys.dashboard.all, 'stats', source] as const,
-    detailed: (source?: string) =>
-      [...queryKeys.dashboard.all, 'detailed', source] as const,
+    detailed: (source?: string) => [...queryKeys.dashboard.all, 'detailed', source] as const,
   },
 
   // Students
@@ -700,7 +699,11 @@ export function useBulkArchiveStudents() {
     mutationFn: async (
       payload:
         | number[]
-        | { selectAll: true; action?: 'archive' | 'unarchive'; filters: Record<string, string | boolean | undefined> }
+        | {
+            selectAll: true;
+            action?: 'archive' | 'unarchive';
+            filters: Record<string, string | boolean | undefined>;
+          }
         | { studentIds: number[]; action?: 'archive' | 'unarchive' }
     ) => {
       let body: string;
@@ -1029,8 +1032,6 @@ export function useCreateAcademicYear() {
 
   return useMutation<ApiResponse<AcademicYear>, Error, AcademicYearInput>({
     mutationFn: async (data) => {
-      console.log('Creating academic year with data:', data);
-      
       const response = await fetch('/api/academic-years', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1039,24 +1040,19 @@ export function useCreateAcademicYear() {
       });
 
       const json = await response.json();
-      console.log('Academic year creation response:', { status: response.status, data: json });
-      
       if (!response.ok) {
         const errorMessage = json.error || `Failed to create academic year (${response.status})`;
-        console.error('Academic year creation failed:', errorMessage);
         throw new Error(errorMessage);
       }
       return json;
     },
-    onSuccess: (result) => {
-      console.log('Academic year created successfully:', result.data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academicYears.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.students.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
       toast.success('Academic year created successfully');
     },
     onError: (error: Error) => {
-      console.error('Academic year creation error:', error);
       toast.error(error.message || 'Failed to create academic year');
     },
   });
