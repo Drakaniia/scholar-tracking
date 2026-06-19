@@ -1,9 +1,9 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 
 import { CalendarPlus, Filter, Info, Pencil, Plus, Search, X } from 'lucide-react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import {
@@ -52,9 +52,8 @@ import {
   useCreateAcademicYear,
   useUpdateAcademicYear,
 } from '@/hooks/use-queries';
-import {
-  hasScholarshipSelectionForAcademicYear,
-} from '@/lib/student-scholarship-year-options';
+import { type ChangedField, getChangedFields, hasChangedFields } from '@/lib/form-change-summary';
+import { hasScholarshipSelectionForAcademicYear } from '@/lib/student-scholarship-year-options';
 import { getCoveredTermsLabel } from '@/lib/terms';
 import { isScholarshipEligibleForStudent } from '@/lib/validations';
 import {
@@ -131,7 +130,6 @@ function getDefaultAcademicYearInput(): AcademicYearInput {
     promotionDate: `${startYear + 1}-05-31`,
   };
 
-  console.log('Generated default academic year input:', result);
   return result;
 }
 
@@ -250,6 +248,75 @@ function getRequiredStudentFieldMessage(data: CreateStudentInput): string | null
   return `${missingFields.join(', ')} ${verb} required.`;
 }
 
+const STUDENT_CHANGE_LABELS = {
+  lastName: 'Last name',
+  firstName: 'First name',
+  middleInitial: 'Middle initial',
+  program: 'Program',
+  gradeLevel: 'Grade level',
+  yearLevel: 'Year level',
+  status: 'Status',
+  birthDate: 'Birth date',
+  termType: 'Academic term system',
+  academicYearId: 'Academic year',
+  tuitionFee: 'Tuition fee',
+  otherFee: 'Other fees',
+  miscellaneousFee: 'Miscellaneous fee',
+  laboratoryFee: 'Laboratory fee',
+  scholarships: 'Scholarship assignments',
+} as const;
+
+function getFirstAcademicYearId(data?: Partial<CreateStudentInput>) {
+  return (
+    data?.fees?.academicYearId ??
+    data?.scholarships?.find((scholarship) => scholarship.academicYearId)?.academicYearId ??
+    null
+  );
+}
+
+function summarizeScholarships(scholarships: CreateStudentInput['scholarships']) {
+  if (!scholarships || scholarships.length === 0) {
+    return '';
+  }
+
+  return scholarships
+    .map((scholarship) =>
+      [
+        `Scholarship #${scholarship.scholarshipId}`,
+        scholarship.academicYearId ? `AY #${scholarship.academicYearId}` : 'No AY',
+        toDateInputValue(scholarship.awardDate),
+        Number(scholarship.grantAmount || 0),
+        scholarship.grantType || 'FULL',
+        scholarship.scholarshipStatus,
+      ].join(' / ')
+    )
+    .sort()
+    .join(' | ');
+}
+
+function getStudentChangeSnapshot(
+  data: Partial<CreateStudentInput> | undefined,
+  fallbackAcademicYearId: number | null
+): Record<string, unknown> {
+  return {
+    lastName: data?.lastName || '',
+    firstName: data?.firstName || '',
+    middleInitial: data?.middleInitial || '',
+    program: data?.program || '',
+    gradeLevel: data?.gradeLevel || '',
+    yearLevel: data?.yearLevel || '',
+    status: data?.status || '',
+    birthDate: toDateInputValue(data?.birthDate),
+    termType: data?.termType || 'SEMESTER',
+    academicYearId: data?.fees?.academicYearId ?? fallbackAcademicYearId ?? '',
+    tuitionFee: Number(data?.fees?.tuitionFee || 0),
+    otherFee: Number(data?.fees?.otherFee || 0),
+    miscellaneousFee: Number(data?.fees?.miscellaneousFee || 0),
+    laboratoryFee: Number(data?.fees?.laboratoryFee || 0),
+    scholarships: summarizeScholarships(data?.scholarships),
+  };
+}
+
 export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(function StudentForm(
   {
     defaultValues,
@@ -277,6 +344,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   );
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingData, setPendingData] = useState<CreateStudentInput | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<ChangedField[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [customCourse, setCustomCourse] = useState('');
@@ -346,6 +414,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   });
   const fieldId = useCallback((id: string) => (idPrefix ? `${idPrefix}-${id}` : id), [idPrefix]);
   const formClassName = embedded ? 'flex flex-col' : DIALOG_FORM_CLASS;
+  const FormRoot = embedded ? 'div' : 'form';
   const bodyClassName = embedded
     ? 'flex flex-col gap-6'
     : `${DIALOG_BODY_CLASS} flex flex-col gap-6`;
@@ -353,10 +422,16 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   const currentYearLevel = form.watch('yearLevel') || '';
   const currentProgram = form.watch('program') || '';
   const [selectedStudentAcademicYearId, setSelectedStudentAcademicYearId] = useState<number | null>(
-    activeAcademicYear?.id ?? null
+    getFirstAcademicYearId(defaultValues)
   );
   const [studentYearDialog, setStudentYearDialog] = useState(false);
-  const defaultAssignmentAcademicYearId = selectedStudentAcademicYearId;
+  const fallbackStudentAcademicYearId = isEditing
+    ? (getFirstAcademicYearId(defaultValues) ?? activeAcademicYear?.id ?? null)
+    : (activeAcademicYear?.id ?? null);
+  const effectiveStudentAcademicYearId =
+    selectedStudentAcademicYearId ?? fallbackStudentAcademicYearId;
+  const initialStudentAcademicYearId = fallbackStudentAcademicYearId;
+  const defaultAssignmentAcademicYearId = effectiveStudentAcademicYearId;
 
   const selectedAcademicYearStartYear = getAcademicYearStartYear(academicYearStartYearInput);
   const hasValidAcademicYearStartYear = selectedAcademicYearStartYear !== null;
@@ -396,10 +471,10 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
         return (
           !scholarship ||
           isScholarshipEligibleForStudent(
-            { 
-              gradeLevel: currentGradeLevel, 
+            {
+              gradeLevel: currentGradeLevel,
               yearLevel: currentYearLevel,
-              program: currentProgram 
+              program: currentProgram,
             },
             scholarship
           )
@@ -450,10 +525,8 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   useEffect(() => {
     if (!isEditing || !allFees || allFees.length === 0) return;
 
-    if (selectedStudentAcademicYearId) {
-      const matchingFee = allFees.find(
-        (f) => f.academicYearId === selectedStudentAcademicYearId
-      );
+    if (effectiveStudentAcademicYearId) {
+      const matchingFee = allFees.find((f) => f.academicYearId === effectiveStudentAcademicYearId);
       if (matchingFee) {
         setFees({
           tuitionFee: Number(matchingFee.tuitionFee) || 0,
@@ -467,7 +540,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     // No matching fee record — reset to zeros
     setFees({ tuitionFee: 0, otherFee: 0, miscellaneousFee: 0, laboratoryFee: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStudentAcademicYearId, allFees]);
+  }, [effectiveStudentAcademicYearId, allFees]);
 
   const fetchScholarships = async () => {
     setLoadingScholarships(true);
@@ -499,7 +572,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
 
   const openStudentEditAcademicYearDialog = () => {
     const academicYear =
-      academicYears.find((year) => year.id === selectedStudentAcademicYearId) || null;
+      academicYears.find((year) => year.id === effectiveStudentAcademicYearId) || null;
 
     if (!academicYear) return;
 
@@ -599,10 +672,10 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     if (alreadySelected) return;
     if (
       !isScholarshipEligibleForStudent(
-        { 
-          gradeLevel: currentGradeLevel, 
+        {
+          gradeLevel: currentGradeLevel,
           yearLevel: currentYearLevel,
-          program: currentProgram 
+          program: currentProgram,
         },
         scholarship
       )
@@ -656,10 +729,10 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
       );
 
       const matchesStudentEligibility = isScholarshipEligibleForStudent(
-        { 
-          gradeLevel: currentGradeLevel, 
+        {
+          gradeLevel: currentGradeLevel,
           yearLevel: currentYearLevel,
-          program: currentProgram 
+          program: currentProgram,
         },
         scholarship
       );
@@ -713,14 +786,31 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
           otherFee: fees.otherFee,
           miscellaneousFee: fees.miscellaneousFee,
           laboratoryFee: fees.laboratoryFee,
-          academicYearId: selectedStudentAcademicYearId,
+          academicYearId: effectiveStudentAcademicYearId,
         };
       }
 
       return submitData;
     },
-    [canEditFees, fees, selectedScholarships]
+    [canEditFees, effectiveStudentAcademicYearId, fees, selectedScholarships]
   );
+  const watchedValues = useWatch({ control: form.control }) as CreateStudentInput;
+  const currentSubmitPreview = useMemo(
+    () => buildSubmitData(watchedValues),
+    [buildSubmitData, watchedValues]
+  );
+  const studentChanges = useMemo(() => {
+    if (!isEditing || !defaultValues) {
+      return [];
+    }
+
+    return getChangedFields(
+      getStudentChangeSnapshot(defaultValues, initialStudentAcademicYearId),
+      getStudentChangeSnapshot(currentSubmitPreview, initialStudentAcademicYearId),
+      STUDENT_CHANGE_LABELS
+    );
+  }, [currentSubmitPreview, defaultValues, initialStudentAcademicYearId, isEditing]);
+  const hasStudentChanges = hasChangedFields(studentChanges);
 
   const getSubmissionData = useCallback(() => {
     return new Promise<StudentFormSubmissionResult>((resolve) => {
@@ -758,7 +848,19 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
 
     // Show confirmation dialog when editing
     if (isEditing) {
+      const changes = getChangedFields(
+        getStudentChangeSnapshot(defaultValues, initialStudentAcademicYearId),
+        getStudentChangeSnapshot(submitData, initialStudentAcademicYearId),
+        STUDENT_CHANGE_LABELS
+      );
+
+      if (!hasChangedFields(changes)) {
+        toast.error('No changes to save.');
+        return;
+      }
+
       setPendingData(submitData);
+      setPendingChanges(changes);
       setShowConfirmDialog(true);
     } else {
       onSubmit(submitData);
@@ -769,35 +871,31 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     if (pendingData) {
       onSubmit(pendingData);
       setPendingData(null);
+      setPendingChanges([]);
       setShowConfirmDialog(false);
     }
   };
 
   // Filter selected scholarships by the student-level academic year
   const filteredSelectedScholarships = selectedScholarships.filter((s) => {
-    if (!selectedStudentAcademicYearId) return true;
-    return s.academicYearId === selectedStudentAcademicYearId;
+    if (!effectiveStudentAcademicYearId) return true;
+    return s.academicYearId === effectiveStudentAcademicYearId;
   });
 
   return (
-    <form onSubmit={form.handleSubmit(handleFormSubmit)} className={formClassName}>
+    <FormRoot
+      onSubmit={embedded ? undefined : form.handleSubmit(handleFormSubmit)}
+      className={formClassName}
+    >
       <div className={bodyClassName}>
         {/* Academic Year Filter - positioned at the top of the form */}
         <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-          <Label className="text-sm font-semibold whitespace-nowrap">
-            Academic Year
-          </Label>
+          <Label className="text-sm font-semibold whitespace-nowrap">Academic Year</Label>
           <Select
-            value={
-              selectedStudentAcademicYearId
-                ? String(selectedStudentAcademicYearId)
-                : ''
-            }
+            value={effectiveStudentAcademicYearId ? String(effectiveStudentAcademicYearId) : ''}
             onValueChange={(value) => {
               const id = Number(value);
-              setSelectedStudentAcademicYearId(
-                Number.isInteger(id) && id > 0 ? id : null
-              );
+              setSelectedStudentAcademicYearId(Number.isInteger(id) && id > 0 ? id : null);
             }}
           >
             <SelectTrigger className="h-9 min-w-[13rem]">
@@ -805,10 +903,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
             </SelectTrigger>
             <SelectContent>
               {academicYears.map((academicYear) => (
-                <SelectItem
-                  key={academicYear.id}
-                  value={String(academicYear.id)}
-                >
+                <SelectItem key={academicYear.id} value={String(academicYear.id)}>
                   {academicYear.year}
                   {academicYear.isActive ? ' (Active)' : ''}
                 </SelectItem>
@@ -833,7 +928,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                 size="icon"
                 className="h-9 w-9"
                 onClick={openStudentEditAcademicYearDialog}
-                disabled={!selectedStudentAcademicYearId}
+                disabled={!effectiveStudentAcademicYearId}
                 title="Edit selected academic year"
               >
                 <Pencil className="h-4 w-4" />
@@ -1322,7 +1417,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
                 })}
               </div>
             </div>
-          ) : selectedScholarships.length > 0 && selectedStudentAcademicYearId ? (
+          ) : selectedScholarships.length > 0 && effectiveStudentAcademicYearId ? (
             <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
               <p className="text-sm">No scholarships assigned for this academic year</p>
               <p className="text-xs mt-1">Add a scholarship below</p>
@@ -1555,7 +1650,13 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
         )}
       </div>
 
-      <Dialog open={yearDialogOpen} onOpenChange={(open) => { if (!open) setStudentYearDialog(false); setYearDialogOpen(open); }}>
+      <Dialog
+        open={yearDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setStudentYearDialog(false);
+          setYearDialogOpen(open);
+        }}
+      >
         <DialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
           <DialogHeader className={DIALOG_HEADER_CLASS}>
             <DialogTitle>
@@ -1685,7 +1786,12 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
           <Button type="button" variant="outline" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button type="submit" variant="gradient" disabled={loading} className="min-w-32">
+          <Button
+            type="submit"
+            variant="gradient"
+            disabled={loading || (isEditing && !hasStudentChanges)}
+            className="min-w-32"
+          >
             {loading ? 'Saving...' : submitLabel || (isEditing ? 'Save Changes' : 'Add Student')}
           </Button>
         </DialogFooter>
@@ -1699,25 +1805,46 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
             <AlertDialogDescription>
               {studentName ? (
                 <>
-                  You are about to save changes to <strong>{studentName}</strong>&apos;s record.
+                  Review the changes to <strong>{studentName}</strong>&apos;s record before saving.
                 </>
               ) : (
-                'Are you sure you want to save these changes?'
+                'Review the changes before saving.'
               )}
-              <br />
-              <span className="text-sm mt-2">
-                Please review all information carefully before confirming.
-              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="max-h-72 overflow-y-auto rounded-md border bg-muted/30">
+            {pendingChanges.map((change) => (
+              <div
+                key={change.key}
+                className="grid gap-2 border-b px-3 py-2 text-sm last:border-b-0 sm:grid-cols-[9rem_1fr_1fr]"
+              >
+                <div className="font-medium text-foreground">{change.label}</div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Before</p>
+                  <p className="break-words">{change.before}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">After</p>
+                  <p className="break-words">{change.after}</p>
+                </div>
+              </div>
+            ))}
+          </div>
           <AlertDialogFooter className={DIALOG_FOOTER_CLASS}>
-            <AlertDialogCancel onClick={() => setPendingData(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              onClick={() => {
+                setPendingData(null);
+                setPendingChanges([]);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmSave} className="min-w-32">
               Confirm Save
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </form>
+    </FormRoot>
   );
 });
