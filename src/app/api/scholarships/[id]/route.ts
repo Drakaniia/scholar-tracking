@@ -7,6 +7,9 @@ import { canManageStudentsAndScholarships } from '@/lib/rbac';
 import { UpdateScholarshipInput } from '@/types';
 
 type ArchiveAction = 'archive' | 'unarchive';
+type ScholarshipUpdatePayload = UpdateScholarshipInput & {
+  description?: string | null;
+};
 
 async function readArchiveBody(request: NextRequest) {
   const text = await request.text();
@@ -184,7 +187,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    const updateData: UpdateScholarshipInput = body.data || body;
+    const rawUpdateData = (body.data || body) as ScholarshipUpdatePayload;
+    const updateData: UpdateScholarshipInput = {
+      ...rawUpdateData,
+      ...(rawUpdateData.requirements === undefined && rawUpdateData.description !== undefined
+        ? { requirements: rawUpdateData.description || '' }
+        : {}),
+    };
 
     // Build update data object with only allowed fields
     const allowedFields: (keyof UpdateScholarshipInput)[] = [
@@ -254,33 +263,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         updateData.laboratoryFee !== undefined ||
         updateData.otherFee !== undefined)
     ) {
-      const tuitionFee = Number(updateData.tuitionFee ?? prismaData.tuitionFee ?? 0);
+      const tuitionFee = Number(updateData.tuitionFee ?? existingScholarship.tuitionFee ?? 0);
       const miscellaneousFee = Number(
-        updateData.miscellaneousFee ?? prismaData.miscellaneousFee ?? 0
+        updateData.miscellaneousFee ?? existingScholarship.miscellaneousFee ?? 0
       );
-      const laboratoryFee = Number(updateData.laboratoryFee ?? prismaData.laboratoryFee ?? 0);
-      const otherFee = Number(updateData.otherFee ?? prismaData.otherFee ?? 0);
-      const amountSubsidy = Number(updateData.amountSubsidy ?? prismaData.amountSubsidy ?? 0);
+      const laboratoryFee = Number(
+        updateData.laboratoryFee ?? existingScholarship.laboratoryFee ?? 0
+      );
+      const otherFee = Number(updateData.otherFee ?? existingScholarship.otherFee ?? 0);
+      const amountSubsidy = Number(
+        updateData.amountSubsidy ?? existingScholarship.amountSubsidy ?? 0
+      );
 
       const totalFees = tuitionFee + miscellaneousFee + laboratoryFee + otherFee;
       // Calculate percentSubsidy as decimal (e.g., 0.1667 for 16.67%)
       prismaData.percentSubsidy =
         totalFees > 0 ? Number((amountSubsidy / totalFees).toFixed(4)) : 0;
     }
-
-    // ---- DIAGNOSTIC: log incoming request data ----
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] body keys:', Object.keys(body));
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] body.data === undefined:', body.data === undefined);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] body.data typeof:', typeof body.data);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] scholarshipId:', scholarshipId);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] updateData fields provided:', Object.keys(updateData).filter(k => !['action'].includes(k)));
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] prismaData keys:', Object.keys(prismaData));
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] prismaData.scholarshipName:', prismaData.scholarshipName);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] prismaData.amount:', prismaData.amount);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] prismaData.amountSubsidy:', prismaData.amountSubsidy);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] prismaData.eligiblePrograms:', prismaData.eligiblePrograms);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] prismaData.academicYearId:', prismaData.academicYearId);
-    // ---- END DIAGNOSTIC ----
 
     let scholarship;
     try {
@@ -299,15 +298,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         { status: 500 }
       );
     }
-
-    // ---- DIAGNOSTIC: log DB result ----
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] DB update succeeded');
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] updated row scholarshipName:', scholarship?.scholarshipName);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] updated row amount:', scholarship?.amount);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] updated row amountSubsidy:', scholarship?.amountSubsidy);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] updated row eligiblePrograms:', scholarship?.eligiblePrograms);
-    console.log('[SCHOLARSHIP_UPDATE_DIAG] updated row academicYearId:', scholarship?.academicYearId);
-    // ---- END DIAGNOSTIC ----
 
     // If amountSubsidy or fee fields were updated, sync with existing student fees.
     // Important: when only `amountSubsidy` changes, we should NOT overwrite existing

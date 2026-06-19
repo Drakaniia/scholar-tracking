@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 
-import { Controller, useForm } from 'react-hook-form';
+import { CalendarDays } from 'lucide-react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 
 import {
   COMPACT_DIALOG_CONTENT_CLASS,
@@ -11,6 +12,16 @@ import {
   DIALOG_FORM_CLASS,
   DIALOG_HEADER_CLASS,
 } from '@/components/shared/dialog-layout';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -32,8 +43,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useAcademicYears, useActiveAcademicYear } from '@/hooks/use-queries';
+import { type ChangedField, getChangedFields, hasChangedFields } from '@/lib/form-change-summary';
 import { LGU_COVERED_TERMS, parseCoveredTerms, serializeCoveredTerms } from '@/lib/terms';
 import {
+  AcademicYear,
   CreateScholarshipInput,
   GRADE_LEVELS,
   GRADE_LEVEL_LABELS,
@@ -49,11 +63,61 @@ import {
 } from '@/types';
 
 const SCHOLARSHIP_STATUSES = ['Active', 'Inactive', 'Closed'] as const;
+const SCHOLARSHIP_CHANGE_LABELS = {
+  scholarshipName: 'Scholarship name',
+  sponsor: 'Sponsor',
+  type: 'Type',
+  source: 'Source',
+  academicYearId: 'Academic year',
+  eligibleGradeLevels: 'Eligible grade levels',
+  eligiblePrograms: 'Eligible programs',
+  coveredTerms: 'Covered semesters',
+  grantType: 'Grant type',
+  coversTuition: 'Covers tuition',
+  coversMiscellaneous: 'Covers miscellaneous',
+  coversLaboratory: 'Covers laboratory',
+  coversOther: 'Covers other fees',
+  otherFeeName: 'Other fee name',
+  tuitionFee: 'Tuition fee',
+  miscellaneousFee: 'Miscellaneous fee',
+  laboratoryFee: 'Laboratory fee',
+  otherFee: 'Other fee',
+  amount: 'Amount',
+  amountSubsidy: 'Amount subsidy',
+  percentSubsidy: 'Percent subsidy',
+  requirements: 'Description',
+  status: 'Status',
+} as const;
 
-function toDateInputValue(value: string | Date | null | undefined) {
-  if (!value) return '';
-  if (typeof value === 'string') return value.slice(0, 10);
-  return value.toISOString().slice(0, 10);
+function getScholarshipChangeSnapshot(
+  data: Partial<CreateScholarshipInput> | undefined,
+  fallbackAcademicYearId: number | null
+): Record<string, unknown> {
+  return {
+    scholarshipName: data?.scholarshipName || '',
+    sponsor: data?.sponsor || '',
+    type: data?.type || '',
+    source: data?.source || '',
+    academicYearId: data?.academicYearId ?? fallbackAcademicYearId ?? '',
+    eligibleGradeLevels: data?.eligibleGradeLevels || '',
+    eligiblePrograms: data?.eligiblePrograms || '',
+    coveredTerms: data?.coveredTerms || '',
+    grantType: data?.grantType || 'FULL',
+    coversTuition: data?.coversTuition || false,
+    coversMiscellaneous: data?.coversMiscellaneous || false,
+    coversLaboratory: data?.coversLaboratory || false,
+    coversOther: data?.coversOther || false,
+    otherFeeName: data?.otherFeeName || '',
+    tuitionFee: Number(data?.tuitionFee || 0),
+    miscellaneousFee: Number(data?.miscellaneousFee || 0),
+    laboratoryFee: Number(data?.laboratoryFee || 0),
+    otherFee: Number(data?.otherFee || 0),
+    amount: Number(data?.amount || 0),
+    amountSubsidy: Number(data?.amountSubsidy || 0),
+    percentSubsidy: Number(data?.percentSubsidy || 0),
+    requirements: data?.requirements || '',
+    status: data?.status || '',
+  };
 }
 
 interface ScholarshipFormProps {
@@ -108,6 +172,25 @@ export function ScholarshipForm({
   const [laboratoryFee, setLaboratoryFee] = useState(defaultValues?.laboratoryFee || 0);
   const [otherFee, setOtherFee] = useState(defaultValues?.otherFee || 0);
   const [amountSubsidy, setAmountSubsidy] = useState(defaultValues?.amountSubsidy || 0);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingData, setPendingData] = useState<CreateScholarshipInput | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<ChangedField[]>([]);
+  const { data: academicYearsData } = useAcademicYears();
+  const { data: activeAcademicYearData } = useActiveAcademicYear();
+  const academicYears = ((academicYearsData?.data || []) as AcademicYear[]).slice().sort((a, b) => {
+    const left = new Date(a.startDate).getTime();
+    const right = new Date(b.startDate).getTime();
+    return right - left;
+  });
+  const activeAcademicYear = (activeAcademicYearData?.data || null) as AcademicYear | null;
+  const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<number | null>(
+    defaultValues?.academicYearId ?? null
+  );
+  const fallbackAcademicYearId = isEditing
+    ? (defaultValues?.academicYearId ?? activeAcademicYear?.id ?? null)
+    : (activeAcademicYear?.id ?? null);
+  const effectiveAcademicYearId = selectedAcademicYearId ?? fallbackAcademicYearId;
+  const initialAcademicYearId = fallbackAcademicYearId;
 
   // Calculate total fees
   const totalFees = tuitionFee + miscellaneousFee + laboratoryFee + otherFee;
@@ -225,31 +308,104 @@ export function ScholarshipForm({
     }
   };
 
+  const buildScholarshipSubmitData = (data: CreateScholarshipInput): CreateScholarshipInput => {
+    const submitData: CreateScholarshipInput = {
+      ...data,
+      type: showCustomType && customType ? customType : data.type,
+      eligibleGradeLevels: selectedGradeLevels.join(','),
+      eligiblePrograms: selectedPrograms.length > 0 ? selectedPrograms.join(',') : null,
+      coveredTerms: serializeCoveredTerms(selectedCoveredTerms),
+      grantType: selectedGrantType,
+      coversTuition,
+      coversMiscellaneous,
+      coversLaboratory,
+      coversOther,
+      otherFeeName: coversOther ? otherFeeName : null,
+      tuitionFee,
+      miscellaneousFee,
+      laboratoryFee,
+      otherFee,
+      amountSubsidy,
+      percentSubsidy: calculatedPercentSubsidy,
+      academicYearId: effectiveAcademicYearId,
+    };
+
+    return submitData;
+  };
+
+  const watchedValues = useWatch({ control: form.control }) as CreateScholarshipInput;
+  const currentSubmitPreview = buildScholarshipSubmitData(watchedValues);
+  const scholarshipChanges =
+    isEditing && defaultValues
+      ? getChangedFields(
+          getScholarshipChangeSnapshot(defaultValues, initialAcademicYearId),
+          getScholarshipChangeSnapshot(currentSubmitPreview, initialAcademicYearId),
+          SCHOLARSHIP_CHANGE_LABELS
+        )
+      : [];
+  const hasScholarshipChanges = hasChangedFields(scholarshipChanges);
+
   const handleFormSubmit = (data: CreateScholarshipInput) => {
-    if (showCustomType && customType) {
-      data.type = customType;
+    const submitData = buildScholarshipSubmitData(data);
+
+    if (isEditing) {
+      const changes = getChangedFields(
+        getScholarshipChangeSnapshot(defaultValues, initialAcademicYearId),
+        getScholarshipChangeSnapshot(submitData, initialAcademicYearId),
+        SCHOLARSHIP_CHANGE_LABELS
+      );
+
+      if (!hasChangedFields(changes)) {
+        return;
+      }
+
+      setPendingData(submitData);
+      setPendingChanges(changes);
+      setShowConfirmDialog(true);
+      return;
     }
-    data.eligibleGradeLevels = selectedGradeLevels.join(',');
-    data.eligiblePrograms = selectedPrograms.length > 0 ? selectedPrograms.join(',') : null;
-    data.coveredTerms = serializeCoveredTerms(selectedCoveredTerms);
-    data.grantType = selectedGrantType;
-    data.coversTuition = coversTuition;
-    data.coversMiscellaneous = coversMiscellaneous;
-    data.coversLaboratory = coversLaboratory;
-    data.coversOther = coversOther;
-    data.otherFeeName = coversOther ? otherFeeName : null;
-    data.tuitionFee = tuitionFee;
-    data.miscellaneousFee = miscellaneousFee;
-    data.laboratoryFee = laboratoryFee;
-    data.otherFee = otherFee;
-    data.amountSubsidy = amountSubsidy;
-    data.percentSubsidy = calculatedPercentSubsidy;
-    onSubmit(data);
+
+    onSubmit(submitData);
+  };
+
+  const handleConfirmSave = () => {
+    if (pendingData) {
+      onSubmit(pendingData);
+      setPendingData(null);
+      setPendingChanges([]);
+      setShowConfirmDialog(false);
+    }
   };
 
   return (
     <form onSubmit={form.handleSubmit(handleFormSubmit)} className={DIALOG_FORM_CLASS}>
       <div className={`${DIALOG_BODY_CLASS} flex flex-col gap-4`}>
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <Label className="whitespace-nowrap">Academic Year</Label>
+          </div>
+          <Select
+            value={effectiveAcademicYearId ? String(effectiveAcademicYearId) : ''}
+            onValueChange={(value) => {
+              const id = Number(value);
+              setSelectedAcademicYearId(Number.isInteger(id) && id > 0 ? id : null);
+            }}
+          >
+            <SelectTrigger className="h-9 min-w-[13rem]">
+              <SelectValue placeholder="Select academic year" />
+            </SelectTrigger>
+            <SelectContent>
+              {academicYears.map((academicYear) => (
+                <SelectItem key={academicYear.id} value={String(academicYear.id)}>
+                  {academicYear.year}
+                  {academicYear.isActive ? ' (Active)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="scholarshipName">Scholarship Name</Label>
           <Input
@@ -436,12 +592,28 @@ export function ScholarshipForm({
             )}
             {/* Show custom programs as removable badges */}
             {selectedPrograms.filter(
-              (p) => !['BS Education', 'BA Education', 'BS Computer Science', 'BS Information Technology', 'BS Nursing', 'BS Accountancy'].includes(p)
+              (p) =>
+                ![
+                  'BS Education',
+                  'BA Education',
+                  'BS Computer Science',
+                  'BS Information Technology',
+                  'BS Nursing',
+                  'BS Accountancy',
+                ].includes(p)
             ).length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {selectedPrograms
                   .filter(
-                    (p) => !['BS Education', 'BA Education', 'BS Computer Science', 'BS Information Technology', 'BS Nursing', 'BS Accountancy'].includes(p)
+                    (p) =>
+                      ![
+                        'BS Education',
+                        'BA Education',
+                        'BS Computer Science',
+                        'BS Information Technology',
+                        'BS Nursing',
+                        'BS Accountancy',
+                      ].includes(p)
                   )
                   .map((program) => (
                     <div
@@ -732,11 +904,11 @@ export function ScholarshipForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="requirements">Requirements</Label>
+          <Label htmlFor="requirements">Description</Label>
           <Textarea
             id="requirements"
             {...form.register('requirements')}
-            placeholder="Enter scholarship requirements"
+            placeholder="Enter scholarship description"
             rows={3}
             className="placeholder:text-muted-foreground/50"
           />
@@ -789,6 +961,48 @@ export function ScholarshipForm({
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className={COMPACT_DIALOG_CONTENT_CLASS}>
+          <AlertDialogHeader className={DIALOG_HEADER_CLASS}>
+            <AlertDialogTitle>Confirm Scholarship Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Review the modified fields before saving this scholarship.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-72 overflow-y-auto rounded-md border bg-muted/30">
+            {pendingChanges.map((change) => (
+              <div
+                key={change.key}
+                className="grid gap-2 border-b px-3 py-2 text-sm last:border-b-0 sm:grid-cols-[9rem_1fr_1fr]"
+              >
+                <div className="font-medium text-foreground">{change.label}</div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Before</p>
+                  <p className="break-words">{change.before}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">After</p>
+                  <p className="break-words">{change.after}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter className={DIALOG_FOOTER_CLASS}>
+            <AlertDialogCancel
+              onClick={() => {
+                setPendingData(null);
+                setPendingChanges([]);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSave} className="min-w-32">
+              Confirm Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <DialogFooter className={DIALOG_FOOTER_CLASS}>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
@@ -796,10 +1010,12 @@ export function ScholarshipForm({
         <Button
           type="submit"
           variant="gradient"
-          disabled={loading || selectedCoveredTerms.length === 0}
+          disabled={
+            loading || selectedCoveredTerms.length === 0 || (isEditing && !hasScholarshipChanges)
+          }
           className="min-w-32"
         >
-          {loading ? 'Saving...' : isEditing ? 'Update' : 'Create'}
+          {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create'}
         </Button>
       </DialogFooter>
     </form>
