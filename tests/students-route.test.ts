@@ -148,6 +148,39 @@ describe('students route scholarship saves', () => {
     expect(queryOptimizerMock.invalidatePattern).toHaveBeenCalledWith('dashboard');
   });
 
+  it('uses the batch failure message when multiple students fail during creation', async () => {
+    prismaMock.$transaction.mockRejectedValueOnce(new Error('Database write failed'));
+
+    const { POST } = await import('@/app/api/students/route');
+    const response = await POST(
+      createJsonRequest('http://localhost/api/students', 'POST', {
+        students: [
+          {
+            lastName: 'Reyes',
+            firstName: 'Ana',
+            program: 'Grade 7',
+            gradeLevel: 'JUNIOR_HIGH',
+            yearLevel: 'Grade 7',
+            status: 'Active',
+          },
+          {
+            lastName: 'Santos',
+            firstName: 'Ben',
+            program: 'Grade 8',
+            gradeLevel: 'JUNIOR_HIGH',
+            yearLevel: 'Grade 8',
+            status: 'Active',
+          },
+        ],
+      }) as never
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.success).toBe(false);
+    expect(body.error).toBe('Failed to create students');
+  });
+
   it('creates multiple students and returns hydrated records in one request', async () => {
     const createdStudents = [
       {
@@ -214,17 +247,17 @@ describe('students route scholarship saves', () => {
             yearLevel: 'Grade 7',
             status: 'Active',
             scholarships: [
-          {
-            scholarshipId: 3,
-            awardDate: '2026-05-28T00:00:00.000Z',
-            grantAmount: 0,
-            grantType: 'TUITION_ONLY',
-            scholarshipStatus: 'Active',
+              {
+                scholarshipId: 3,
+                awardDate: '2026-05-28T00:00:00.000Z',
+                grantAmount: 0,
+                grantType: 'TUITION_ONLY',
+                scholarshipStatus: 'Active',
+              },
+            ],
           },
-        ],
-      },
-      {
-        lastName: 'Santos',
+          {
+            lastName: 'Santos',
             firstName: 'Luis',
             program: 'Grade 8',
             gradeLevel: 'JUNIOR_HIGH',
