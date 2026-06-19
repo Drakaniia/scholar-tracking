@@ -70,14 +70,10 @@ import {
   useUpdateScholarship,
 } from '@/hooks/use-queries';
 import { canManageStudentsAndScholarships, isAdminRole } from '@/lib/rbac';
+import { buildScholarshipFormDefaultValues } from '@/lib/scholarship-form-defaults';
 import { getCoveredTermsLabel } from '@/lib/terms';
 import { cn, formatCurrency } from '@/lib/utils';
-import type {
-  CreateScholarshipInput,
-  GrantType,
-  Scholarship,
-  StudentScholarship,
-} from '@/types';
+import type { CreateScholarshipInput, GrantType, Scholarship, StudentScholarship } from '@/types';
 import { GRADE_LEVEL_LABELS, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
 // Pastel colors for scholarship types
@@ -542,7 +538,6 @@ export default function ScholarshipsPage() {
             </SelectContent>
           </Select>
         </FilterField>
-
       </FilterCard>
 
       <Card className="border-gray-200">
@@ -891,33 +886,9 @@ export default function ScholarshipsPage() {
             </DialogDescription>
           </DialogHeader>
           <ScholarshipForm
+            key={editingScholarship ? `edit-${editingScholarship.id}` : 'create-scholarship'}
             defaultValues={
-              editingScholarship
-                ? {
-                    scholarshipName: editingScholarship.scholarshipName,
-                    sponsor: editingScholarship.sponsor,
-                    type: editingScholarship.type,
-                    source: editingScholarship.source,
-                    eligibleGradeLevels: editingScholarship.eligibleGradeLevels || '',
-                    eligiblePrograms: editingScholarship.eligiblePrograms || '',
-                    amount: editingScholarship.amount,
-                    amountSubsidy: editingScholarship.amountSubsidy,
-                    percentSubsidy: editingScholarship.percentSubsidy,
-                    requirements: editingScholarship.requirements || '',
-                    status: editingScholarship.status,
-                    grantType: editingScholarship.grantType as GrantType,
-                    coversTuition: editingScholarship.coversTuition,
-                    coversMiscellaneous: editingScholarship.coversMiscellaneous,
-                    coversLaboratory: editingScholarship.coversLaboratory,
-                    coversOther: editingScholarship.coversOther,
-                    coveredTerms: editingScholarship.coveredTerms,
-                    otherFeeName: editingScholarship.otherFeeName || undefined,
-                    tuitionFee: editingScholarship.tuitionFee,
-                    miscellaneousFee: editingScholarship.miscellaneousFee,
-                    laboratoryFee: editingScholarship.laboratoryFee,
-                    otherFee: editingScholarship.otherFee,
-                  }
-                : undefined
+              editingScholarship ? buildScholarshipFormDefaultValues(editingScholarship) : undefined
             }
             onSubmit={editingScholarship ? handleUpdate : handleCreate}
             onCancel={closeDialog}
