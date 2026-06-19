@@ -349,6 +349,7 @@ function getStudentFormDefaultValues(
             otherFee: student.fees[0].otherFee,
             miscellaneousFee: student.fees[0].miscellaneousFee,
             laboratoryFee: student.fees[0].laboratoryFee,
+            academicYearId: student.fees[0].academicYearId ?? null,
           }
         : undefined,
     scholarships:
@@ -392,7 +393,11 @@ function StudentsTableLoading({
         <TableBody>
           {[...Array(6)].map((_, rowIndex) => (
             <TableRow key={rowIndex}>
-              {isAdmin && <TableCell><Skeleton className="h-4 w-4 rounded-sm" /></TableCell>}
+              {isAdmin && (
+                <TableCell>
+                  <Skeleton className="h-4 w-4 rounded-sm" />
+                </TableCell>
+              )}
               {[...Array(bodyColumns)].map((__, columnIndex) => (
                 <TableCell key={columnIndex}>
                   <Skeleton
@@ -903,7 +908,9 @@ export default function StudentsPage() {
 
     setIsBulkArchiving(true);
     try {
-      let payload: number[] | { selectAll: true; filters: Record<string, string | boolean | undefined> };
+      let payload:
+        | number[]
+        | { selectAll: true; filters: Record<string, string | boolean | undefined> };
 
       if (selectAllAcrossPages) {
         payload = {
@@ -913,7 +920,8 @@ export default function StudentsPage() {
             gradeLevel: gradeLevelFilter === 'all' ? undefined : gradeLevelFilter,
             program: programFilter === 'all' ? undefined : programFilter,
             status: statusFilter === 'all' ? undefined : statusFilter,
-            scholarshipSource: scholarshipSourceFilter === 'all' ? undefined : scholarshipSourceFilter,
+            scholarshipSource:
+              scholarshipSourceFilter === 'all' ? undefined : scholarshipSourceFilter,
             scholarshipId: scholarshipFilter === 'all' ? undefined : scholarshipFilter,
             academicYearId: academicYearFilter === 'all' ? undefined : academicYearFilter,
             archived: false,
@@ -970,12 +978,14 @@ export default function StudentsPage() {
       ? 'No scholarship'
       : scholarships.find((scholarship) => scholarship.id.toString() === scholarshipFilter)
           ?.scholarshipName || 'Selected scholarship';
-  const selectedAcademicYearLabel =
-    academicYears.find((academicYear) => String(academicYear.id) === academicYearFilter)?.year
-      ? formatAcademicYearDisplay(
-          academicYears.find((academicYear) => String(academicYear.id) === academicYearFilter)?.year || ''
-        )
-      : 'Selected year';
+  const selectedAcademicYearLabel = academicYears.find(
+    (academicYear) => String(academicYear.id) === academicYearFilter
+  )?.year
+    ? formatAcademicYearDisplay(
+        academicYears.find((academicYear) => String(academicYear.id) === academicYearFilter)
+          ?.year || ''
+      )
+    : 'Selected year';
   const studentActiveFilters: ActiveFilter[] = [
     ...(search.trim()
       ? [
@@ -1237,7 +1247,7 @@ export default function StudentsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Years</SelectItem>
-                {academicYears.map((academicYear) => (
+              {academicYears.map((academicYear) => (
                 <SelectItem key={academicYear.id} value={String(academicYear.id)}>
                   {formatAcademicYearDisplay(academicYear.year)}
                   {academicYear.isActive ? ' (Active)' : ''}
@@ -1287,9 +1297,7 @@ export default function StudentsPage() {
             <div className="border-b border-slate-200">
               <div className="flex items-center justify-between bg-primary/5 px-4 py-2.5">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium text-slate-950">
-                    {effectiveSelectedCount}
-                  </span>
+                  <span className="font-medium text-slate-950">{effectiveSelectedCount}</span>
                   <span className="text-muted-foreground">
                     student{effectiveSelectedCount !== 1 ? 's' : ''} selected
                     {selectAllAcrossPages && ' across all pages'}
@@ -1517,19 +1525,18 @@ export default function StudentsPage() {
             <DialogDescription>
               You are about to archive {effectiveSelectedCount} student
               {effectiveSelectedCount !== 1 ? 's' : ''}
-              {selectAllAcrossPages && ' matching the current filters'}.
-              This action can be undone by unarchiving individual students.
+              {selectAllAcrossPages && ' matching the current filters'}. This action can be undone
+              by unarchiving individual students.
               {selectAllAcrossPages && (
                 <span className="mt-2 block rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-                  <strong>Select all across pages active:</strong> All{' '}
-                  {total} student{total !== 1 ? 's' : ''} matching the
-                  current search and filters will be archived.
+                  <strong>Select all across pages active:</strong> All {total} student
+                  {total !== 1 ? 's' : ''} matching the current search and filters will be archived.
                 </span>
               )}
               {!selectAllAcrossPages && effectiveSelectedCount > 0 && (
                 <span className="mt-2 block text-destructive font-medium">
-                  Warning: Archiving removes students from the active list. Scholarship
-                  assignments will be preserved but hidden.
+                  Warning: Archiving removes students from the active list. Scholarship assignments
+                  will be preserved but hidden.
                 </span>
               )}
             </DialogDescription>
@@ -1582,11 +1589,7 @@ export default function StudentsPage() {
               {bulkArchiveResult && bulkArchiveResult.errorCount === 0 ? 'Close' : 'Cancel'}
             </Button>
             {(!bulkArchiveResult || bulkArchiveResult.errorCount > 0) && (
-              <Button
-                variant="destructive"
-                onClick={handleBulkArchive}
-                disabled={isBulkArchiving}
-              >
+              <Button variant="destructive" onClick={handleBulkArchive} disabled={isBulkArchiving}>
                 {isBulkArchiving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1850,7 +1853,9 @@ export default function StudentsPage() {
                       <StudentFeesManager
                         studentId={selectedStudent.id}
                         readOnly={!canManageStudentFees}
-                        academicYearIdFilter={academicYearFilter === 'all' ? undefined : Number(academicYearFilter)}
+                        academicYearIdFilter={
+                          academicYearFilter === 'all' ? undefined : Number(academicYearFilter)
+                        }
                       />
                     </div>
                   </>
