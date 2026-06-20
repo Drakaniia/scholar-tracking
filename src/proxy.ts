@@ -17,7 +17,7 @@ export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/api/auth/login', '/api/export/all'];
+  const publicRoutes = ['/login', '/api/auth/login', '/api/export/all', '/api/debug/db'];
 
   // Create response
   let response: NextResponse;
