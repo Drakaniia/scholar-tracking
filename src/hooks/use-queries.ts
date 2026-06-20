@@ -875,11 +875,12 @@ export function useUpdateScholarship() {
       return json;
     },
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.detail(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      // Force immediate refetch so the list updates right away
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.detail(id), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all, refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all, refetchType: 'all' });
       toast.success('Scholarship updated successfully');
     },
     onError: (error: Error) => {
