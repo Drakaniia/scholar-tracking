@@ -61,8 +61,8 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.scholarships.details(), id] as const,
     filterOptions: (filters: ScholarshipFilters = {}) =>
       [...queryKeys.scholarships.all, 'filter-options', filters] as const,
-    flow: (source?: string, startYear?: number) =>
-      [...queryKeys.scholarships.all, 'flow', source || 'all', startYear || 'current'] as const,
+    flow: (source?: string, startYear?: number, gradeLevel?: string) =>
+      [...queryKeys.scholarships.all, 'flow', source || 'all', startYear || 'current', gradeLevel || 'all'] as const,
   },
 
   // Users
@@ -929,10 +929,11 @@ export function useDeleteScholarship() {
 export function useScholarshipFlow(
   source = 'all',
   startYear?: number,
+  gradeLevel = '',
   options?: Partial<UseQueryOptions<ApiResponse<ScholarshipFlowData>, Error>>
 ) {
   return useQuery<ApiResponse<ScholarshipFlowData>, Error>({
-    queryKey: queryKeys.scholarships.flow(source, startYear),
+    queryKey: queryKeys.scholarships.flow(source, startYear, gradeLevel),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (source && source !== 'all') {
@@ -940,6 +941,10 @@ export function useScholarshipFlow(
       }
       if (startYear) {
         params.set('endYear', String(getScholarshipFlowEndYear(startYear)));
+      }
+
+      if (gradeLevel) {
+        params.set('gradeLevel', gradeLevel);
       }
 
       const url = `/api/scholarships/flow${params.toString() ? `?${params.toString()}` : ''}`;

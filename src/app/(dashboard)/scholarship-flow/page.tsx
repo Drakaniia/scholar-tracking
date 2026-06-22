@@ -69,7 +69,7 @@ import {
   getScholarshipFlowEndYear,
 } from '@/lib/scholarship-flow-years';
 import { formatCurrency } from '@/lib/utils';
-import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
 function formatPhp(amount: number) {
   return `PHP ${formatCurrency(amount)}`;
@@ -524,6 +524,7 @@ function ScholarshipFlowSkeleton() {
 
 export default function ScholarshipFlowPage() {
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [gradeLevelFilter, setGradeLevelFilter] = useState('');
   const [startYearFilter, setStartYearFilter] = useState(() =>
     getDefaultScholarshipFlowStartYear()
   );
@@ -536,7 +537,7 @@ export default function ScholarshipFlowPage() {
     isLoading,
     isFetching,
     refetch,
-  } = useScholarshipFlow(sourceFilter, startYearFilter, {
+  } = useScholarshipFlow(sourceFilter, startYearFilter, gradeLevelFilter, {
     refetchOnWindowFocus: false,
   });
   const data = flowResponse?.data;
@@ -600,6 +601,28 @@ export default function ScholarshipFlowPage() {
               <span>{selectedWindowLabel}</span>
               <span className="text-xs font-medium text-emerald-700">Choose Year</span>
             </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="flow-grade-level" className="text-xs font-semibold text-slate-500">
+              Education Level
+            </Label>
+            <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
+              <SelectTrigger
+                id="flow-grade-level"
+                className="h-10 w-full border-slate-300 bg-white"
+              >
+                <SelectValue placeholder="All Levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Levels</SelectItem>
+                {GRADE_LEVELS.map((level) => (
+                  <SelectItem key={level} value={level}>
+                    {GRADE_LEVEL_LABELS[level]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

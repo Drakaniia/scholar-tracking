@@ -174,6 +174,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const source = searchParams.get('source') || 'all';
     const sourceFilter = VALID_SOURCES.has(source) ? source : '';
+    const gradeLevel = searchParams.get('gradeLevel') || '';
     const endYearParam = Number(searchParams.get('endYear'));
     const endYear =
       Number.isInteger(endYearParam) && endYearParam >= 2000
@@ -185,6 +186,7 @@ export async function GET(request: NextRequest) {
 
     const cacheKey = generateQueryKey('scholarship-flow', {
       source: sourceFilter || 'all',
+      gradeLevel,
       endYear,
     });
     const cachedData = queryOptimizer.get(cacheKey);
@@ -201,7 +203,12 @@ export async function GET(request: NextRequest) {
 
     const [awards, disbursements, fees, activeStudents] = await Promise.all([
       prisma.studentScholarship.findMany({
-        where: studentScholarshipWindowWhere,
+        where: {
+          ...studentScholarshipWindowWhere,
+          ...(gradeLevel
+            ? { student: { gradeLevel } }
+            : {}),
+        },
         select: {
           studentId: true,
           awardDate: true,
@@ -221,7 +228,12 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.disbursement.findMany({
-        where: disbursementWindowWhere,
+        where: {
+          ...disbursementWindowWhere,
+          ...(gradeLevel
+            ? { student: { gradeLevel } }
+            : {}),
+        },
         select: {
           studentId: true,
           disbursementDate: true,
@@ -241,6 +253,9 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.studentFees.findMany({
+        where: gradeLevel
+          ? { student: { gradeLevel } }
+          : undefined,
         select: {
           studentId: true,
           academicYear: true,
@@ -251,6 +266,9 @@ export async function GET(request: NextRequest) {
         where: {
           isArchived: false,
           status: 'Active',
+          ...(gradeLevel
+            ? { gradeLevel }
+            : {}),
         },
         select: {
           id: true,
