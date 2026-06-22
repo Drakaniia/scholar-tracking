@@ -11,6 +11,7 @@ export interface Student {
   yearLevel: string;
   status: string;
   birthDate?: Date | null;
+  academicYearId?: number | null;
   isArchived: boolean;
   termType: TermType;
   transitionDecision?: StudentTransitionDecision | null;
@@ -102,6 +103,7 @@ export interface CreateStudentInput {
   grantAmount?: number | null;
   grantType?: GrantType;
   scholarshipStatus?: string | null;
+  academicYearId?: number | null;
   scholarships?: Array<{
     id?: number;
     scholarshipId: number;

@@ -75,6 +75,8 @@ model Student {
   transitionDecision   String?                 @map("transition_decision")
   transitionDecisionAt DateTime?               @map("transition_decision_at")
   transitionDecisionBy Int?                    @map("transition_decision_by")
+  academicYearId       Int?                    @map("academic_year_id")
+  academicYearRel      AcademicYear?           @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
   separatedAt          DateTime?               @map("separated_at")
   separationReason     String?                 @map("separation_reason")
   academicRecords      StudentAcademicRecord[]
@@ -87,6 +89,7 @@ model Student {
   @@index([program])
   @@index([isArchived])
   @@index([graduationStatus])
+  @@index([academicYearId])
   @@map("students")
 }
 
@@ -281,6 +284,7 @@ model AcademicYear {
   promotionProcessedAt   DateTime?               @map("promotion_processed_at")
   createdAt              DateTime                @default(now()) @map("created_at")
   updatedAt              DateTime                @updatedAt @map("updated_at")
+  students               Student[]
   disbursements          Disbursement[]
   studentScholarships    StudentScholarship[]
   studentAcademicRecords StudentAcademicRecord[]
