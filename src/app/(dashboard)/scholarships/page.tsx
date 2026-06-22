@@ -73,7 +73,12 @@ import { buildScholarshipFormDefaultValues } from '@/lib/scholarship-form-defaul
 import { getCoveredTermsLabel } from '@/lib/terms';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { CreateScholarshipInput, GrantType, Scholarship, StudentScholarship } from '@/types';
-import { GRADE_LEVEL_LABELS, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import {
+  GRADE_LEVELS,
+  GRADE_LEVEL_LABELS,
+  SCHOLARSHIP_SOURCES,
+  SCHOLARSHIP_SOURCE_LABELS,
+} from '@/types';
 
 // Pastel colors for scholarship types
 const PASTEL_COLORS = [
@@ -288,6 +293,7 @@ export default function ScholarshipsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [eligibleGradeLevelsFilter, setEligibleGradeLevelsFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState<Scholarship | null>(null);
@@ -310,6 +316,8 @@ export default function ScholarshipsPage() {
     {
       search: debouncedSearch,
       source: sourceFilter === 'all' ? undefined : sourceFilter,
+      eligibleGradeLevels:
+        eligibleGradeLevelsFilter === 'all' ? undefined : eligibleGradeLevelsFilter,
       page,
       limit: 10,
     },
@@ -361,7 +369,7 @@ export default function ScholarshipsPage() {
   useEffect(() => {
     // Reset to page 1 when filter changes
     setPage(1);
-  }, [sourceFilter, debouncedSearch]);
+  }, [sourceFilter, eligibleGradeLevelsFilter, debouncedSearch]);
 
   const handleCreate = async (data: CreateScholarshipInput) => {
     setSubmitting(true);
@@ -448,6 +456,7 @@ export default function ScholarshipsPage() {
   const clearScholarshipFilters = () => {
     setSearch('');
     setSourceFilter('all');
+    setEligibleGradeLevelsFilter('all');
   };
   const scholarshipActiveFilters: ActiveFilter[] = [
     ...(search.trim()
@@ -469,6 +478,19 @@ export default function ScholarshipsPage() {
               SCHOLARSHIP_SOURCE_LABELS[sourceFilter as keyof typeof SCHOLARSHIP_SOURCE_LABELS] ||
               sourceFilter,
             onRemove: () => setSourceFilter('all'),
+          },
+        ]
+      : []),
+    ...(eligibleGradeLevelsFilter !== 'all'
+      ? [
+          {
+            key: 'eligibleGradeLevels',
+            label: 'Education Level',
+            value:
+              GRADE_LEVEL_LABELS[
+                eligibleGradeLevelsFilter as keyof typeof GRADE_LEVEL_LABELS
+              ] || eligibleGradeLevelsFilter,
+            onRemove: () => setEligibleGradeLevelsFilter('all'),
           },
         ]
       : []),
@@ -520,6 +542,35 @@ export default function ScholarshipsPage() {
           onChange={(e) => setSearch(e.target.value)}
           containerClassName="md:col-span-2"
         />
+
+        <FilterField label="Education Level">
+          <Select
+            value={eligibleGradeLevelsFilter}
+            onValueChange={setEligibleGradeLevelsFilter}
+          >
+            <SelectTrigger className="h-10 w-full justify-between bg-white text-sm">
+              <SelectValue placeholder="Filter by education level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              {GRADE_LEVELS.map((level) => {
+                const shortLabel =
+                  level === 'GRADE_SCHOOL'
+                    ? 'BED'
+                    : level === 'JUNIOR_HIGH'
+                      ? 'JHS'
+                      : level === 'SENIOR_HIGH'
+                        ? 'SHS'
+                        : 'College';
+                return (
+                  <SelectItem key={level} value={level}>
+                    {GRADE_LEVEL_LABELS[level]} ({shortLabel})
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         <FilterField label="Source">
           <Select value={sourceFilter} onValueChange={setSourceFilter}>

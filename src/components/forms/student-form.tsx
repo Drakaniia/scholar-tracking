@@ -436,10 +436,12 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
   const selectedAcademicYearStartYear = getAcademicYearStartYear(academicYearStartYearInput);
   const hasValidAcademicYearStartYear = selectedAcademicYearStartYear !== null;
 
-  // Fetch scholarships on component mount
+  // Fetch scholarships on component mount with the initial grade level (if editing)
   useEffect(() => {
-    fetchScholarships();
-  }, []);
+    const initialGradeLevel = defaultValues?.gradeLevel;
+    fetchScholarships(initialGradeLevel || undefined);
+  }, [defaultValues?.gradeLevel]);
+
 
   useEffect(() => {
     // Populate scholarship names for existing scholarships when editing
@@ -542,10 +544,15 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveStudentAcademicYearId, allFees]);
 
-  const fetchScholarships = async () => {
+  const fetchScholarships = async (gradeLevelFilter?: string) => {
     setLoadingScholarships(true);
     try {
-      const res = await fetch('/api/scholarships?limit=1000&status=Active');
+      // Build URL with optional grade level filter
+      let url = '/api/scholarships?limit=1000&status=Active';
+      if (gradeLevelFilter) {
+        url += `&eligibleGradeLevels=${encodeURIComponent(gradeLevelFilter)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
         setScholarships(data.data);
@@ -660,6 +667,8 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(funct
     setSelectedProgram('');
     setCustomCourse('');
     setCustomProgram('');
+    // Refetch scholarships filtered by the new grade level
+    fetchScholarships(value);
   };
 
   const addScholarship = (scholarship: ScholarshipFormData) => {

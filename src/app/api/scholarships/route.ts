@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
     const source = searchParams.get('source') || '';
     const status = searchParams.get('status') || '';
     const academicYearId = searchParams.get('academicYearId') || '';
+    const eligibleGradeLevels = searchParams.get('eligibleGradeLevels') || '';
     const archivedParam = searchParams.get('archived');
     const includeArchived = archivedParam === 'true';
 
@@ -125,6 +126,11 @@ export async function GET(request: NextRequest) {
     if (type) additionalFilters.type = type;
     if (source) additionalFilters.source = source;
     if (status) additionalFilters.status = status;
+    // Use contains mode because eligibleGradeLevels stores comma-separated values
+    // e.g., "GRADE_SCHOOL,JUNIOR_HIGH,SENIOR_HIGH,COLLEGE"
+    if (eligibleGradeLevels) {
+      additionalFilters.eligibleGradeLevels = { contains: eligibleGradeLevels };
+    }
 
     const where = buildSearchWhere(search, ['scholarshipName', 'sponsor'], {
       ...additionalFilters,

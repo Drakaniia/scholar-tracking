@@ -102,6 +102,7 @@ interface ScholarshipFilters {
   type?: string;
   source?: string;
   status?: string;
+  eligibleGradeLevels?: string;
   academicYearId?: string | number;
   page?: number;
   limit?: number;
