@@ -351,6 +351,135 @@ describe('Reports page: student academic year filtering', () => {
   });
 });
 
+// ──────────────────────────────────────────────
+// Student Page: Academic Year Filter with Counts
+// ──────────────────────────────────────────────
+
+describe('Student page: academic year filter with student counts', () => {
+  it('shows student counts in the academic year filter dropdown', () => {
+    // The academic year dropdown must show student counts for each year
+    // Look for a pattern like "(count)" next to each academic year option
+    // Get the section from the academic year filter
+    const ayFilterSection = studentsPageSource.indexOf('<FilterField label="Academic year">');
+    const ayFilterContent = studentsPageSource.slice(ayFilterSection, ayFilterSection + 2000);
+    
+    // Must show counts in parentheses for each academic year option
+    // Pattern: "{academicYearCounts[String(academicYear.id)]" or similar
+    expect(ayFilterContent).toContain('academicYearCounts');
+  });
+
+  it('uses academicYearCounts from filter options data', () => {
+    // The student page must extract academicYearCounts from filterOptionsData
+    // Check that the filterOptionsData processing includes academicYearCounts
+    const useEffectSection = studentsPageSource.indexOf('useEffect(() => {');
+    const filterOptionsSection = studentsPageSource.indexOf('filterOptionsData', useEffectSection);
+    const dataProcessing = studentsPageSource.slice(filterOptionsSection, filterOptionsSection + 3000);
+    
+    // Must extract academicYearCounts from filter options data
+    expect(dataProcessing).toContain('academicYearCounts');
+  });
+});
+
+// ──────────────────────────────────────────────
+// Student API: Comprehensive Academic Year Filtering
+// ──────────────────────────────────────────────
+
+describe('Student API GET: comprehensive academic year filtering', () => {
+  it('filters students by academic year using direct academicYearId', () => {
+    // The GET handler must filter by the student's direct academicYearId field
+    const getHandlerStart = studentsApiRouteSource.indexOf('// GET /api/students - Get all students');
+    const findManySection = studentsApiRouteSource.indexOf('prisma.student.findMany', getHandlerStart);
+    const whereSection = studentsApiRouteSource.slice(getHandlerStart, findManySection);
+    
+    // Must set academicYearId filter on the where clause
+    expect(whereSection).toContain('academicYearFilter');
+  });
+
+  it('also filters students by academic year through fee records', () => {
+    // The GET handler must also check studentFees.academicYearId when filtering
+    // Find the academic year filter section specifically (near the end of where clause building)
+    const academicYearFilterSection = studentsApiRouteSource.indexOf('// Apply academic year filter');
+    const filterBlock = studentsApiRouteSource.slice(academicYearFilterSection, academicYearFilterSection + 800);
+    
+    // Must include fees relation filter for academic year
+    expect(filterBlock).toContain('fees');
+    expect(filterBlock).toContain('some');
+    expect(filterBlock).toContain('academicYearId');
+  });
+
+  it('also filters students by academic year through scholarship records', () => {
+    // The GET handler must also check studentScholarship.academicYearId when filtering
+    // Find the academic year filter section specifically
+    const academicYearFilterSection = studentsApiRouteSource.indexOf('// Apply academic year filter');
+    const filterBlock = studentsApiRouteSource.slice(academicYearFilterSection, academicYearFilterSection + 800);
+    
+    // Must include scholarships relation filter for academic year
+    expect(filterBlock).toContain('scholarships');
+    expect(filterBlock).toContain('some');
+    expect(filterBlock).toContain('academicYearId');
+  });
+});
+
+// ──────────────────────────────────────────────
+// Filter Options API: Academic Year Counts
+// ──────────────────────────────────────────────
+
+describe('Student filter-options API: academic year counts', () => {
+  it('returns academic year counts in the filter options response', () => {
+    // The filter-options API must return academicYearCounts
+    const filterOptionsSource = readFileSync(
+      join(process.cwd(), 'src/app/api/students/filter-options/route.ts'),
+      'utf8'
+    );
+    
+    // Must return academicYearCounts in the response data
+    const returnStatement = filterOptionsSource.indexOf('return NextResponse.json');
+    const responseData = filterOptionsSource.slice(returnStatement, returnStatement + 3000);
+    
+    expect(responseData).toContain('academicYearCounts');
+  });
+});
+
+// ──────────────────────────────────────────────
+// Filter Options Hook: Instant Refetch
+// ──────────────────────────────────────────────
+
+describe('useStudentFilterOptions: instant refetch support', () => {
+  it('has staleTime set to 0 for instant refetches after mutations', () => {
+    const hooksSource = readFileSync(
+      join(process.cwd(), 'src/hooks/use-queries.ts'),
+      'utf8'
+    );
+    
+    // Find the useStudentFilterOptions function
+    const filterOptFnStart = hooksSource.indexOf('export function useStudentFilterOptions');
+    const filterOptFnEnd = hooksSource.indexOf('export function useCreateStudent');
+    const filterOptFnBody = hooksSource.slice(filterOptFnStart, filterOptFnEnd);
+    
+    // staleTime should be set to 0 (or a very small value) for instant refetch
+    expect(filterOptFnBody).toContain('staleTime: 0');
+  });
+});
+
+// ──────────────────────────────────────────────
+// Types: academicYearCounts in StudentFilterOptions
+// ──────────────────────────────────────────────
+
+describe('StudentFilterOptions type: academicYearCounts support', () => {
+  it('includes academicYearCounts in StudentFilterOptions interface', () => {
+    const typesSource = readFileSync(
+      join(process.cwd(), 'src/types/index.ts'),
+      'utf8'
+    );
+    
+    const filterOptionsInterface = typesSource.indexOf('export interface StudentFilterOptions');
+    const endOfInterface = typesSource.indexOf('export interface DashboardStats');
+    const interfaceBody = typesSource.slice(filterOptionsInterface, endOfInterface);
+    
+    expect(interfaceBody).toContain('academicYearCounts');
+  });
+});
+
 describe('Student model: academicYearId field in Prisma schema', () => {
   it('has academicYearId field in the Student model', () => {
     const schemaSource = readFileSync(
