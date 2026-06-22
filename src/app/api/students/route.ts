@@ -355,11 +355,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Apply academic year filter at the student level (direct field)
+    // Apply academic year filter across all student relations
     if (academicYearFilter !== null) {
-      // Use direct student academicYearId field for consistent filtering
+      // Check student's direct academicYearId, fee records, and scholarship assignments
+      const existingWhere = { ...where };
+      Object.keys(where).forEach((key) => delete where[key]);
       Object.assign(where, {
-        academicYearId: academicYearFilter,
+        AND: [
+          existingWhere,
+          {
+            OR: [
+              { academicYearId: academicYearFilter },
+              { fees: { some: { academicYearId: academicYearFilter } } },
+              { scholarships: { some: { academicYearId: academicYearFilter } } },
+            ],
+          },
+        ],
       });
     }
 
