@@ -19,6 +19,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:add-indexes": "npx tsx scripts/add-indexes.ts",
+    "db:backup": "npx tsx scripts/backup-data.ts",
     "db:reset-students": "npx tsx scripts/delete-student-data.ts",
     "delete-sample-data": "npx tsx scripts/delete-imported-data.ts",
     "delete-sample-data:live": "npx tsx scripts/delete-imported-data.ts --live",

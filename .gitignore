@@ -31,6 +31,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
+.env*
 
 # vercel
 .vercel
@@ -45,3 +46,7 @@ prisma/dev.db
 
 .vercel
 .opencode/plugins/emdash-notifications.js
+
+# backup exports
+/backups
+
