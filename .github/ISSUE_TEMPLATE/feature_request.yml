@@ -1,0 +1,124 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for the project
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please describe what you'd like to see added and why it would be valuable. The more context you provide, the better we can evaluate and prioritize your request.
+
+  - type: input
+    id: title
+    attributes:
+      label: Feature Title
+      description: A short, descriptive name for the feature.
+      placeholder: "e.g. Bulk CSV export of student scholarship data with academic year breakdown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What gap or pain point are you experiencing?
+      placeholder: |
+        Currently, to generate a report of all students and their scholarship allocations per academic year, I have to manually export data from three separate pages and combine them in Excel. This takes about 30 minutes each time and is error-prone. I need a single export that includes the student name, scholarship type, and fee breakdown for each academic year they are enrolled in.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature you'd like to see implemented. Be as specific as possible.
+      placeholder: |
+        Add a "Bulk Export" button on the Reports page that, when clicked:
+        1. Opens a dialog asking which academic year(s) to include
+        2. Allows filtering by scholarship type (CHED, PAED, LGU, etc.)
+        3. Generates a single XLSX file with columns: Student Name, ID, Scholarship, Academic Year, Tuition Fee, Misc Fee, Lab Fee, Total EFC
+        4. Downloads the file immediately
+
+        The export endpoint should use the existing aggregation logic in `academic-year-service.ts` to ensure consistency.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any workarounds or alternative solutions? What makes this approach better?
+      placeholder: |
+        - Manually copying from the student detail page – too slow for more than 10 students
+        - Using the current Reports page PDF export – doesn't include fee breakdown per academic year
+        - Writing a custom SQL script – not accessible to non-admin users and risky
+    validations:
+      required: false
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Area
+      description: Which part of the application would this feature primarily affect?
+      multiple: true
+      options:
+        - Dashboard / Analytics
+        - Student Management
+        - Scholarship Management
+        - Fee Tracking / Disbursements
+        - Reports & Exports
+        - Academic Year Management
+        - User Management / Settings
+        - API / Backend
+        - Authentication / Security
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      multiple: false
+      options:
+        - 🚨 Critical – Blocks my workflow
+        - 🔥 High – Significant improvement
+        - 👍 Medium – Nice to have
+        - 💡 Low – Future consideration
+    validations:
+      required: true
+
+  - type: input
+    id: user_role
+    attributes:
+      label: User Role
+      description: What role(s) would primarily use this feature?
+      placeholder: "e.g. ADMIN, STAFF, or VIEWER"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Add any other context, mockups, screenshots, or references that help explain the feature.
+      placeholder: |
+        - Reference: Similar to the "Export All" feature in the student list page
+        - Mockup: Attached wireframe showing the export dialog layout
+        - Related issue: #42 (Previous request for per-student PDF export)
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have checked that a similar feature request does not already exist
+          required: true
+        - label: I have described the problem and why this feature is valuable
+          required: true
+        - label: I am willing to help test this feature if implemented
+          required: false

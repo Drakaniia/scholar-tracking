@@ -1,0 +1,133 @@
+name: Bug Report
+description: Report a bug to help us improve the system
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please provide as much detail as possible so we can reproduce and fix the issue.
+
+  - type: input
+    id: title
+    attributes:
+      label: Bug Title
+      description: Give your bug a clear, descriptive title.
+      placeholder: "e.g. Student filter by academic year returns incorrect results when multiple semesters are selected"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: |
+        After upgrading the scholarship fee calculation module, the annual fee aggregation is no longer summing semester fees correctly. The EFC (Estimated Fee Contribution) shown on the student dashboard is consistently lower than expected.
+
+        This seems to happen for students enrolled in multiple scholarship programs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the bug.
+      placeholder: |
+        1. Log in as ADMIN
+        2. Navigate to Students > Select a student with multiple scholarships
+        3. Click "View Fee Breakdown"
+        4. Observe the EFC value under the academic year summary
+        5. Manually add the semester fee totals and compare
+      value: |
+        1.
+        2.
+        3.
+        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+      placeholder: "The annual fee aggregation should correctly sum all semester fees (1st Semester + 2nd Semester + Summer) and display the accurate EFC value."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include any error messages, screenshots, or logs.
+      placeholder: |
+        The EFC value shown is Php 45,000 but the correct total across all semesters is Php 62,500.
+
+        Console error: "Uncaught TypeError: Cannot read properties of undefined (reading 'aggregateFees')"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this bug occur?
+      multiple: false
+      options:
+        - Production (vercel.app)
+        - Staging / Preview
+        - Local development
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: User Role
+      description: What role were you logged in as when the bug occurred?
+      multiple: false
+      options:
+        - ADMIN
+        - STAFF
+        - VIEWER
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser & OS
+      description: What browser and operating system were you using?
+      placeholder: "e.g. Chrome 125 on Windows 11, Safari 17 on macOS 14"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code.
+      render: shell
+      placeholder: |
+        [2026-06-22 14:30:12] ERROR: Fee aggregation failed for student #4521
+        [2026-06-22 14:30:12] TypeError: Cannot read properties of null (reading 'tuitionFee')
+            at calculateAnnualTotal (src/lib/academic-year-service.ts:142)
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmation
+      description: Before submitting, please confirm the following
+      options:
+        - label: I have checked that a similar bug report does not already exist
+          required: true
+        - label: I have included all relevant information (screenshots, logs, steps)
+          required: true
+        - label: I have tested this on the latest version of the application
+          required: false
