@@ -74,6 +74,7 @@ type ScholarshipRecord = {
   coversOther: boolean;
   students: Array<{
     studentId: number;
+    academicYearId: number | null;
     student: {
       gradeLevel: string;
       fees: FeeRecord[];
@@ -959,6 +960,7 @@ function buildTotalStudentsByYear(fees: FeeYearRecord[], gradeLevel: string) {
 export async function GET(request: NextRequest) {
   try {
     const format = request.nextUrl.searchParams.get('format') || 'xlsx';
+    const academicYearParam = request.nextUrl.searchParams.get('academicYear') || '';
 
     if (format !== 'xlsx') {
       return NextResponse.json(
@@ -981,7 +983,7 @@ export async function GET(request: NextRequest) {
         orderBy: { academicYear: 'asc' },
       }),
       prisma.academicYear.findMany({
-        select: { year: true },
+        select: { id: true, year: true },
         orderBy: { year: 'asc' },
       }),
       prisma.scholarship.findMany({
@@ -989,6 +991,7 @@ export async function GET(request: NextRequest) {
           students: {
             select: {
               studentId: true,
+              academicYearId: true,
               student: {
                 select: {
                   gradeLevel: true,
@@ -1011,12 +1014,44 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Apply academic year filter if specified
+    const academicYearId = academicYearParam
+      ? academicYears.find((ay) => ay.year === academicYearParam)?.id ?? null
+      : null;
+
+    const filteredFeeYears = academicYearParam
+      ? feeYears.filter((fee) => fee.academicYear === academicYearParam)
+      : feeYears;
+
+    const filteredScholarships = academicYearParam
+      ? scholarships.map((scholarship) => ({
+          ...scholarship,
+          students: scholarship.students
+            .filter((assignment) => {
+              // Filter by academicYearId on the junction table
+              if (!academicYearId) return true;
+              return assignment.academicYearId === academicYearId;
+            })
+            .map((assignment) => ({
+              ...assignment,
+              student: assignment.student
+                ? {
+                    ...assignment.student,
+                    fees: assignment.student.fees.filter(
+                      (fee) => fee.academicYear === academicYearParam
+                    ),
+                  }
+                : null,
+            })),
+        }))
+      : scholarships;
+
     const years = resolveDisplayYears([
-      ...feeYears.map((fee) => fee.academicYear),
+      ...filteredFeeYears.map((fee) => fee.academicYear),
       ...academicYears.map((academicYear) => academicYear.year),
     ]);
-    const scholarshipRecords = scholarships as unknown as ScholarshipRecord[];
-    const feeYearRecords = feeYears as unknown as FeeYearRecord[];
+    const scholarshipRecords = filteredScholarships as unknown as ScholarshipRecord[];
+    const feeYearRecords = filteredFeeYears as unknown as FeeYearRecord[];
     const sheets = GRADE_LEVELS.map((gradeLevel) => {
       const gradeScholarships = filterScholarshipsByGrade(scholarshipRecords, gradeLevel);
       const totalStudentsByYear = buildTotalStudentsByYear(feeYearRecords, gradeLevel);
@@ -1032,6 +1067,9 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': 'attachment; filename="scholarship-summary.xlsx"',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch (error) {

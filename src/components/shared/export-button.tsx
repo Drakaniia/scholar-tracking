@@ -75,6 +75,8 @@ export function ExportButton({
 
       const exportUrl = new URL(exportEndpoint, window.location.origin);
       exportUrl.searchParams.set('format', format);
+      // Prevent browser caching of export responses
+      exportUrl.searchParams.set('_t', Date.now().toString());
 
       const res = await fetch(exportUrl.toString(), { credentials: 'include' });
 
