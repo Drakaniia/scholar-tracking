@@ -97,7 +97,11 @@ export async function GET(request: NextRequest) {
       status,
       academicYearId,
     });
-    const cachedData = queryOptimizer.get<{ scholarships: unknown[]; total: number }>(cacheKey);
+    const cachedData = queryOptimizer.get<{
+      scholarships: unknown[];
+      total: number;
+      filteredStudentCounts?: Record<number, number>;
+    }>(cacheKey);
 
     if (cachedData) {
       return NextResponse.json(
@@ -108,6 +112,7 @@ export async function GET(request: NextRequest) {
           page,
           limit,
           totalPages: Math.ceil(cachedData.total / limit),
+          filteredStudentCounts: cachedData.filteredStudentCounts,
           cached: true,
         },
         {
@@ -202,8 +207,26 @@ export async function GET(request: NextRequest) {
       prisma.scholarship.count({ where }),
     ]);
 
+    // When an academic year filter is active, compute filtered student counts
+    // so the scholarship list shows accurate student counts for that year
+    let filteredStudentCounts: Record<number, number> | undefined;
+    if (academicYearId) {
+      const studentCountAgg = await prisma.studentScholarship.groupBy({
+        by: ['scholarshipId'],
+        where: {
+          academicYearId: parseInt(academicYearId),
+          scholarshipId: { in: scholarships.map((s) => s.id) },
+        },
+        _count: { studentId: true },
+      });
+      filteredStudentCounts = {};
+      studentCountAgg.forEach((item) => {
+        filteredStudentCounts![item.scholarshipId] = item._count.studentId;
+      });
+    }
+
     // Cache for 90 seconds
-    queryOptimizer.set(cacheKey, { scholarships, total }, 90 * 1000);
+    queryOptimizer.set(cacheKey, { scholarships, total, filteredStudentCounts }, 90 * 1000);
 
     return NextResponse.json(
       {
@@ -213,6 +236,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        filteredStudentCounts,
         cached: false,
       },
       {
