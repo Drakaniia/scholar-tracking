@@ -36,7 +36,8 @@ export const queryKeys = {
   // Dashboard
   dashboard: {
     all: ['dashboard'] as const,
-    stats: (source?: string) => [...queryKeys.dashboard.all, 'stats', source] as const,
+    stats: (source?: string, gradeLevel?: string) =>
+      [...queryKeys.dashboard.all, 'stats', source, gradeLevel] as const,
     detailed: (source?: string) => [...queryKeys.dashboard.all, 'detailed', source] as const,
   },
 
@@ -392,14 +393,18 @@ function removeScholarshipsFromListQueries(
 
 export function useDashboardStats(
   source?: string,
+  gradeLevel?: string,
   options?: Partial<UseQueryOptions<ApiResponse<DashboardStats>, Error>>
 ) {
   return useQuery<ApiResponse<DashboardStats>, Error>({
-    queryKey: queryKeys.dashboard.stats(source),
+    queryKey: queryKeys.dashboard.stats(source, gradeLevel),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (source && source !== 'all') {
         params.append('source', source);
+      }
+      if (gradeLevel) {
+        params.append('gradeLevel', gradeLevel);
       }
       const url = `/api/dashboard${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url, { credentials: 'include' });

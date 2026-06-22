@@ -18,12 +18,16 @@ interface DashboardOverviewProps {
   readonly data: DashboardData;
   readonly scholarshipSourceFilter: string;
   readonly onScholarshipSourceChange: (value: string) => void;
+  readonly gradeLevelFilter: string;
+  readonly onGradeLevelChange: (value: string) => void;
 }
 
 export function DashboardOverview({
   data,
   scholarshipSourceFilter,
   onScholarshipSourceChange,
+  gradeLevelFilter,
+  onGradeLevelChange,
 }: DashboardOverviewProps) {
   const studentsChartData = getStudentsChartData(data);
   const scholarshipTypeData = getScholarshipTypeData(data);
@@ -36,6 +40,8 @@ export function DashboardOverview({
         stats={data.stats}
         scholarshipSourceFilter={scholarshipSourceFilter}
         onScholarshipSourceChange={onScholarshipSourceChange}
+        gradeLevelFilter={gradeLevelFilter}
+        onGradeLevelChange={onGradeLevelChange}
       />
 
       <DashboardKpiStrip stats={data.stats} />

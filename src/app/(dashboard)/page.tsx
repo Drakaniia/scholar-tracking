@@ -14,10 +14,15 @@ function DashboardContent() {
   const [scholarshipSourceFilter, setScholarshipSourceFilter] = useState<string>(
     searchParams.get('source') || 'all'
   );
+  const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('');
 
-  const { data: statsData, isLoading } = useDashboardStats(scholarshipSourceFilter, {
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: statsData, isLoading } = useDashboardStats(
+    scholarshipSourceFilter,
+    gradeLevelFilter,
+    {
+      staleTime: 5 * 60 * 1000,
+    }
+  );
 
   if (isLoading) {
     return <DashboardLoadingState />;
@@ -32,6 +37,8 @@ function DashboardContent() {
       data={statsData.data}
       scholarshipSourceFilter={scholarshipSourceFilter}
       onScholarshipSourceChange={setScholarshipSourceFilter}
+      gradeLevelFilter={gradeLevelFilter}
+      onGradeLevelChange={setGradeLevelFilter}
     />
   );
 }

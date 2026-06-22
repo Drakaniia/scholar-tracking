@@ -15,18 +15,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
+import { GRADE_LEVELS, GRADE_LEVEL_LABELS, SCHOLARSHIP_SOURCES, SCHOLARSHIP_SOURCE_LABELS } from '@/types';
 
 interface DashboardHeroProps {
   readonly stats: DashboardData['stats'];
   readonly scholarshipSourceFilter: string;
   readonly onScholarshipSourceChange: (value: string) => void;
+  readonly gradeLevelFilter: string;
+  readonly onGradeLevelChange: (value: string) => void;
 }
 
 export function DashboardHero({
   stats,
   scholarshipSourceFilter,
   onScholarshipSourceChange,
+  gradeLevelFilter,
+  onGradeLevelChange,
 }: DashboardHeroProps) {
   const coverageRate = getPercent(stats.studentsWithScholarships, stats.totalStudents);
   const disbursementRate = getPercent(stats.totalDisbursed, stats.totalAmountAwarded);
@@ -57,7 +61,22 @@ export function DashboardHero({
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-wrap gap-3">
+            <Select value={gradeLevelFilter} onValueChange={onGradeLevelChange}>
+              <SelectTrigger className="h-10 w-full rounded-lg border-slate-300 bg-white shadow-sm sm:w-[180px]">
+                <Filter className="mr-2 h-4 w-4 text-emerald-800" />
+                <SelectValue placeholder="All Levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Levels</SelectItem>
+                {GRADE_LEVELS.map((level) => (
+                  <SelectItem key={level} value={level}>
+                    {GRADE_LEVEL_LABELS[level]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={scholarshipSourceFilter} onValueChange={onScholarshipSourceChange}>
               <SelectTrigger className="h-10 w-full rounded-lg border-slate-300 bg-white shadow-sm sm:w-[220px]">
                 <Filter className="mr-2 h-4 w-4 text-emerald-800" />

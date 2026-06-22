@@ -189,7 +189,7 @@ export function buildPreloadQueries(options: PreloadBuildOptions = {}): PreloadQ
   const queries: PreloadQuery[] = [
     createQuery(
       'dashboard:stats:all',
-      queryKeys.dashboard.stats('all'),
+      queryKeys.dashboard.stats('all', ''),
       '/api/dashboard',
       DEFAULT_STALE_TIME
     ),
@@ -243,7 +243,7 @@ export function buildPreloadQueries(options: PreloadBuildOptions = {}): PreloadQ
     ),
     createQuery(
       'scholarship-flow:all',
-      queryKeys.scholarships.flow('all', startYear),
+      queryKeys.scholarships.flow('all', startYear, ''),
       `/api/scholarships/flow?endYear=${flowEndYear}`,
       2 * 60 * 1000
     ),

@@ -12,9 +12,13 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const sourceFilter = searchParams.get('source') || '';
+    const gradeLevel = searchParams.get('gradeLevel') || '';
 
     // Use server-side cache for expensive dashboard queries
-    const cacheKey = generateQueryKey('dashboard-stats', { source: sourceFilter });
+    const cacheKey = generateQueryKey('dashboard-stats', {
+      source: sourceFilter,
+      ...(gradeLevel ? { gradeLevel } : {}),
+    });
 
     const cachedData = queryOptimizer.get(cacheKey);
     if (cachedData) {
@@ -38,6 +42,7 @@ export async function GET(request: NextRequest) {
     const activeStudentWhere = {
       isArchived: false,
       status: 'Active',
+      ...(gradeLevel ? { gradeLevel } : {}),
     };
 
     // Batch all queries together for better performance
@@ -78,6 +83,11 @@ export async function GET(request: NextRequest) {
         prisma.studentScholarship.aggregate({
           where: {
             scholarshipStatus: 'Active',
+            ...(gradeLevel && {
+              student: {
+                gradeLevel,
+              },
+            }),
             ...(sourceFilter && {
               scholarship: {
                 source: sourceFilter,
@@ -88,26 +98,36 @@ export async function GET(request: NextRequest) {
         }),
       disbursements: () =>
         prisma.disbursement.aggregate({
-          where: sourceFilter
-            ? {
-                scholarship: {
-                  source: sourceFilter,
-                },
-              }
-            : undefined,
+          where: {
+            ...(sourceFilter
+              ? {
+                  scholarship: {
+                    source: sourceFilter,
+                  },
+                }
+              : {}),
+            ...(gradeLevel
+              ? { student: { gradeLevel } }
+              : {}),
+          },
           _sum: { amount: true },
         }),
       monthlyTrends: async () => {
         // Get recent student scholarships and disbursements
         const [scholarships, disbs] = await Promise.all([
           prisma.studentScholarship.findMany({
-            where: sourceFilter
-              ? {
-                  scholarship: {
-                    source: sourceFilter,
-                  },
-                }
-              : undefined,
+            where: {
+              ...(sourceFilter
+                ? {
+                    scholarship: {
+                      source: sourceFilter,
+                    },
+                  }
+                : {}),
+              ...(gradeLevel
+                ? { student: { gradeLevel } }
+                : {}),
+            },
             take: 100,
             orderBy: { awardDate: 'desc' },
             select: {
@@ -116,13 +136,18 @@ export async function GET(request: NextRequest) {
             },
           }),
           prisma.disbursement.findMany({
-            where: sourceFilter
-              ? {
-                  scholarship: {
-                    source: sourceFilter,
-                  },
-                }
-              : undefined,
+            where: {
+              ...(sourceFilter
+                ? {
+                    scholarship: {
+                      source: sourceFilter,
+                    },
+                  }
+                : {}),
+              ...(gradeLevel
+                ? { student: { gradeLevel } }
+                : {}),
+            },
             take: 100,
             orderBy: { disbursementDate: 'desc' },
             select: {
