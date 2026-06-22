@@ -844,10 +844,11 @@ export function useCreateScholarship() {
       return json;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      // Force immediate refetch so the list updates right away
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all, refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all, refetchType: 'all' });
       toast.success('Scholarship created successfully');
     },
     onError: (error: Error) => {
@@ -907,10 +908,11 @@ export function useDeleteScholarship() {
     },
     onSuccess: (_, id) => {
       removeScholarshipsFromListQueries(queryClient, [id]);
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      // Force immediate refetch so the list updates right away
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.lists(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.filterOptions(), refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scholarships.all, refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all, refetchType: 'all' });
       toast.success('Scholarship archived successfully');
     },
     onError: (error: Error) => {
