@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Use Promise.all to execute aggregation queries in parallel
-    const [totalResult, sourceAgg] = await Promise.all([
+    const [totalResult, sourceAgg, academicYearStudentCounts] = await Promise.all([
       // Get total count
       prisma.scholarship.count({ where }),
       // Get source counts
@@ -38,6 +38,20 @@ export async function GET(request: NextRequest) {
         where,
         _count: {
           id: true,
+        },
+      }),
+      // Get student-scholarship assignment counts per academic year (filtered by source)
+      prisma.studentScholarship.groupBy({
+        by: ['academicYearId'],
+        where: {
+          academicYearId: { not: null },
+          scholarship: {
+            isArchived: false,
+            ...(source && source !== 'all' ? { source } : {}),
+          },
+        },
+        _count: {
+          studentId: true,
         },
       }),
     ]);
@@ -51,6 +65,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Convert academic year counts to a record keyed by academic year ID
+    const academicYearCounts: Record<string, number> = {};
+    academicYearStudentCounts.forEach((item) => {
+      if (item.academicYearId !== null) {
+        academicYearCounts[String(item.academicYearId)] = item._count.studentId;
+      }
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -58,6 +80,7 @@ export async function GET(request: NextRequest) {
           total: totalResult,
           internal: sourceCounts['INTERNAL'] || 0,
           external: sourceCounts['EXTERNAL'] || 0,
+          academicYearCounts,
         },
       },
       {
