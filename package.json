@@ -95,8 +95,11 @@
     "vitest": "^4.1.0"
   },
   "overrides": {
+    "@babel/core": "7.29.6",
     "@hono/node-server": "1.19.14",
+    "dompurify": "3.4.11",
     "hono": "4.12.25",
+    "js-yaml": "4.2.0",
     "postcss": "8.5.15",
     "uuid": "11.1.1"
   }
