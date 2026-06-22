@@ -143,6 +143,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
+        academicYearRel: {
+          select: {
+            id: true,
+            year: true,
+            semester: true,
+            isActive: true,
+          },
+        },
         scholarships: {
           include: {
             scholarship: true,
@@ -237,6 +245,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (body.yearLevel !== undefined) updateData.yearLevel = body.yearLevel;
       if (body.status !== undefined) updateData.status = body.status;
       if (body.birthDate !== undefined) updateData.birthDate = body.birthDate || null;
+      if (body.academicYearId !== undefined) {
+        updateData.academicYearId = body.academicYearId ?? null;
+      }
 
       // Update student basic info
       const student = await tx.student.update({

@@ -151,7 +151,7 @@ function buildStudentWhere(
     filters.academicYearId !== 'all' &&
     !omitted.has('academicYearId')
   ) {
-    scholarshipRelationWhere.academicYearId = parseAcademicYearFilter(filters.academicYearId);
+    additionalFilters.academicYearId = parseAcademicYearFilter(filters.academicYearId);
   }
 
   if (Object.keys(scholarshipRelationWhere).length > 0 && filters.scholarshipId !== 'none') {

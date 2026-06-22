@@ -114,7 +114,7 @@ function buildArchiveWhereClause(filters: BulkArchiveFilters, isUnarchive: boole
   }
 
   if (academicYearFilter) {
-    Object.assign(where, { scholarships: { some: { academicYearId: academicYearFilter } } });
+    Object.assign(where, { academicYearId: academicYearFilter });
   }
 
   return where;

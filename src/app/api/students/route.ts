@@ -73,6 +73,7 @@ const createStudentInputSchema = z.object({
   status: requiredString('Status is required').default('Active'),
   birthDate: nullableDateSchema.optional(),
   termType: z.enum(['SEMESTER', 'TRIMESTER']).optional(),
+  academicYearId: nullablePositiveIntSchema.optional(),
   scholarshipId: nullablePositiveIntSchema.optional(),
   awardDate: nullableDateSchema.optional(),
   grantAmount: z.coerce.number().nullable().optional(),
@@ -341,20 +342,24 @@ export async function GET(request: NextRequest) {
           },
         });
       }
-    } else if ((scholarshipSource && scholarshipSource !== 'all') || academicYearFilter !== null) {
+    } else if (scholarshipSource && scholarshipSource !== 'all') {
       Object.assign(where, {
         scholarships: {
           some: {
             ...(academicYearFilter ? { academicYearId: academicYearFilter } : {}),
-            ...(scholarshipSource && scholarshipSource !== 'all'
-              ? {
-                  scholarship: {
-                    source: scholarshipSource,
-                  },
-                }
-              : {}),
+            scholarship: {
+              source: scholarshipSource,
+            },
           },
         },
+      });
+    }
+
+    // Apply academic year filter at the student level (direct field)
+    if (academicYearFilter !== null) {
+      // Use direct student academicYearId field for consistent filtering
+      Object.assign(where, {
+        academicYearId: academicYearFilter,
       });
     }
 
@@ -380,6 +385,7 @@ export async function GET(request: NextRequest) {
           transitionDecisionAt: true,
           separatedAt: true,
           separationReason: true,
+          academicYearId: true,
           scholarships: {
             select: {
               id: true,
@@ -568,6 +574,7 @@ async function createStudentRecord(client: StudentRouteClient, body: CreateStude
       status: body.status,
       birthDate: body.birthDate || null,
       termType: body.termType || 'SEMESTER',
+      academicYearId: body.academicYearId ?? null,
     },
   });
 
