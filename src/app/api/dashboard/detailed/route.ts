@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         middleInitial: true,
         gradeLevel: true,
         yearLevel: true,
+        academicYearId: true,
         scholarships: sourceFilter
           ? {
               where: {

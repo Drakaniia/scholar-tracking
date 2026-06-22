@@ -38,6 +38,7 @@ interface DetailedStudent {
   middleInitial: string | null;
   gradeLevel: string;
   yearLevel: string;
+  academicYearId?: number | null;
   scholarships: Array<{
     academicYearId: number | null;
     scholarship: {
@@ -254,6 +255,11 @@ export default function ReportsPage() {
   // Check if student has data (fees or scholarships) for the selected academic year
   const hasAcademicYearData = (student: DetailedStudent): boolean => {
     if (academicYearFilter === 'all') return true;
+    // Check student's direct academicYearId field
+    if (student.academicYearId) {
+      const ayYear = yearById.get(student.academicYearId);
+      if (ayYear === academicYearFilter) return true;
+    }
     // Check fee records (by stored string or resolved via academicYearId)
     if (student.fees?.some((fee) => fee.academicYear === academicYearFilter || (fee.academicYearId && yearById.get(fee.academicYearId) === academicYearFilter))) return true;
     // Check scholarship records by academic year ID
@@ -395,6 +401,11 @@ export default function ReportsPage() {
     ? `/api/export/students?source=${exportSourceFilter}`
     : '/api/export/students';
 
+  const summaryExportEndpoint =
+    academicYearFilter !== 'all'
+      ? `/api/export/summary?academicYear=${encodeURIComponent(academicYearFilter)}`
+      : '/api/export/summary';
+
   // Aggregate fees by academic year (sum all semesters), returning most recent year.
   // When selectedYear is provided ('all' or specific year), only aggregate fees for that year.
   const aggregateFeesByAcademicYear = (
@@ -519,7 +530,7 @@ export default function ReportsPage() {
             filename="detailed-student-scholarship-report"
             extraItems={[
               {
-                endpoint: '/api/export/summary',
+                endpoint: summaryExportEndpoint,
                 filename: 'scholarship-summary-by-grade-level',
                 format: 'xlsx',
                 label: 'Summary Excel by Grade Level',
