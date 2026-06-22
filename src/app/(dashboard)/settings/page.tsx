@@ -2317,9 +2317,6 @@ export default function SettingsPage() {
   const canUndoPromotion = Boolean(activeAcademicYear?.promotionProcessedAt);
   const allArchivedStudentsSelected =
     archivedStudents.length > 0 && selectedArchivedStudentIds.length === archivedStudents.length;
-  const effectiveArchivedCount = studentSelectAllAcrossPages
-    ? studentTotal
-    : selectedArchivedStudentIds.length;
   const showArchivedSelectAllBanner =
     allArchivedStudentsSelected &&
     !studentSelectAllAcrossPages &&

@@ -371,7 +371,6 @@ function StudentsTableLoading({
   canManageStudents: boolean;
   isAdmin: boolean;
 }) {
-  const checkboxCols = isAdmin ? 1 : 0;
   const bodyColumns = canManageStudents ? 7 : 6;
 
   return (

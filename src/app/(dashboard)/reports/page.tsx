@@ -173,9 +173,6 @@ export default function ReportsPage() {
   const [scholarshipNamesByGradeAndType, setScholarshipNamesByGradeAndType] = useState<
     Record<string, Record<string, string[]>>
   >({});
-  const [scholarshipSourcesByGradeAndType, setScholarshipSourcesByGradeAndType] = useState<
-    Record<string, Record<string, string[]>>
-  >({});
   const [gradeLevelFilter, setGradeLevelFilter] = useState<string>('all');
   const [academicYearFilter, setAcademicYearFilter] = useState<string>('all');
   const [fundingTypeFilter, setFundingTypeFilter] = useState<'all' | 'internal' | 'external'>(
@@ -201,23 +198,16 @@ export default function ReportsPage() {
 
       // Extract unique scholarship names per grade level and type
       const namesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
-      const sourcesByGradeAndType: Record<string, Record<string, Set<string>>> = {};
 
       detailedData.data.forEach((student: DetailedStudent) => {
         const gradeLevel = student.gradeLevel;
         if (!namesByGradeAndType[gradeLevel]) {
           namesByGradeAndType[gradeLevel] = {};
         }
-        if (!sourcesByGradeAndType[gradeLevel]) {
-          sourcesByGradeAndType[gradeLevel] = {};
-        }
 
         if (!student.scholarships || student.scholarships.length === 0) {
           if (!namesByGradeAndType[gradeLevel]['No Scholarship']) {
             namesByGradeAndType[gradeLevel]['No Scholarship'] = new Set();
-          }
-          if (!sourcesByGradeAndType[gradeLevel]['No Scholarship']) {
-            sourcesByGradeAndType[gradeLevel]['No Scholarship'] = new Set();
           }
           namesByGradeAndType[gradeLevel]['No Scholarship'].add('Unassigned');
         } else {
@@ -227,13 +217,7 @@ export default function ReportsPage() {
               if (!namesByGradeAndType[gradeLevel][type]) {
                 namesByGradeAndType[gradeLevel][type] = new Set();
               }
-              if (!sourcesByGradeAndType[gradeLevel][type]) {
-                sourcesByGradeAndType[gradeLevel][type] = new Set();
-              }
               namesByGradeAndType[gradeLevel][type].add(ss.scholarship.scholarshipName);
-              if (ss.scholarship.source) {
-                sourcesByGradeAndType[gradeLevel][type].add(ss.scholarship.source);
-              }
             }
           });
         }
@@ -250,17 +234,6 @@ export default function ReportsPage() {
         });
       });
       setScholarshipNamesByGradeAndType(sortedNamesByGradeAndType);
-
-      const sortedSourcesByGradeAndType: Record<string, Record<string, string[]>> = {};
-      Object.keys(sourcesByGradeAndType).forEach((grade) => {
-        sortedSourcesByGradeAndType[grade] = {};
-        Object.keys(sourcesByGradeAndType[grade]).forEach((type) => {
-          sortedSourcesByGradeAndType[grade][type] = Array.from(
-            sourcesByGradeAndType[grade][type]
-          ).sort();
-        });
-      });
-      setScholarshipSourcesByGradeAndType(sortedSourcesByGradeAndType);
     }
   }, [detailedData]);
 

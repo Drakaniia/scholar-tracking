@@ -24,8 +24,6 @@ export function getPaginationRange(
     return range(1, totalPages);
   }
 
-  const totalPageNumbers = SIBLING_COUNT * 2 + 5;
-
   const leftSiblingIndex = Math.max(page - SIBLING_COUNT, 1);
   const rightSiblingIndex = Math.min(page + SIBLING_COUNT, totalPages);
 

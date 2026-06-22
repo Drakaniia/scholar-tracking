@@ -6,10 +6,6 @@ import { getSession, logAudit } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { queryOptimizer } from '@/lib/query-optimizer';
 
-type PermanentDeleteFilters = {
-  archived?: boolean;
-};
-
 const permanentDeleteByIdsSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1, 'Select at least one archived student'),
 });
