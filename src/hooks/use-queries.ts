@@ -516,8 +516,8 @@ export function useStudentFilterOptions(
       }
       return response.json();
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 0, // Always fetch fresh data for instant filter updates
+    gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
     ...options,
   });
 }
@@ -832,8 +832,8 @@ export function useScholarshipFilterOptions(
       }
       return response.json();
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 0, // Always fetch fresh data for instant filter updates
+    gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
     ...options,
   });
 }
